@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROJECT_DIR="${PWD}"
+
+# --- Stack detection ---
+detected_stacks=()
+
+if [ -f "${PROJECT_DIR}/package.json" ]; then
+    if grep -q '"next"' "${PROJECT_DIR}/package.json" 2>/dev/null; then
+        detected_stacks+=("nextjs")
+    elif grep -q '"react"' "${PROJECT_DIR}/package.json" 2>/dev/null; then
+        detected_stacks+=("react")
+    fi
+    if grep -q '"playwright"' "${PROJECT_DIR}/package.json" 2>/dev/null || \
+       grep -q '"@playwright/test"' "${PROJECT_DIR}/package.json" 2>/dev/null; then
+        detected_stacks+=("playwright")
+    fi
+fi
+
+if [ -f "${PROJECT_DIR}/pyproject.toml" ] || [ -f "${PROJECT_DIR}/requirements.txt" ]; then
+    detected_stacks+=("python")
+fi
+
+if [ -f "${PROJECT_DIR}/Cargo.toml" ]; then
+    detected_stacks+=("rust")
+fi
+
+if [ -f "${PROJECT_DIR}/go.mod" ]; then
+    detected_stacks+=("go")
+fi
+
+# --- JSON escape helper ---
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# --- Build context ---
+combined_context=""
+
+# Always include general rules
+if [ -f "${PLUGIN_ROOT}/rules/general.md" ]; then
+    combined_context=$(cat "${PLUGIN_ROOT}/rules/general.md")
+fi
+
+# Append detected stack rules
+for stack in "${detected_stacks[@]}"; do
+    rules_file="${PLUGIN_ROOT}/rules/stacks/${stack}.md"
+    if [ -f "$rules_file" ]; then
+        stack_content=$(cat "$rules_file")
+        combined_context="${combined_context}
+${stack_content}"
+    fi
+done
+
+# Check for superpowers companion (any version subdir)
+superpowers_dir="${HOME}/.claude/plugins/cache/claude-plugins-official/superpowers"
+if [ ! -d "$superpowers_dir" ]; then
+    combined_context="${combined_context}
+
+<important-reminder>⚠️ Polaris works best alongside Superpowers. Install it with: /plugin install superpowers@claude-plugins-official</important-reminder>"
+fi
+
+escaped_context=$(escape_for_json "$combined_context")
+
+# --- Platform-appropriate output ---
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+else
+    printf '{\n  "additionalContext": "%s"\n}\n' "$escaped_context"
+fi
+
+exit 0
