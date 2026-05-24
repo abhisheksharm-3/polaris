@@ -1,0 +1,20 @@
+{
+  "name": "polaris-marketplace",
+  "description": "Polaris plugin marketplace",
+  "owner": {
+    "name": "Abhishek Sharma",
+    "email": "abhitiku2003@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "polaris",
+      "description": "Design intelligence + stack-aware skills for Claude Code.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "Abhishek Sharma",
+        "email": "abhitiku2003@gmail.com"
+      }
+    }
+  ]
+}

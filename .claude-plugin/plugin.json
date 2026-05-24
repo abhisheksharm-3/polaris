@@ -1,0 +1,13 @@
+{
+  "name": "polaris",
+  "description": "Design intelligence + stack-aware skills for Claude Code. Auto-detects your stack and routes to the right skill. Companion: superpowers@claude-plugins-official.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Abhishek Sharma",
+    "email": "abhitiku2003@gmail.com"
+  },
+  "homepage": "https://github.com/abhisheksharm-3/polaris",
+  "repository": "https://github.com/abhisheksharm-3/polaris",
+  "license": "MIT",
+  "keywords": ["design", "ui-ux", "nextjs", "react", "playwright", "stack-aware", "auto-detect"]
+}
