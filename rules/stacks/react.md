@@ -1,24 +1,129 @@
 # React Stack Rules (non-Next.js)
 
+---
+
+## Before Starting Any Work
+
+Check installed versions:
+```bash
+cat package.json | grep -E '"(react|react-dom|@tanstack/react-query|zustand|vite|typescript)"'
+```
+
+Fetch current docs:
+- **React 19**: WebFetch `https://react.dev/reference/react` — useOptimistic, useTransition, use()
+- **React Query v5**: WebFetch `https://tanstack.com/query/latest/docs/framework/react/overview`
+- **Vite**: WebFetch `https://vitejs.dev/guide/` if used as build tool
+- **Zustand**: WebFetch `https://docs.pmnd.rs/zustand/getting-started/introduction`
+
+---
+
+## React 19 — Required Features
+
+### useOptimistic for all mutations
+```typescript
+const [optimisticItems, addOptimistic] = useOptimistic(
+  items,
+  (state, newItem: ItemType) => [...state, { ...newItem, pending: true }]
+);
+```
+
+### useTransition for non-urgent updates
+```typescript
+const [isPending, startTransition] = useTransition();
+
+function handleFilterChange(filter: FilterType) {
+  startTransition(() => setActiveFilter(filter));
+}
+```
+
+### use() for Suspense-based async
+```typescript
+// In a component wrapped in <Suspense>
+const data = use(fetchDataPromise);
+```
+
+### ref as prop (no forwardRef)
+```typescript
+function Input({ ref, ...props }: InputProps & { ref?: React.Ref<HTMLInputElement> }) {
+  return <input ref={ref} {...props} />;
+}
+```
+
+---
+
 ## Component Architecture
-- Functional components only. No class components.
-- Custom hooks for all reusable stateful logic.
-- `'use client'` not applicable here — manage data fetching with React Query or SWR.
+
+- **Functional components only** — no class components
+- **Server Components**: not available in pure React (non-Next.js) — all components are client-side
+- **Custom hooks** for all reusable stateful logic (one hook per file)
+- **Co-locate** component, its hook, and its types in the same feature directory
+- **No prop drilling beyond 2 levels** — use Zustand store or React Context
 
 ## Data Fetching
-- React Query (TanStack Query) for all server state.
-- No raw `fetch()` inside components — always in a query function.
+
+- **React Query for all server state** — no raw `fetch()` inside components
+- **Zustand for client-only state** (UI state, preferences, offline data)
+- **Never mix** server state in Zustand (it has no invalidation/sync mechanism)
+
+```typescript
+// Query — in hooks/use-users-query.ts
+export function useUsersQuery() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const response = await fetch('/api/users');
+      if (!response.ok) throw new Error('Failed to fetch users');
+      return response.json() as Promise<UserType[]>;
+    },
+    staleTime: 60_000,
+  });
+}
+
+// Mutation with optimistic update
+export function useCreateUserMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateUserInputType) =>
+      fetch('/api/users', { method: 'POST', body: JSON.stringify(data) }).then(r => r.json()),
+    onMutate: async (newUser) => {
+      await queryClient.cancelQueries({ queryKey: ['users'] });
+      const previous = queryClient.getQueryData<UserType[]>(['users']);
+      queryClient.setQueryData<UserType[]>(['users'], old => [...(old ?? []), { id: 'temp', ...newUser }]);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(['users'], context?.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+```
 
 ## Styling
-- Tailwind CSS preferred. CSS Modules acceptable for complex scoped styles.
-- No inline `style={{}}` except for dynamic values that can't be expressed in Tailwind.
+
+- **Tailwind CSS** for 90% of styling
+- **CSS Modules** only for complex scoped animations or third-party component overrides
+- **No inline `style={{}}`** except for truly dynamic values (e.g., calculated widths from JS)
+- **No hardcoded hex values** — use Tailwind config tokens
 
 ## Performance
-- `React.memo()` only when profiling shows a real problem.
-- `useCallback` for event handlers passed as props to memoized children.
-- Lazy load routes with `React.lazy()` + `Suspense`.
+
+- `React.memo()` only after profiling confirms a re-render problem — not preemptively
+- `useCallback` for event handlers passed to memoized child components
+- `useMemo` for expensive computations, not for derived state that is cheap to compute
+- Lazy load route-level components: `const Page = React.lazy(() => import('./Page'))`
+- Always wrap lazy routes in `<Suspense fallback={<PageSkeleton />}>`
+
+## TypeScript
+
+- No `as any`, `@ts-ignore`, `@ts-expect-error`
+- All props typed with explicit interfaces (no `{}` or `object`)
+- All exported functions have explicit return types
+- All types extracted to `types.ts` — no inline complex types
 
 ## Quality Gates
-- No `as any`.
-- All props typed with explicit interfaces (no implicit `any` from missing types).
-- Components under 200 lines — split if larger.
+
+- Components under 150 lines — split if larger
+- No duplicate utility functions — search before creating
+- No orphan files — every file is imported somewhere
+- JSDoc on all exported hooks and utility functions
