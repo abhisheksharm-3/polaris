@@ -242,6 +242,50 @@ type ResultType<T> = { success: true; data: T } | { success: false; error: strin
 
 ---
 
+## Types Isolation — Strict Rule
+
+Every `type`, `interface`, and Zod-derived type lives **only** in a dedicated `types.ts` (or `types/` directory). Never defined inside component files, hook files, action files, or anywhere else.
+
+```typescript
+// BANNED — type defined in a component file
+// features/users/components/UserCard.tsx
+type UserCardPropsType = { user: UserType; onDelete: (id: string) => void };
+export function UserCard({ user, onDelete }: UserCardPropsType) { ... }
+
+// REQUIRED — type in types.ts, imported everywhere
+// features/users/types.ts
+export type UserCardPropsType = { user: UserType; onDelete: (id: string) => void };
+
+// features/users/components/UserCard.tsx
+import type { UserCardPropsType } from '../types';
+export function UserCard({ user, onDelete }: UserCardPropsType) { ... }
+```
+
+All types are suffixed with `Type`. Zod schemas suffixed with `Schema`. No exceptions.
+
+---
+
+## No Barrel Exports
+
+No `index.ts` files that re-export from other modules. Import directly from the source file.
+
+```typescript
+// BANNED — barrel file
+// features/users/index.ts
+export * from './UserCard';
+export * from './types';
+export * from './actions';
+
+// REQUIRED — direct imports
+import { UserCard } from '@/features/users/components/UserCard';
+import type { UserType } from '@/features/users/types';
+import { createUserAction } from '@/features/users/actions';
+```
+
+Barrel files hide import sources, create circular dependency traps, and break tree-shaking. If a feature exports too many things, it's doing too much — split it, don't barrel it.
+
+---
+
 ## Directory Structure
 
 ```

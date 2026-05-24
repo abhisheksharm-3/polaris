@@ -273,7 +273,9 @@ Rules:
 
 ## Step 3: Quality Gate (run before marking complete)
 
-- [ ] Types all exported from `types.ts`, derived from Zod schemas where applicable
+- [ ] All types and interfaces exported from `types.ts` — zero types defined in component, hook, or action files
+- [ ] All type names suffixed with `Type` (e.g. `UserType`, `OrderStatusType`)
+- [ ] No `index.ts` barrel files created — all imports use direct file paths
 - [ ] Every Server Action: session check → Zod validation → DB call → revalidate
 - [ ] All client-side data via React Query hooks (no raw `fetch()` in components)
 - [ ] Optimistic updates on all list mutations

@@ -53,6 +53,20 @@ const actions: DeployActionType[] = [];
 
 A type is "complex" if it has more than one property, uses union/intersection, or is used more than once.
 
+### Types Isolation
+
+- [ ] **No type/interface defined outside `types.ts`** — every `type`, `interface`, and `z.infer<>` belongs in the feature's `types.ts`. Move any found in component files, hook files, or action files.
+- [ ] **All type names end in `Type`** — rename `User` → `UserType`, `Order` → `OrderType`, etc.
+- [ ] **No barrel `index.ts` files** — if any `index.ts` re-exports from multiple modules, delete it and update all importers to use direct paths:
+  ```typescript
+  // BANNED
+  import { UserCard, UserType, createUserAction } from '@/features/users';
+  // REQUIRED
+  import { UserCard } from '@/features/users/components/UserCard';
+  import type { UserType } from '@/features/users/types';
+  import { createUserAction } from '@/features/users/actions';
+  ```
+
 ### Import Hygiene
 
 - [ ] **No dynamic inline imports** inside function bodies unless genuinely lazy-loading:
