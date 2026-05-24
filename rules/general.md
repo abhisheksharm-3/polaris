@@ -64,7 +64,72 @@ Before writing a new utility function, search the codebase for existing implemen
 - Delete the duplicate
 - Never have two functions that do the same thing in different files
 
-### Extract Complex Inline Types
+### Types Live Only in Dedicated Type Files
+
+Every type, interface, or model definition belongs in a dedicated `types.ts` (or `types/` directory) file — **never** defined in component files, hook files, action files, or anywhere else.
+
+```typescript
+// WRONG — type defined in a component file
+// UserCard.tsx
+type UserCardPropsType = {
+  user: UserType;
+  onDelete: (id: string) => void;
+};
+
+export function UserCard({ user, onDelete }: UserCardPropsType) { ... }
+
+// RIGHT — type defined in types.ts, imported everywhere
+// features/users/types.ts
+export type UserCardPropsType = {
+  user: UserType;
+  onDelete: (id: string) => void;
+};
+
+// UserCard.tsx
+import type { UserCardPropsType } from './types';
+export function UserCard({ user, onDelete }: UserCardPropsType) { ... }
+```
+
+This applies to:
+- TypeScript `type` declarations
+- TypeScript `interface` declarations
+- Zod schema-derived types (`z.infer<>`)
+- Enum-like union types
+- Prop types for components
+- API request/response shapes
+- Store state shapes
+
+**The only exception:** a type so trivially simple and used only once that extracting it would create more confusion than leaving it inline (e.g., a one-off `type IdType = string`). When in doubt, extract it.
+
+---
+
+## No Barrel Exports
+
+No `index.ts` files that re-export from other modules. Barrel files:
+- Hide the true import source, making codebase navigation harder
+- Create circular dependency traps
+- Break tree-shaking in bundlers
+- Make refactoring riskier (moving a file breaks all barrel importers)
+
+```typescript
+// BANNED — barrel export file
+// features/users/index.ts
+export * from './UserCard';
+export * from './UserList';
+export * from './types';
+export * from './actions';
+
+// REQUIRED — direct imports always
+import { UserCard } from '@/features/users/components/UserCard';
+import type { UserType } from '@/features/users/types';
+import { createUserAction } from '@/features/users/actions';
+```
+
+If a feature's public surface has many exports that are used externally, that is a sign the feature is doing too much — split it, do not barrel it.
+
+---
+
+## Extract Complex Inline Types
 Never write complex types inline where they are used. Extract to a named top-level type.
 
 ```typescript
