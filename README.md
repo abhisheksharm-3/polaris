@@ -10,6 +10,7 @@ Design intelligence + stack-aware skills for Claude Code. Auto-detects your proj
 | `polaris:ui-polish` skill | Impeccable | Audit, refine, and quality-check UI with 27 anti-pattern rules |
 | `polaris:ui-prototype` skill | Huashu Design | Create prototypes, slide decks, motion graphics, and infographics |
 | `polaris:playwright-e2e` skill | playwright-skill | Browser automation and E2E testing with Playwright |
+| `/init` command | Karpathy 12-rule template | Creates or audits CLAUDE.md with behavioral rules + project context |
 | Frontend baseline rules | Taste-Skill | Always-on design quality constraints (no AI purple, no emoji icons, etc.) |
 | Next.js agents | abhisheksharm-3 gist | Four specialized agents for Next.js 15+ / React 19 workflows |
 | Auto-detect hook | Custom | Detects stack at session start, injects the right rules automatically |
@@ -46,6 +47,16 @@ Polaris auto-injects rules and agent routing for:
 - **Rust** (detects `Cargo.toml`)
 - **Go** (detects `go.mod`)
 - **Playwright** (detects `"playwright"` or `"@playwright/test"` in package.json)
+
+## `/init` — CLAUDE.md generator
+
+Run `/init` (or `/polaris:init`) at the root of any project to set up a `CLAUDE.md` file.
+
+**No existing CLAUDE.md:** scans your project (commands, architecture, README, cursor rules) and generates a file combining the [Karpathy 12-rule behavioral template](https://www.reddit.com/r/AskVibecoders/comments/1ta7yr8/) with your project-specific context.
+
+**CLAUDE.md already exists:** audits it for missing behavioral rules and stale project sections, then proposes targeted diffs.
+
+The generated file always includes all 12 behavioral rules and stays under the 200-line compliance ceiling.
 
 ## Skill routing
 
