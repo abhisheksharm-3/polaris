@@ -582,20 +582,44 @@ Rules:
 
 ## 8. Subsystem E: persistent memory and retrieval (deferred)
 
-Scoped now, built later. The pain it solves: not having to re-explain context every morning
-or in every new thread.
+Scoped now, built later. The pain it solves: not having to re-explain context every morning or
+in every new thread.
 
-- Every session writes to a persistent memory store, with pruning so it does not grow
-  unbounded.
-- Retrieval on demand via RAG across everything.
-- Connectors to external systems (Jira, Slack, Gmail, and others) to pull current tasks and
-  context.
-- A session-start choice: begin in Polaris hook mode or normal Claude mode. In hook mode,
-  Polaris pulls context from everywhere and lays out what you were last working on, what else
-  is open, and what it recommends doing next based on all of it.
+### 8.1 What it holds
 
-This is genuine infrastructure (a store, embeddings, connectors, a hook), not markdown skills.
-It gets its own spec when its turn comes.
+Three kinds of memory, each with a different lifetime:
+
+- **Working memory** — what the current and recent sessions were doing: the active task, open
+  threads, decisions in flight. Short-lived, pruned aggressively.
+- **Project memory** — durable facts about the project: architecture, conventions, decisions,
+  the config, recurring gotchas. Long-lived, curated.
+- **External context** — pulled live from connectors, not stored: Jira tickets, Slack threads,
+  email, calendar, analytics. Fetched on demand, never the source of truth.
+
+The existing file-based memory (the `memory/` directory this session already writes to) is the
+seed for working and project memory. Subsystem E grows it into a retrievable store.
+
+### 8.2 How it works
+
+- **Write.** Sessions write structured memory entries as they go, the same shape the current
+  memory system uses, with a type and a one-line description.
+- **Prune.** A background pass ages out stale working memory and dedupes, so the store stays
+  small and relevant. Project memory is kept unless contradicted.
+- **Retrieve.** On demand via RAG: embed the entries, retrieve the relevant ones for the task
+  at hand rather than loading everything. This is why it is real infrastructure (a store plus
+  embeddings), not markdown.
+- **Connect.** MCP connectors (Jira, Slack, Gmail, Calendar, analytics) pull external context.
+  All connector data passes the injection classifier (§4.3) before use.
+
+### 8.3 Startup catch-up
+
+A session-start choice: begin in Polaris hook mode or normal Claude mode. In hook mode, Polaris
+pulls from memory and the connectors and lays out what you were last working on, what else is
+open, and what it recommends doing next based on all of it. This is the "turn it on in the
+morning and it already knows" experience.
+
+It gets its own spec when its turn comes. The dependency that makes it safe to build, the
+injection classifier (I), is part of the foundation.
 
 ---
 
@@ -614,7 +638,88 @@ Toggleable per the user's preference. Small and standalone; slots in whenever co
 
 ---
 
-## 10. Decisions locked so far
+## 10. How it maps to Claude Code
+
+The vision is ambitious, so it needs an anchor in what Claude Code actually provides. Each
+subsystem maps to concrete primitives: agents (`agents/*.md`), skills (`skills/*/SKILL.md`),
+slash commands (`commands/*.md`), hooks (`hooks/`), MCP servers, and subagent dispatch (the
+Agent tool and Workflow for deterministic fan-out).
+
+| Subsystem | Built from |
+|---|---|
+| A quality foundation | `rules/` (prose + `patterns.json`), `skills/quality-gate`, `hooks/` (session-start, guard-commit-pr, guard-edit), `commands/gate`, `agents/code-cleanup` + `audit-refactor` |
+| B agent fleet | one `agents/*.md` per role, each wiring skills |
+| C handoff + audit docs | agents + `commands/` (handoff, audit), writing to the run workspace |
+| D cycle | an orchestrator command dispatching subagents in sequence and parallel; Workflow scripts for the deterministic fan-out and verify loops |
+| E memory | an MCP store + embeddings + the session-start hook |
+| F prompt enhancing | a `UserPromptSubmit` hook: judge, then the enhancer agent |
+| G standalone modes | `commands/*` that invoke a scoped agent, worktree-isolated |
+| H dynamic synthesis | `skill-creator` + the `skillsmp` registry MCP + an ephemeral agent |
+| I guardrails | a classifier skill invoked on untrusted tool results and fetched content |
+| J model routing | a selector step; agents and commands pick their model from the policy |
+
+### 10.1 Command surface
+
+What the user types. The set grows, but the spine:
+
+| Command | Does |
+|---|---|
+| `/polaris` (or `init`) | Setup interview, write `.polaris/config.json`, ensure companions |
+| `/gate` | Run the quality gate on the changeset |
+| `/audit` | Whole-codebase audit (subsystem C) |
+| `/flow` | Run the full orchestration cycle on a task |
+| `/research` | Project research / feature ideation mode (G) |
+| `/onboard` | Dev onboarding mode (G) |
+| `/explain` | Codebase explainer mode (G) |
+| `/handoff` | Generate a handoff doc (C) |
+| `/ship` | Commit, PR, CI-to-green (phase 8) |
+
+---
+
+## 11. Cross-cutting operations
+
+Concerns that apply to every subsystem, not just one.
+
+- **Run workspace and artifacts.** Everything Polaris produces lands in a single `.polaris/`
+  tree per project: `config.json`, and `runs/`, `specs/`, `plans/`, `reports/`, `handoffs/`.
+  This is the enforced doc organization from subsystem C, applied to Polaris's own output. No
+  stray files.
+- **Human approval model.** Approval gates are explicit and consolidated at the phase
+  boundaries in §5 (spec, design, plan). Nothing irreversible or outward-facing (a push, a PR,
+  a message to a connector) happens without confirmation unless the config authorizes it.
+- **Failure handling and loop caps.** Every verify-until-green loop has a maximum iteration
+  count. On non-convergence Polaris stops, reports the remaining failures and the state, and
+  escalates to a human rather than looping forever. Retries are bounded. No silent give-up and
+  no infinite loop.
+- **Budgets and cost.** A fleet of Opus agents is expensive. Each run carries a token or cost
+  budget; model routing (J) keeps the floor sensible; the final report states what was spent.
+  A run that would exceed its budget pauses and asks.
+- **Concurrency and isolation.** Parallel sub-plans and standalone modes run in git worktrees
+  so they do not collide, under a concurrency cap.
+- **Observability.** Every run logs which agents ran, on which model, at what cost, with what
+  findings and outcomes. The run history under `.polaris/runs/` lets you inspect exactly what
+  Polaris did and why.
+- **Privacy.** Connector data is sensitive. It is used in-session and not persisted unless the
+  user opts in, and it always passes the injection classifier first.
+
+---
+
+## 12. Milestones
+
+Each milestone is independently useful the day it ships.
+
+| Milestone | Contents |
+|---|---|
+| **M1** | Slice A: the standard, the gate, the hooks, the config, companions. The foundation. |
+| **M2** | Subsystem C: handoff-doc creator and the strict audit agent, run-workspace layout. |
+| **M3** | Subsystem B core agents + J model routing + I guardrails. |
+| **M4** | Subsystem D cycle (the orchestrator) + G standalone modes. |
+| **M5** | F prompt enhancing + H dynamic agent synthesis. |
+| **M6** | E persistent memory and connectors. |
+
+---
+
+## 13. Decisions locked so far
 
 | Decision | Choice |
 |---|---|
@@ -636,8 +741,14 @@ Toggleable per the user's preference. Small and standalone; slots in whenever co
 
 ---
 
-## 11. Open questions
+## 14. Open questions
 
 - Exact `patterns.json` schema and how per-stack tokens are namespaced.
 - Whether `guard-edit` blocks or only surfaces once it has proven itself in real use.
+- Orchestrator (D) as a single command dispatching subagents, or a Workflow script, or a mix.
+  Leaning toward a command that calls Workflow for the deterministic fan-out and verify loops.
+- How the prompt-injection classifier (I) is implemented: a fast model call, a skill, or a
+  hook, and where exactly it intercepts.
+- Budget mechanism: per-run token ceiling and how a run pauses when it would exceed it.
+- Connector authentication in headless or scheduled runs, where interactive auth is absent.
 - The full memory architecture (subsystem E), deferred until its slice.
