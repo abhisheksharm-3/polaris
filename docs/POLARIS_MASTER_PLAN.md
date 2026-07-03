@@ -17,16 +17,25 @@ Polaris today is a design-intelligence and stack-aware quality layer for Claude 
 quality agents, four UI skills, an anti-slop ruleset, and a session-start hook that detects
 the stack and injects rules.
 
-Polaris is becoming an opinionated, end-to-end engineering system for Claude Code. It runs the
-full software development lifecycle, from a rough idea through research, design, build, review,
-QA, docs, ship, and operate, with a specialized agent for every role. It holds one quality bar
-across every step: the code it produces is simple, performant, secure, self-explanatory, and
-low in complexity, and every line of prose it emits (comments, commit messages, PR text, docs)
-reads like a careful human wrote it, not an LLM.
+Polaris is becoming an all-in-one operating system for a project inside Claude Code. It runs
+the full software development lifecycle, from a rough idea through research, design, build,
+review, QA, docs, ship, and operate, and it also runs the work around the code: product and
+feature research, marketing and growth, brainstorming, and operations. Anything a person does
+for a project, Polaris aims to do well, through three surfaces:
 
-The north star: you should be able to hand Polaris a PRD or a vague idea, answer its questions,
-approve its spec and plan, and get back a reviewed, tested, CI-green, documented change built to
-a standard you did not have to police by hand.
+- **The feature cycle** (subsystem D): the orchestrated idea-to-shipped lifecycle.
+- **Standalone modes** (§6.1): task-scoped agents you invoke on their own, such as researching
+  what to build next or onboarding a new developer.
+- **Dynamic agents** (§6.2): agents synthesized on the fly from the skill registries for a task
+  no predefined agent covers.
+
+It holds one quality bar across all of it: the code it produces is simple, performant, secure,
+self-explanatory, and low in complexity, and every line of prose it emits (comments, commits,
+PR text, docs, and marketing copy) reads like a careful human wrote it, not an LLM.
+
+The north star: you should be able to hand Polaris a PRD, a vague idea, or a standing question
+like "what should we build next", and get back work done to a standard you did not have to
+police by hand.
 
 ---
 
@@ -123,21 +132,27 @@ The config is produced by the setup interview and can be re-run any time.
 
 ---
 
-## 3. The six subsystems
+## 3. The subsystems
 
-Polaris is not one project. It is six, built in order. Each is independently useful the day
-it ships.
+Polaris is not one project. It is a set of subsystems, built in order. Each is independently
+useful the day it ships.
 
 | # | Subsystem | What it is | Depends on | Status |
 |---|---|---|---|---|
 | **A** | Quality foundation | One canonical standard + a callable gate + opt-in hooks. The bedrock everything references. | none | **In design.** Spec: `docs/specs/2026-07-03-slice-a-quality-foundation.md` |
-| **B** | Agent fleet | A specialized agent for every SDLC role: product, research, architecture, API and data design, security, UX, UI, implementation, review, QA, docs, ship, devops, ops, and maintenance. Each wires the right host skills. | A | Planned |
+| **B** | Agent fleet | A specialized agent for every role across every domain (§3.3): engineering, product, research, marketing, docs, and ops. Each wires the right host skills. | A | Planned |
 | **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | Planned |
-| **D** | Orchestration flow | The full idea-to-merged-PR loop. A thin orchestrator that chains A, B, C. | A, B, C | Planned |
-| **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, external connectors, startup catch-up. | independent infra | Deferred (scoped in §7) |
-| **F** | Prompt enhancing | Toggleable prompt enhancement. | none | Backlog (small) |
+| **D** | Orchestration cycle | The full idea-to-shipped lifecycle. A thin orchestrator that chains A, B, C. | A, B, C | Planned |
+| **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, external connectors, startup catch-up. | independent infra | Deferred (scoped in §8) |
+| **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | Backlog (small) |
+| **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | Planned |
+| **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | Designed, may not ship first |
+| **I** | Guardrails | Built-in prompt-injection classifier screening untrusted input before Polaris acts on it. Detailed in §4.3. | A | Planned (foundation safety) |
+| **J** | Model routing | Selector agent + minimum-model-per-task policy. Detailed in §6.3. | A, B | Planned |
 
-Build order: **A, then C, then B, then D.** E and F slot in independently.
+Build order: **A, then C, then B, then D**, with G riding on B and J landing with B. E, F, and H
+slot in independently. I is part of the foundation safety layer and lands with A once connectors
+or auto-install are live.
 
 ### 3.1 The architectural rule that shapes everything
 
@@ -167,6 +182,22 @@ real team fills, not only the coding ones. The phases:
 Subsystem D (§5) is the cycle that runs these phases. Subsystem B (§6) is the fleet of role
 agents that staff them. The fleet is the full roster; it is built incrementally, not all at
 once.
+
+### 3.3 Domains: beyond engineering
+
+Polaris covers a project's whole surface, not only its code. The domains, each staffed by its
+own agents (§6) and available as standalone modes (§6.1):
+
+- **Build** — the SDLC in §3.2.
+- **Product and research** — feature ideation, user and market research, competitive analysis,
+  feasibility, roadmap input.
+- **Marketing and growth** — content, SEO, social, email, ads, landing pages, branding, launch
+  campaigns.
+- **Docs and comms** — technical docs, changelogs, announcements, internal writeups.
+- **Operations** — devops, observability, incident response, dependency and tech-debt upkeep.
+
+Every domain inherits the same quality bar, the same anti-slop writing standard, and the same
+gate. Marketing copy passes the writing standard exactly as commit messages do.
 
 ---
 
@@ -234,20 +265,58 @@ are three sources, each with its own install path:
    the rest). Installed by syncing folders into `~/.claude/skills/`. This is the real upstream
    for the stack library. It carries a permissive license, so redistribution and syncing are
    allowed; per-skill attribution is preserved.
-3. **The discovery registry** — `awesomeskills.dev` (its `llms.txt`), a searchable index of
-   1000+ skills across coding, design, content, marketing, PM, research, writing, and video.
-   When Polaris needs a skill it does not have, including non-code SDLC roles like product,
-   research, or docs, it looks the capability up here and installs from the listed source. This
-   is how "install the missing skill" works in general.
+3. **The discovery registries** — several indexes Polaris queries to find a skill it does not
+   have, including non-code roles like product, research, marketing, and docs. This is how
+   "install the missing skill" works in general:
+   - `awesomeskills.dev` (`llms.txt`) — 1000+ skills across coding, design, content, marketing,
+     PM, research, writing, video.
+   - `crossaitools.com` (`llms.txt`) — 21k+ skills, 12k+ MCP servers, 2.5k+ marketplaces, daily
+     updated from GitHub. Install via `/plugin marketplace add <owner/repo>`.
+   - `skillsmp.com` — 2M+ skills, with a **REST API and an MCP server** (`skillsmp.com/mcp`).
+     This is the programmatic backend for on-the-fly discovery and dynamic agent synthesis
+     (§6.2), since Polaris can query it directly rather than scraping a page.
+   - `skillsdirectory.com` — security-tested skills with **A–F security grades**. Polaris uses
+     these grades as a trust filter: prefer verified, high-grade skills, and never auto-install
+     an ungraded or low-grade skill without surfacing it first.
+
+Notable individual skills the plan relies on:
+- **skill-creator** (`daymade/claude-code-skills`, MIT) — builds skills at runtime; the engine
+  behind dynamic agent synthesis (§6.2).
+- **qa-expert** (same) — autonomous QA execution; feeds the QA fleet.
+- **prompt-optimizer** (same, EARS methodology) — powers subsystem F.
 
 Specific UI skills the fleet relies on (impeccable, ui-ux-pro-max, huashu-design,
-design-taste-frontend) are resolved through the registry when not already present.
+design-taste-frontend) are resolved through these registries when not already present.
+
+**Trust and safety.** Auto-install is powerful and risky. Polaris prefers marketplace plugins
+and security-graded skills, pins versions in `companions.json`, and surfaces any ungraded or
+low-grade skill for approval before installing it. It does not silently pull arbitrary code.
 
 The full set is declared in a manifest (`companions.json`) at the plugin root. Because Claude
 Code has no true install-time hook for a plugin to install other plugins, the mechanism is an
 idempotent ensure step: on first session start, and re-runnable from `init`, Polaris checks
 what is present and installs the rest, then no-ops on later runs. This replaces the current
 session-start behavior, which only warns when superpowers is absent.
+
+### 4.3 Guardrails: prompt-injection defense (subsystem I)
+
+Polaris pulls in a large amount of untrusted text: fetched web pages and docs, MCP connector
+data (Jira, Slack, Gmail, email, tickets), referenced repos, file contents, PRDs, and the
+skills it auto-installs. Any of it can carry a prompt-injection payload ("ignore your
+instructions", a hijacked tool call, an exfiltration prompt). A built-in classifier screens
+untrusted input before Polaris acts on it.
+
+- **Where it sits.** Between an untrusted source and the agent that would consume it: on tool
+  results, fetched content, connector payloads, and referenced-project content.
+- **What it does.** Detects instruction-override attempts, tool-use hijacking, and data
+  exfiltration prompts. On detection it quarantines the content, refuses to follow embedded
+  instructions, treats the text as data not commands, and surfaces the hit to the user.
+- **Why it is foundation.** Everything downstream trusts that what it reads is safe. Together
+  with the skill security grading (§4.2), this is Polaris's safety layer. Auto-install and
+  connector access are only acceptable with it in place.
+
+The classifier is a fixed guardrail, not configurable off. Its sensitivity may be tunable, its
+presence is not.
 
 ---
 
@@ -422,6 +491,83 @@ incrementally, and simple tasks use only a few of these.
 | Audit-refactor | Whole-codebase audit and refactor (from Slice A) | the gate + stack skills |
 | Dependency / upgrade | Dependency updates and migrations | the relevant stack and migration skills |
 
+### Marketing and growth
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Content / SEO | Articles, landing copy, SEO, GEO | seo-best-practices, content and writing skills |
+| Social / campaigns | Social posts, ad creative, launch campaigns | ckm-banner-design, ckm-slides, social skills |
+| Brand | Voice, identity, visual system | ckm-brand, brandkit, ckm-design |
+| Growth / analytics | Experiments, funnels, product analytics | analytics-data-analysis, Mixpanel/PostHog MCP |
+
+### Strategy
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Brainstorm facilitator | Structured ideation and option framing | superpowers:brainstorming |
+| Roadmap / prioritization | Sequencing, tradeoffs, what-next | deep-research, data-analyst |
+
+All marketing and strategy output passes the anti-slop writing standard (§2.2).
+
+### 6.1 Standalone modes (subsystem G)
+
+Not everything is a feature. Many jobs are a single self-contained task with its own goal and
+its own output. A standalone mode is a task-scoped agent you invoke directly, run in isolation
+(its own context, its own worktree when it touches files), and get back an artifact or report.
+It uses the same fleet, skills, gate, guardrails, and MCP connectors as the cycle, but it does
+not run the cycle.
+
+Seed modes:
+
+| Mode | What it does |
+|---|---|
+| Project researcher / feature ideation | Reads the code and data, researches the web, pulls from MCP connectors (Jira, analytics, Slack), and proposes what to build next with reasoning and evidence. |
+| Dev onboarding | Reads the repo, history, architecture, and docs and onboards a new developer: what the project is, how it is structured, how to run it, where to start. |
+| Codebase explainer | Answers "how does X work here" grounded in the actual code. |
+| Competitive / market analysis | Researches competitors and the market, returns a positioned summary. |
+| Tech-debt triage | Surfaces and ranks debt with a suggested burn-down order. |
+| Campaign runner | Plans and drafts a marketing campaign end to end. |
+| Incident / RCA | Triage and root-cause analysis of a production incident. |
+
+The list is open. New modes are cheap: a mode is a goal plus the agents and skills it wires.
+
+### 6.2 Dynamic agent synthesis (subsystem H)
+
+For a task no predefined agent covers, Polaris builds one on the fly:
+
+1. Classify the task and the capabilities it needs.
+2. Search the discovery registries (the `skillsmp.com` API and MCP are the programmatic path)
+   for matching skills.
+3. Filter by security grade (§4.2 trust and safety). Surface anything ungraded for approval.
+4. Compose an ephemeral agent, a system prompt plus the wired skills, using `skill-creator`.
+5. Run it under the same quality gate and guardrails as any other agent.
+6. Persist it as a named fleet agent only if it proves useful repeatedly.
+
+This is designed now so the architecture supports it, and may not ship in the first cut. It is
+what lets Polaris handle "anything and everything" without a predefined agent for every
+possibility.
+
+### 6.3 Model routing (subsystem J)
+
+Every agent and cycle step runs on a model chosen by a model-selector, not left to default. The
+selector's sole job is to map a task to the right model from a fixed policy. The policy sets the
+model floor per task class: harder or higher-stakes work must not run on a weaker model.
+
+| Task class | Model | Rationale |
+|---|---|---|
+| Breaking / adversarial QA, interview and intake, planning, spec, architecture, threat model, review, RCA, adversarial verification | Opus | Deep reasoning and high cost of error. The floor is Opus. |
+| Code writing (implementation) | Sonnet | Sonnet writes code, exclusively. |
+| Very simple one-off tasks (trivial mechanical edits, formatting, single-fact lookups) | Haiku | Only genuinely trivial work. When in doubt, do not use Haiku. |
+
+Rules:
+
+- The floor is a minimum, not a cap. The selector may go higher when a task is unusually hard,
+  never lower than the policy.
+- Code writing is Sonnet. QA, planning, interviewing, and anything adversarial is Opus. Haiku is
+  reserved for the trivial and is the exception, not a cost-saving default.
+- The policy lives in the standard so a project can extend it, and the selector reads it. Agents
+  and the cycle call the selector rather than hardcoding a model.
+
 ---
 
 ## 7. Subsystem C: handoff and audit docs
@@ -455,7 +601,16 @@ It gets its own spec when its turn comes.
 
 ## 9. Subsystem F: prompt enhancing (backlog)
 
-Toggleable prompt enhancement. Small and standalone. Slots in whenever convenient.
+Toggleable prompt enhancement, in two steps so it never rewrites a prompt that was already
+clear:
+
+1. **Judge.** A cheap first pass decides whether enhancement is even needed. A clear, specific
+   prompt passes through untouched. Only a vague, ambiguous, or underspecified prompt moves on.
+2. **Enhance.** When needed, the enhancement agent rewrites and enriches the prompt with all
+   available context (the project config, memory, the repo, and connector data) before it drives
+   any work. It can wire the EARS `prompt-optimizer` skill (§4.2).
+
+Toggleable per the user's preference. Small and standalone; slots in whenever convenient.
 
 ---
 
@@ -471,9 +626,12 @@ Toggleable prompt enhancement. Small and standalone. Slots in whenever convenien
 | Flow architecture | Composable primitives plus a thin orchestrator, never a monolith |
 | Philosophy inputs | Polaris quality bar + anti-slop writing + Karpathy best practices (mode-dependent) |
 | Personalization | Setup interview writes a per-project config; fixed bar plus configurable knobs; one-step auto mode; can mirror a reference repo |
-| Lifecycle scope | The whole SDLC, every role, not just code-to-PR |
+| Scope | All-in-one project OS: the whole SDLC plus product, research, marketing, docs, ops |
+| Surfaces | The feature cycle, standalone modes (G), and dynamic agents (H) |
 | Companions | Auto-installed via a manifest and an idempotent ensure step on first run |
-| Skill sources | Marketplace plugins (superpowers, frontend-design, karpathy) + `Mindrally/skills` (Apache-2.0) for the stack bulk + `awesomeskills.dev` registry for on-demand discovery |
+| Skill sources | Marketplace plugins + `Mindrally/skills` (Apache-2.0) for the stack bulk + discovery registries (`awesomeskills.dev`, `crossaitools.com`, `skillsmp.com` API/MCP, `skillsdirectory.com` with A–F security grades) |
+| Safety | Prompt-injection classifier (I) on untrusted input + security-graded skill installs |
+| Model routing | Selector agent (J); Opus floor for planning/QA/interview/review/adversarial, Sonnet for code, Haiku only for trivial |
 | Version control | Work stays on `main` for this project; no feature branches |
 
 ---
