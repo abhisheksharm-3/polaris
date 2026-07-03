@@ -17,15 +17,16 @@ Polaris today is a design-intelligence and stack-aware quality layer for Claude 
 quality agents, four UI skills, an anti-slop ruleset, and a session-start hook that detects
 the stack and injects rules.
 
-Polaris is becoming an opinionated, end-to-end engineering system for Claude Code. It takes
-a feature from a rough idea to a merged, CI-green pull request, and it holds one quality bar
+Polaris is becoming an opinionated, end-to-end engineering system for Claude Code. It runs the
+full software development lifecycle, from a rough idea through research, design, build, review,
+QA, docs, ship, and operate, with a specialized agent for every role. It holds one quality bar
 across every step: the code it produces is simple, performant, secure, self-explanatory, and
-low in complexity, and every line of prose it emits (comments, commit messages, PR text,
-docs) reads like a careful human wrote it, not an LLM.
+low in complexity, and every line of prose it emits (comments, commit messages, PR text, docs)
+reads like a careful human wrote it, not an LLM.
 
-The north star: you should be able to hand Polaris a PRD or a vague idea, answer its
-questions, approve its spec and plan, and get back a reviewed, tested, CI-green PR built to a
-standard you did not have to police by hand.
+The north star: you should be able to hand Polaris a PRD or a vague idea, answer its questions,
+approve its spec and plan, and get back a reviewed, tested, CI-green, documented change built to
+a standard you did not have to police by hand.
 
 ---
 
@@ -130,7 +131,7 @@ it ships.
 | # | Subsystem | What it is | Depends on | Status |
 |---|---|---|---|---|
 | **A** | Quality foundation | One canonical standard + a callable gate + opt-in hooks. The bedrock everything references. | none | **In design.** Spec: `docs/specs/2026-07-03-slice-a-quality-foundation.md` |
-| **B** | Agent fleet | Specialized agents (UI, UX, frontend-logic, backend, general writer, tester/breaker, verifier, shipper, devops), each wiring the right host skills. | A | Planned |
+| **B** | Agent fleet | A specialized agent for every SDLC role: product, research, architecture, API and data design, security, UX, UI, implementation, review, QA, docs, ship, devops, ops, and maintenance. Each wires the right host skills. | A | Planned |
 | **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | Planned |
 | **D** | Orchestration flow | The full idea-to-merged-PR loop. A thin orchestrator that chains A, B, C. | A, B, C | Planned |
 | **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, external connectors, startup catch-up. | independent infra | Deferred (scoped in §7) |
@@ -145,6 +146,27 @@ skills, commands). D is a thin orchestrator command that chains them. Each primi
 useful on its own, the flow is just the primitives wired together, and a fragile stage gets
 fixed in isolation without touching the loop. A single twelve-stage "do everything" script is
 the version that breaks constantly and cannot be debugged. We do not build that.
+
+### 3.2 Scope: the whole SDLC, not just code-to-PR
+
+Polaris covers the full software development lifecycle, and it has an agent for every role a
+real team fills, not only the coding ones. The phases:
+
+1. Intake and discovery (requirements, research, feasibility)
+2. Specification (adversarial analysis, spec, acceptance criteria)
+3. Architecture and design (system, API, data, threat model, UX, UI)
+4. Planning (breakdown, estimation, risk, parallel decomposition)
+5. Implementation (frontend, backend, data, infra, integrations)
+6. Review (correctness, security, performance, maintainability, simplicity, accessibility)
+7. QA and testing (adversarial, e2e, exploratory, regression, load, pentest, a11y audit)
+8. Documentation (API docs, README, changelog, ADRs, user docs)
+9. Ship (commit, PR, release notes, CI to green)
+10. Release and operate (deploy, observability, prod verification, incident response, RCA)
+11. Maintenance (audit, refactor, dependency upgrades, tech-debt)
+
+Subsystem D (§5) is the cycle that runs these phases. Subsystem B (§6) is the fleet of role
+agents that staff them. The fleet is the full roster; it is built incrementally, not all at
+once.
 
 ---
 
@@ -177,13 +199,14 @@ One canonical standard, one engine that enforces it, three ways to apply it.
 
 ### 4.1 Stack coverage comes from the skill library
 
-Polaris does not hand-author stack knowledge. The host already has ~150 stack skills. The
-stack layer is a resolution protocol:
+Polaris does not hand-author stack knowledge. The skill ecosystem already covers it (§4.2).
+The stack layer is a resolution protocol:
 
 1. **Detect** the stack and version from manifests (`package.json`, `pyproject.toml`,
    `go.mod`, `Cargo.toml`, and so on).
 2. **Route to skills.** Map each detected technology to its host skill(s). If a mapped skill
-   is not installed on the host, install it. If no skill exists, fall back to docs only.
+   is missing, install it from the skill sources in §4.2 (Mindrally for stacks, the
+   awesomeskills registry for anything else). If no skill exists anywhere, fall back to docs.
 3. **Fetch fresh docs (the docs protocol).** In order: `llms.txt` / `llms-full.txt` at the
    framework's doc domain, else version-specific official docs, else a targeted web search.
    This runs alongside the skill, not instead of it. Training data is never the source for
@@ -195,86 +218,209 @@ stack layer is a resolution protocol:
 "All stacks" is achieved by routing to everything already installed, not by writing a module
 per language.
 
-### 4.2 Companions, auto-installed
+### 4.2 Companions and skill sources
 
-Polaris does not work alone. It leans on a set of companion plugins and skills, and it
-installs all of them so the user never has to. The companions are:
+Polaris does not work alone. It installs everything it leans on so the user never has to. There
+are three sources, each with its own install path:
 
-- **superpowers** (brainstorming, planning, systematic debugging, verification, the process
-  spine the flow builds on).
-- **karpathy-skills** (the best-practice guidelines from master plan §2.3).
-- **UI and design skills**: impeccable, huashu-design, ui-ux-pro-max, design-taste-frontend,
-  frontend-design (the UI and UX agents wire these).
-- **Stack skills**: the library the stack resolution protocol routes to (§4.1).
+1. **Marketplace plugins** (installed with a plugin-install command):
+   - **superpowers** — brainstorming, planning, systematic debugging, verification. The
+     process spine the flow builds on.
+   - **frontend-design** — Anthropic's design skill (the UI agent wires it).
+   - **karpathy-skills** — the best-practice guidelines from §2.3
+     (`github.com/multica-ai/andrej-karpathy-skills`).
+2. **The stack and skill bulk** — `github.com/Mindrally/skills`, Apache-2.0, 240+ skills
+   converted from Cursor Rules (React, Vue, Django, FastAPI, Go, Rust, Docker, Kubernetes, and
+   the rest). Installed by syncing folders into `~/.claude/skills/`. This is the real upstream
+   for the stack library. It carries a permissive license, so redistribution and syncing are
+   allowed; per-skill attribution is preserved.
+3. **The discovery registry** — `awesomeskills.dev` (its `llms.txt`), a searchable index of
+   1000+ skills across coding, design, content, marketing, PM, research, writing, and video.
+   When Polaris needs a skill it does not have, including non-code SDLC roles like product,
+   research, or docs, it looks the capability up here and installs from the listed source. This
+   is how "install the missing skill" works in general.
 
-The set is declared in a companion manifest (`companions.json`) at the plugin root. Because
-Claude Code has no true install-time hook for a plugin to install other plugins, the practical
-mechanism is an idempotent ensure step: on first session start (and re-runnable from `init`),
-Polaris checks which companions are present and installs the missing ones. It runs once per
-project and is a no-op after that. This replaces the current session-start behavior, which only
-warns when superpowers is absent.
+Specific UI skills the fleet relies on (impeccable, ui-ux-pro-max, huashu-design,
+design-taste-frontend) are resolved through the registry when not already present.
+
+The full set is declared in a manifest (`companions.json`) at the plugin root. Because Claude
+Code has no true install-time hook for a plugin to install other plugins, the mechanism is an
+idempotent ensure step: on first session start, and re-runnable from `init`, Polaris checks
+what is present and installs the rest, then no-ops on later runs. This replaces the current
+session-start behavior, which only warns when superpowers is absent.
 
 ---
 
-## 5. Subsystem D: the orchestration flow
+## 5. Subsystem D: the orchestration cycle
 
-The full idea-to-merged-PR loop. Each stage is a call into an A/B/C primitive. Human approval
-gates are explicit. No stage handwaves anything.
+The full lifecycle, idea to running-and-verified. Each step calls an A/B/C primitive. Human
+approval gates are explicit and marked. No step handwaves anything. Steps scale to the task: a
+small change skips discovery and architecture and runs a short path; a real feature runs the
+whole thing. The orchestrator decides the path from the task size and the project config.
 
-1. **Intake.** Accept a PRD or any docs, or run interview mode where Polaris generates the
-   next question itself.
-2. **Ambiguity loop.** Ask questions until every assumption is cleared and no ambiguity
-   remains. Never proceed on a guess.
-3. **Adversarial analysis.** Stress the idea from every persona who could touch the product:
+### Phase 0 — Intake and discovery
+
+1. **Intake.** Accept a PRD or any docs, or run interview mode where Polaris generates the next
+   question itself.
+2. **Ambiguity loop.** Ask questions until every assumption is cleared and no ambiguity remains.
+   Never proceed on a guess.
+3. **Discovery and feasibility.** When the task warrants it, research users, market,
+   competitors, and technical feasibility (the deep-research skill). Surface risks early.
+
+### Phase 1 — Specification
+
+4. **Adversarial analysis.** Stress the idea from every persona who could touch the product:
    ideal customer, naive user, power user, attacker, and the rest. Exhaustive, not a sample.
-4. **Spec.** Collate findings into a spec. Verify it with adversarial checks. Human approves.
-5. **Plan.** Write the plan. Verify it with adversarial checks. Human approves. Loop until
-   the plan is finalized and nothing is handwaved.
-6. **Decompose.** Break the plan into isolated sub-plans that can run in parallel. Use git
-   worktrees when parallel branches are needed.
-7. **Implement with verification.** Per sub-plan: typecheck (for example `tsc`), build check,
-   code-quality check, simplicity check, hand-patching check, anti-pattern check, architecture
-   check. All from the quality gate.
-8. **Review.** Reviewer agents for performance, security, code quality, simplicity, and
-   maintainability.
-9. **Verify and fix.** Verify every finding. Fix the legitimate ones, no exceptions. Rerun the
-   review-and-verify loop until green.
-10. **Acceptance.** Confirm the plan's acceptance criteria are met.
-11. **QA adversarial.** Try to break the feature. Playwright or Claude-in-Chrome for web,
-    best-effort through code elsewhere, curl for backend. Maniac-QA posture: the role is to
-    find weakness and pressure-test, not to confirm it works.
-12. **Root-cause bug fix.** Hand QA findings to the bug-fixer. Rework the logic properly. Fix
-    the class of bug, not the one case. No hacky patches, no anti-patterns. Keep the code
-    clean, maintainable, simple, scalable, performant.
-13. **Verify fixes.** A verifier agent checks every fix, then QA runs again. Loop until QA
+5. **Spec.** Collate into a spec with explicit acceptance criteria. Verify it adversarially.
+   **Human approves.**
+
+### Phase 2 — Architecture and design
+
+6. **System architecture.** Design the structure and record the decisions and tradeoffs (ADRs).
+7. **API and data design.** Contracts and data model, versioned and reviewed.
+8. **Threat model.** Security by design: attack surface, trust boundaries, mitigations.
+9. **UX and UI design.** Flows, information architecture, interaction, copy, accessibility, and
+   the visual direction. Verify the design adversarially. **Human approves.**
+
+### Phase 3 — Planning
+
+10. **Plan, estimate, risk.** Write the plan with estimates and risks. Verify it adversarially.
+    **Human approves.** Loop until finalized and nothing is handwaved.
+11. **Decompose.** Break the plan into isolated sub-plans that can run in parallel. Use git
+    worktrees when parallel branches are needed.
+
+### Phase 4 — Implementation
+
+12. **Build.** Route each sub-plan to its specialist agents (UI, frontend-logic, backend, data,
+    infra, integrations). Test-driven where it fits.
+13. **Inline verification.** Per sub-plan: typecheck, build, lint, quality gate, simplicity
+    check, hand-patch check, anti-pattern check, architecture check. All from the gate.
+
+### Phase 5 — Review
+
+14. **Multi-dimension review.** Reviewer agents for correctness, security, performance,
+    maintainability, simplicity, and accessibility.
+15. **Verify and fix.** Verify every finding. Fix the legitimate ones, no exceptions. Rerun the
+    review-and-verify loop until green.
+
+### Phase 6 — QA and testing
+
+16. **Adversarial QA.** Try to break the feature. Playwright or Claude-in-Chrome for web,
+    best-effort through code elsewhere, curl for backend. Add exploratory, regression, load and
+    performance, security pentest, and accessibility audit as the task warrants. The posture is
+    to find weakness and pressure-test, not to confirm it works.
+17. **Root-cause bug fix.** Hand findings to the bug-fixer. Rework the logic properly. Fix the
+    class of bug, not the one case. No hacky patches, no anti-patterns. Keep the code clean,
+    maintainable, simple, scalable, performant.
+18. **Verify fixes.** A verifier agent checks every fix, then QA runs again. Loop until QA
     passes clean.
-14. **Commit and PR.** Commit and raise the PR to the project's standards (ask for the
-    standards when Polaris is first set up in a project).
-15. **Adversarial diff review.** Review the PR diff locally to find issues first. Fix via the
+19. **Acceptance.** Confirm the spec's acceptance criteria are met.
+
+### Phase 7 — Documentation
+
+20. **Docs.** Update or write API docs, README, changelog, ADRs, user docs, and migration notes.
+    All pass the writing standard.
+
+### Phase 8 — Ship
+
+21. **Commit and PR.** Commit and raise the PR to the project's standards (from the project
+    config; ask if not set), with release notes.
+22. **Adversarial diff review.** Review the PR diff locally to find issues first. Fix via the
     bug-fixer. Loop until clean.
-16. **CI.** Raise the PR, track CI, iterate until green.
-17. **Report.** Final summary plus the PR link to merge.
+23. **CI.** Raise the PR, track CI, iterate until green.
+
+### Phase 9 — Release and operate (as applicable)
+
+24. **Deploy.** Through the project's CI/CD.
+25. **Observability.** Ensure logging, metrics, tracing, and alerts exist for the change.
+26. **Verify in production and respond.** Confirm behavior after release. On an incident, run
+    incident response and a root-cause analysis, then feed fixes back through the cycle.
+
+### Phase 10 — Report
+
+27. **Report.** Final summary, the PR link to merge, and any follow-ups or tech-debt logged.
+
+### Maintenance track (ongoing, outside the per-feature cycle)
+
+Audit, refactor, dependency upgrades, and tech-debt burn-down, run on demand or on a schedule.
 
 ---
 
 ## 6. Subsystem B: the agent fleet
 
-Specialized agents, each wiring the relevant host skills for its job and installing missing
-ones on the host. Karpathy best practices apply to every agent.
+A specialized agent for every SDLC role, grouped by phase. Each wires the relevant host skills
+for its job and installs missing ones (§4.2). Karpathy best practices apply to every agent, and
+every agent applies the quality gate before declaring done. This is the full roster; it is built
+incrementally, and simple tasks use only a few of these.
 
-| Agent | Job | Example skills it wires |
+### Discovery and product
+
+| Agent | Job | Example skills |
 |---|---|---|
-| UI | Visual UI implementation | impeccable, huashu-design, ui-ux-pro-max, design-taste-frontend, frontend-design |
-| UX | Flows, IA, interaction, copy | ux-design, accessibility-a11y |
-| Frontend-logic | Non-UI frontend logic (state, data, hooks) | react-query, zustand, the framework skill |
-| Backend | Services, APIs, data | the framework skill (fastapi, nestjs, go, spring, and so on), db skills |
-| General writer | Code that fits no specialist | whatever the stack resolution returns |
-| Tester / breaker | Adversarial QA, designed to break code | playwright, cypress, testing skills |
-| Verifier | Confirms findings and fixes are real | the quality gate |
-| Shipper | Commit, PR, release to standards | git-workflow, github-workflow |
-| Devops | CI, infra, deploy | docker, kubernetes, terraform, ci-cd |
+| Product / BA | Requirements, PRD, acceptance criteria | deep-research, technical-writing |
+| Researcher | User, market, competitive, feasibility research | deep-research, data-analyst |
 
-Every agent applies the quality gate before declaring done.
+### Architecture and design
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Architect | System design, ADRs, tradeoffs | clean-architecture, microservices |
+| API / contract designer | API surface and contracts | graphql, api-development, grpc |
+| Data modeler / DBA | Schema, migrations, query design | postgresql, prisma, mongodb, sql |
+| Security architect | Threat model, trust boundaries, mitigations | security-best-practices, jwt/oauth |
+| UX | Flows, IA, interaction, copy, accessibility | ux-design, accessibility-a11y |
+| UI | Visual UI implementation | impeccable, ui-ux-pro-max, huashu-design, design-taste-frontend, frontend-design |
+
+### Implementation
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Frontend-logic | Non-UI frontend logic (state, data, hooks) | react-query, zustand, the framework skill |
+| Backend | Services and business logic | the framework skill (fastapi, nestjs, go, spring...) |
+| Integrations | Third-party APIs, webhooks, payments | stripe, the relevant provider skills |
+| Infra / IaC | Provisioning and infra as code | terraform, aws/gcp/azure, kubernetes |
+| Data / ML | Pipelines and models, when applicable | pandas, pytorch, langchain |
+| General writer | Code that fits no specialist | whatever the stack resolution returns |
+
+### Review and verification
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Reviewer (per dimension) | Correctness, security, performance, maintainability, simplicity, accessibility | the gate + the relevant stack skills |
+| Verifier | Confirms findings and fixes are real | the quality gate |
+
+### QA and testing
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Tester / breaker | Adversarial, maniac QA to break the feature | playwright, cypress, testing |
+| E2E | End-to-end flows in a real browser | playwright, claude-in-chrome |
+| Performance / load | Throughput, latency, load tests | performance-optimization |
+| Security / pentest | Active security testing of the change | python-cybersecurity, security-best-practices |
+| Accessibility audit | WCAG conformance | accessibility-a11y |
+| Bug-fixer | Root-cause fixes, class of bug not the case | systematic-debugging + stack skills |
+
+### Documentation
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Technical writer | API docs, README, changelog, ADRs, user docs | technical-writing |
+
+### Ship and operate
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Shipper / release | Commit, PR, release notes, changelog, versioning | git-workflow, github-workflow |
+| DevOps / CI | Pipelines, build, deploy | docker, ci-cd, kubernetes |
+| SRE / observability | Logging, metrics, tracing, alerts | observability, monitoring, logging |
+| Incident response / RCA | Triage and root-cause analysis of incidents | systematic-debugging |
+
+### Maintenance
+
+| Agent | Job | Example skills |
+|---|---|---|
+| Audit-refactor | Whole-codebase audit and refactor (from Slice A) | the gate + stack skills |
+| Dependency / upgrade | Dependency updates and migrations | the relevant stack and migration skills |
 
 ---
 
@@ -325,7 +471,9 @@ Toggleable prompt enhancement. Small and standalone. Slots in whenever convenien
 | Flow architecture | Composable primitives plus a thin orchestrator, never a monolith |
 | Philosophy inputs | Polaris quality bar + anti-slop writing + Karpathy best practices (mode-dependent) |
 | Personalization | Setup interview writes a per-project config; fixed bar plus configurable knobs; one-step auto mode; can mirror a reference repo |
-| Companions | Auto-installed via a manifest and an idempotent ensure step on first run (superpowers, karpathy, UI skills, stack skills) |
+| Lifecycle scope | The whole SDLC, every role, not just code-to-PR |
+| Companions | Auto-installed via a manifest and an idempotent ensure step on first run |
+| Skill sources | Marketplace plugins (superpowers, frontend-design, karpathy) + `Mindrally/skills` (Apache-2.0) for the stack bulk + `awesomeskills.dev` registry for on-demand discovery |
 | Version control | Work stays on `main` for this project; no feature branches |
 
 ---

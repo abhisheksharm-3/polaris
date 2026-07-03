@@ -308,9 +308,11 @@ Stop injecting everything. Always load `core.md` and `writing.md` (small). Detec
 load only their overlays. Keeps context lean as the standard grows.
 
 On first run in a project it also runs `ensure-companions.sh` (idempotent): read
-`companions.json`, install any missing companion plugins and skills (superpowers, karpathy, the
-UI skills, the stack skills), then no-op on every later run. This replaces the current behavior
-that only warns when superpowers is absent.
+`companions.json` and install whatever is missing from the three sources (master plan §4.2) —
+marketplace plugins (superpowers, frontend-design, karpathy), the stack bulk synced from
+`Mindrally/skills`, and any other skill resolved through the `awesomeskills.dev` registry — then
+no-op on every later run. This replaces the current behavior that only warns when superpowers is
+absent.
 
 ---
 
