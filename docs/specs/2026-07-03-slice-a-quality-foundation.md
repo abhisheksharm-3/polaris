@@ -72,6 +72,14 @@ skills/
   quality-gate/
     SKILL.md           the check + fix engine
 
+output-styles/
+  polaris-writing.md   enforces the anti-slop writing standard at the system-prompt level
+                       (force-for-plugin: true so it applies whenever Polaris is enabled)
+
+lspServers (optional) typescript / pyright / rust-analyzer, to feed the gate real
+                       language-server diagnostics instead of only regex + judgment
+                       (binaries installed separately; declared in .lsp.json)
+
 agents/
   code-cleanup.md      merged from code-cleanup + slop-remover; stack-aware; calls the gate
   audit-refactor.md    evolved: stack-aware, reads the standard
@@ -113,6 +121,20 @@ Two representations of the standard, one source each:
 
 Nothing is stated in both a way that could drift. `patterns.json` holds only what a regex can
 decide; everything requiring judgment lives in prose.
+
+### 3.3 Two enforcement surfaces the docs confirmed
+
+Beyond the gate and hooks, two real Claude Code primitives strengthen enforcement:
+
+- **Output style for the writing standard.** An output style modifies the system prompt for the
+  whole session. Polaris ships `output-styles/polaris-writing.md` with `force-for-plugin: true`
+  so the anti-slop writing standard applies automatically whenever Polaris is enabled, with
+  `keep-coding-instructions: true` so normal engineering behavior stays. This makes the writing
+  bar the default voice, not just a post-hoc check.
+- **LSP diagnostics for the gate (optional).** Plugins can ship LSP servers (typescript, pyright,
+  rust-analyzer). When present, the gate's mechanical pass reads real language-server diagnostics
+  instead of relying only on regex and model judgment. The language-server binaries install
+  separately, so this is optional and degrades gracefully to the regex + judgment passes.
 
 ---
 
@@ -307,12 +329,16 @@ edit is noisy. It may graduate to blocking after it proves itself.
 Stop injecting everything. Always load `core.md` and `writing.md` (small). Detect stacks and
 load only their overlays. Keeps context lean as the standard grows.
 
-On first run in a project it also runs `ensure-companions.sh` (idempotent): read
-`companions.json` and install whatever is missing from the three sources (master plan §4.2) —
-marketplace plugins (superpowers, frontend-design, karpathy), the stack bulk synced from
-`Mindrally/skills`, and any other skill resolved through the `awesomeskills.dev` registry — then
-no-op on every later run. This replaces the current behavior that only warns when superpowers is
-absent.
+Companion install uses two mechanisms (master plan §4.2, grounded in the real plugin docs):
+
+- **Marketplace plugins** (superpowers, frontend-design, karpathy) are declared as native plugin
+  `dependencies` in `.claude-plugin/plugin.json` and resolved automatically on install. Because
+  they live in other marketplaces, `marketplace.json` lists them under
+  `allowCrossMarketplaceDependenciesOn`.
+- **The loose skill bulk** (`Mindrally/skills` and registry-resolved skills) is not a plugin, so
+  on first run `ensure-companions.sh` (idempotent, re-runnable from `init`) syncs the ones listed
+  in `companions.json` into `~/.claude/skills/`, then no-ops. This replaces the current behavior
+  that only warns when superpowers is absent.
 
 ---
 

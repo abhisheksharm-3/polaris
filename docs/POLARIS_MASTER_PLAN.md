@@ -143,7 +143,7 @@ useful the day it ships.
 | **B** | Agent fleet | A specialized agent for every role across every domain (§3.3): engineering, product, research, marketing, docs, and ops. Each wires the right host skills. | A | Planned |
 | **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | Planned |
 | **D** | Orchestration cycle | The full idea-to-shipped lifecycle. A thin orchestrator that chains A, B, C. | A, B, C | Planned |
-| **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, external connectors, startup catch-up. | independent infra | Deferred (scoped in §8) |
+| **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, connectors, startup catch-up, and the auto-maintained work tracker (§8.4). | independent infra | Deferred (scoped in §8); tracker has a file-based MVP |
 | **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | Backlog (small) |
 | **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | Planned |
 | **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | Designed, may not ship first |
@@ -292,11 +292,20 @@ design-taste-frontend) are resolved through these registries when not already pr
 and security-graded skills, pins versions in `companions.json`, and surfaces any ungraded or
 low-grade skill for approval before installing it. It does not silently pull arbitrary code.
 
-The full set is declared in a manifest (`companions.json`) at the plugin root. Because Claude
-Code has no true install-time hook for a plugin to install other plugins, the mechanism is an
-idempotent ensure step: on first session start, and re-runnable from `init`, Polaris checks
-what is present and installs the rest, then no-ops on later runs. This replaces the current
-session-start behavior, which only warns when superpowers is absent.
+Two install mechanisms, matched to what each source is:
+
+- **Plugin companions use native plugin dependencies.** `plugin.json` supports a `dependencies`
+  array; Claude Code resolves and installs them automatically when Polaris is installed, with
+  semver constraints and auto-update. superpowers, frontend-design, and karpathy go here. They
+  live in different marketplaces than Polaris, so the Polaris `marketplace.json` must list them
+  under `allowCrossMarketplaceDependenciesOn`, and the user must have those marketplaces added.
+- **The skill bulk uses an idempotent ensure step.** The loose `Mindrally/skills` and
+  registry-resolved skills are not plugins, so a first-run script (`ensure-companions.sh`, also
+  re-runnable from `init`) syncs the ones listed in `companions.json` into `~/.claude/skills/`,
+  then no-ops. Alternatively Polaris publishes them as a skills marketplace so they can become
+  plugin dependencies too; that is an open choice (§14).
+
+This replaces the current session-start behavior, which only warns when superpowers is absent.
 
 ### 4.3 Guardrails: prompt-injection defense (subsystem I)
 
@@ -326,6 +335,15 @@ The full lifecycle, idea to running-and-verified. Each step calls an A/B/C primi
 approval gates are explicit and marked. No step handwaves anything. Steps scale to the task: a
 small change skips discovery and architecture and runs a short path; a real feature runs the
 whole thing. The orchestrator decides the path from the task size and the project config.
+
+**How it is orchestrated (grounded in §10.0).** Fan-out phases (review across dimensions, QA
+across cases, the verify-until-green loops) run as dynamic workflows, which hold the loop in a
+script and can run adversarial verification across hundreds of agents. Genuinely adversarial
+phases where perspectives must challenge each other (the persona analysis, competing-hypothesis
+debugging) can run as an agent team. Single delegated steps are subagents. Because a workflow
+takes no mid-run input, each human-approval-gated phase (spec, design, plan) is its own workflow;
+the orchestrator command chains them and pauses for sign-off between them. Deploy verification
+and CI-reactive steps can run as routines.
 
 ### Phase 0 — Intake and discovery
 
@@ -411,7 +429,11 @@ whole thing. The orchestrator decides the path from the task size and the projec
 
 ### Maintenance track (ongoing, outside the per-feature cycle)
 
-Audit, refactor, dependency upgrades, and tech-debt burn-down, run on demand or on a schedule.
+Audit, refactor, dependency upgrades, and tech-debt burn-down. Run on demand, or unattended as
+**routines**: a nightly audit, a weekly dependency and docs-drift check, a GitHub-triggered
+review on every PR, an API-triggered incident triage from monitoring. Routines run in the cloud
+on a schedule, an HTTP call, or a repository event, so this track keeps working with the laptop
+closed.
 
 ---
 
@@ -618,6 +640,56 @@ pulls from memory and the connectors and lays out what you were last working on,
 open, and what it recommends doing next based on all of it. This is the "turn it on in the
 morning and it already knows" experience.
 
+### 8.4 The work tracker (auto-maintained, cross-session)
+
+The flagship use of the memory system, and the one that answers a real daily pain: you run many
+threads at once (improving UI/UX, diagnosing a bug, changing backend logic, prototyping a
+feature, building a new flow), and you lose track of what you were doing, sometimes until it is
+too late. Polaris keeps the list for you. You never maintain it.
+
+**Where it lives.** The memory store is the source of truth, with an optional one-way mirror to
+an external task tool. Memory is canonical because the tracker must hold rich, code-linked,
+cross-session state that a flat checkbox app cannot: which files a thread touches, the current
+hypothesis, what was tried last, what is next. It also needs no auth, so it works in headless
+and routine runs. There is no Google Tasks connector; the mirror targets, when you want the list
+on your phone, are Notion, Linear, or Jira over MCP. The mirror carries a summary; memory keeps
+the depth.
+
+**What it tracks: work streams, not flat todos.** Each stream holds:
+
+- an id and a title,
+- a domain (ui, ux, backend, bug, prototype, feature, infra, docs),
+- a status (active, paused, blocked, done),
+- a one-line summary and the current state or last action,
+- the single next step,
+- related files and links,
+- the last session and time it was touched.
+
+Many streams run in parallel, which matches how you actually work.
+
+**How it stays current without you (grounded in real hooks).** Claude maintains it as a side
+effect of the session:
+
+- `UserPromptSubmit` classifies the prompt into an existing stream or opens a new one.
+- `PostToolUse` on `Edit`/`Write` attaches the touched files to the active stream.
+- `Stop` records progress and the next step at the end of each turn.
+- `SessionEnd` snapshots every open thread.
+- `SessionStart` surfaces the active streams, what each was doing, and the next step, flags stale
+  ones, and recommends where to resume. This is the §8.3 catch-up, driven by the tracker.
+- The native in-session todo (`TaskCreate`/`TodoWrite`) is ephemeral; the tracker persists it at
+  `SessionEnd` and rehydrates it at `SessionStart`, so per-session todos survive across sessions.
+
+**Lifecycle.** Streams age. Stale ones are flagged ("the backend refactor has not moved in five
+days"), completed ones are archived, and nothing is silently dropped. Pruning keeps the set
+lean without losing history.
+
+**The guarantee.** At any session start you see every open thread and the one next step for each,
+so nothing is lost and tasks get finished.
+
+**Early MVP.** A file-based version, extending the existing `memory/` directory, can ship before
+the full embeddings store: streams as structured files, maintained by the hooks above. Semantic
+retrieval and the connector mirror arrive with full subsystem E.
+
 It gets its own spec when its turn comes. The dependency that makes it safe to build, the
 injection classifier (I), is part of the foundation.
 
@@ -625,38 +697,52 @@ injection classifier (I), is part of the foundation.
 
 ## 9. Subsystem F: prompt enhancing (backlog)
 
-Toggleable prompt enhancement, in two steps so it never rewrites a prompt that was already
-clear:
+Toggleable prompt enhancement, in two steps so it never touches a prompt that was already clear:
 
 1. **Judge.** A cheap first pass decides whether enhancement is even needed. A clear, specific
-   prompt passes through untouched. Only a vague, ambiguous, or underspecified prompt moves on.
-2. **Enhance.** When needed, the enhancement agent rewrites and enriches the prompt with all
-   available context (the project config, memory, the repo, and connector data) before it drives
-   any work. It can wire the EARS `prompt-optimizer` skill (§4.2).
+   prompt is left alone. Only a vague, ambiguous, or underspecified prompt moves on.
+2. **Enhance.** When needed, produce an enriched version using all available context (the
+   project config, memory, the repo, connector data). It can wire the EARS `prompt-optimizer`
+   skill (§4.2).
 
-Toggleable per the user's preference. Small and standalone; slots in whenever convenient.
+Mechanism, grounded in the real hook API: a `UserPromptSubmit` hook cannot rewrite the prompt in
+place, only block it or inject `additionalContext`. So the judge runs in that hook and, when
+enhancement helps, injects the enriched framing as context Claude sees alongside the original,
+rather than silently replacing it. A heavier rewrite is offered as an explicit command the user
+can invoke. Toggleable per the user's preference. Small and standalone.
 
 ---
 
 ## 10. How it maps to Claude Code
 
-The vision is ambitious, so it needs an anchor in what Claude Code actually provides. Each
-subsystem maps to concrete primitives: agents (`agents/*.md`), skills (`skills/*/SKILL.md`),
-slash commands (`commands/*.md`), hooks (`hooks/`), MCP servers, and subagent dispatch (the
-Agent tool and Workflow for deterministic fan-out).
+The vision is ambitious, so it is anchored in primitives Claude Code actually provides, verified
+against the current docs (2026): a plugin ships skills, agents, hooks, MCP servers, LSP servers,
+monitors, output styles, and commands. Orchestration uses subagents, agent teams, dynamic
+workflows, and routines.
 
 | Subsystem | Built from |
 |---|---|
-| A quality foundation | `rules/` (prose + `patterns.json`), `skills/quality-gate`, `hooks/` (session-start, guard-commit-pr, guard-edit), `commands/gate`, `agents/code-cleanup` + `audit-refactor` |
-| B agent fleet | one `agents/*.md` per role, each wiring skills |
-| C handoff + audit docs | agents + `commands/` (handoff, audit), writing to the run workspace |
-| D cycle | an orchestrator command dispatching subagents in sequence and parallel; Workflow scripts for the deterministic fan-out and verify loops |
-| E memory | an MCP store + embeddings + the session-start hook |
-| F prompt enhancing | a `UserPromptSubmit` hook: judge, then the enhancer agent |
-| G standalone modes | `commands/*` that invoke a scoped agent, worktree-isolated |
-| H dynamic synthesis | `skill-creator` + the `skillsmp` registry MCP + an ephemeral agent |
-| I guardrails | a classifier skill invoked on untrusted tool results and fetched content |
-| J model routing | a selector step; agents and commands pick their model from the policy |
+| A quality foundation | `rules/` (prose + `patterns.json`); `skills/quality-gate`; optional **LSP servers** (typescript, pyright, rust-analyzer) feeding the gate real diagnostics; an **output style** (`output-styles/`, `force-for-plugin`) enforcing the writing standard at the system-prompt level; hooks: `SessionStart`, `PreToolUse` (guard commit/PR, can `deny` or rewrite via `updatedInput`), `PostToolUse` (guard edits), `SubagentStop`/`Stop` (block finish until the gate passes); `commands/gate`; `agents/code-cleanup` + `audit-refactor`. Companions via native plugin `dependencies`. |
+| B agent fleet | one `agents/*.md` per role. Plugin-agent frontmatter (verified): `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation: worktree`. Not `hooks`/`mcpServers`/`permissionMode` (ignored for plugin agents). Agents wire host skills via the `skills` field. |
+| C handoff + audit docs | agents + `commands/` (handoff, audit), writing to the `.polaris/` workspace |
+| D cycle | an orchestrator command that chains **dynamic workflows** (fan-out audits and verify-until-green loops), **subagents** (single delegated tasks), and **agent teams** (adversarial phases). Each human-approval-gated phase is its own workflow, because a workflow takes no mid-run input. |
+| E memory | file memory (seed) + an embeddings store over MCP + the `SessionStart` hook + the agent `memory` field |
+| F prompt enhancing | a `UserPromptSubmit` hook that judges and injects `additionalContext` (it cannot rewrite the prompt) + a command for explicit rewrites |
+| G standalone modes | `commands/*` invoking a scoped agent with `isolation: worktree`; some exposed as **routines** (scheduled research, on-demand onboarding) |
+| H dynamic synthesis | `skill-creator` + the `skillsmp` registry (REST/MCP) + an ephemeral subagent (a written `agents/*.md` or CLI `--agents` JSON) |
+| I guardrails | a classifier skill run via `PostToolUse` (`updatedToolOutput` to quarantine or redact) and `PreToolUse` `additionalContext`, on untrusted tool results and fetched content |
+| J model routing | native per-agent `model` and `effort` frontmatter; workflow stages route via `agent(..., { model, effort })`; the policy (§6.3) maps task class to tier |
+
+### 10.0 Choosing the right orchestration primitive
+
+The docs draw a clear line between the four; Polaris picks per phase rather than forcing one.
+
+| Primitive | Who holds the plan | Use it for |
+|---|---|---|
+| Subagent | Claude, turn by turn | A focused delegated task where only the result matters. The default. |
+| Agent team | A lead over peer sessions | Peers that must talk and challenge each other: adversarial analysis, competing-hypothesis debugging, multi-lens review. Higher token cost; experimental (env flag). |
+| Dynamic workflow | A script the runtime runs | Dozens to hundreds of agents, deterministic, resumable, with adversarial-verify built in: audits, migrations, verify-until-green. |
+| Routine | A schedule or trigger | Unattended cloud runs on a cadence, an API call, or a GitHub event: maintenance, deploy verification, morning catch-up, alert triage. |
 
 ### 10.1 Command surface
 
@@ -673,6 +759,11 @@ What the user types. The set grows, but the spine:
 | `/explain` | Codebase explainer mode (G) |
 | `/handoff` | Generate a handoff doc (C) |
 | `/ship` | Commit, PR, CI-to-green (phase 8) |
+| `/schedule` | Register a routine for scheduled maintenance, morning catch-up, or triggered runs |
+
+Polaris commands that orchestrate at scale (`/flow`, `/audit`, `/research`) are implemented as
+saved dynamic workflows, which the runtime exposes as `/` commands and which accept `args`. This
+is how the cycle stays deterministic and resumable rather than turn-by-turn improvisation.
 
 ---
 
@@ -696,9 +787,12 @@ Concerns that apply to every subsystem, not just one.
   A run that would exceed its budget pauses and asks.
 - **Concurrency and isolation.** Parallel sub-plans and standalone modes run in git worktrees
   so they do not collide, under a concurrency cap.
-- **Observability.** Every run logs which agents ran, on which model, at what cost, with what
-  findings and outcomes. The run history under `.polaris/runs/` lets you inspect exactly what
-  Polaris did and why.
+- **Observability.** Two layers. Workflow runs are inspectable live through the `/workflows`
+  view, which shows each phase's agent count, token total, and elapsed time, and drills into any
+  agent's prompt and result. For live external signals (CI status, error logs), Polaris ships
+  plugin **monitors** (`monitors/monitors.json`) that watch a command's output and surface lines
+  to Claude as notifications. Polaris also writes its own run history to `.polaris/runs/`: which
+  agents ran, on which model, at what cost, with what findings and outcomes.
 - **Privacy.** Connector data is sensitive. It is used in-session and not persisted unless the
   user opts in, and it always passes the injection classifier first.
 
@@ -715,7 +809,8 @@ Each milestone is independently useful the day it ships.
 | **M3** | Subsystem B core agents + J model routing + I guardrails. |
 | **M4** | Subsystem D cycle (the orchestrator) + G standalone modes. |
 | **M5** | F prompt enhancing + H dynamic agent synthesis. |
-| **M6** | E persistent memory and connectors. |
+| **M5.5** | Work-tracker MVP (§8.4): file-based work streams maintained by hooks. Small, high daily value, can land as soon as the hooks exist. |
+| **M6** | E persistent memory and connectors (embeddings retrieval, the tracker's mirror, startup catch-up). |
 
 ---
 
@@ -733,10 +828,13 @@ Each milestone is independently useful the day it ships.
 | Personalization | Setup interview writes a per-project config; fixed bar plus configurable knobs; one-step auto mode; can mirror a reference repo |
 | Scope | All-in-one project OS: the whole SDLC plus product, research, marketing, docs, ops |
 | Surfaces | The feature cycle, standalone modes (G), and dynamic agents (H) |
-| Companions | Auto-installed via a manifest and an idempotent ensure step on first run |
+| Companions | Native plugin `dependencies` for marketplace plugins (cross-marketplace allowlisted) + an idempotent ensure step for the loose skill bulk |
 | Skill sources | Marketplace plugins + `Mindrally/skills` (Apache-2.0) for the stack bulk + discovery registries (`awesomeskills.dev`, `crossaitools.com`, `skillsmp.com` API/MCP, `skillsdirectory.com` with A–F security grades) |
-| Safety | Prompt-injection classifier (I) on untrusted input + security-graded skill installs |
-| Model routing | Selector agent (J); Opus floor for planning/QA/interview/review/adversarial, Sonnet for code, Haiku only for trivial |
+| Orchestration | Per-phase choice: subagents (default), agent teams (adversarial debate), dynamic workflows (fan-out + verify loops), routines (scheduled/triggered). D chains workflows with sign-off between them. |
+| Safety | Prompt-injection classifier (I) via `PostToolUse` on untrusted input + security-graded skill installs |
+| Writing enforcement | Anti-slop as an output style (`force-for-plugin`) at the system-prompt level, plus the gate and the commit/PR hook |
+| Model routing | Native per-agent `model` + `effort` frontmatter (J); Opus floor for planning/QA/interview/review/adversarial, Sonnet for code, Haiku only for trivial |
+| Work tracking | Auto-maintained work streams in the memory store (source of truth), maintained by hooks; optional one-way mirror to Notion/Linear/Jira. No manual upkeep. |
 | Version control | Work stays on `main` for this project; no feature branches |
 
 ---
@@ -745,10 +843,19 @@ Each milestone is independently useful the day it ships.
 
 - Exact `patterns.json` schema and how per-stack tokens are namespaced.
 - Whether `guard-edit` blocks or only surfaces once it has proven itself in real use.
-- Orchestrator (D) as a single command dispatching subagents, or a Workflow script, or a mix.
-  Leaning toward a command that calls Workflow for the deterministic fan-out and verify loops.
-- How the prompt-injection classifier (I) is implemented: a fast model call, a skill, or a
-  hook, and where exactly it intercepts.
-- Budget mechanism: per-run token ceiling and how a run pauses when it would exceed it.
-- Connector authentication in headless or scheduled runs, where interactive auth is absent.
+- Whether to publish the skill bulk as a Polaris skills marketplace (so it becomes a plugin
+  dependency and installs natively) or keep the `ensure-companions.sh` sync. Leaning marketplace.
+- Agent teams are experimental and gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. Decide
+  whether D's adversarial phases require them or fall back to workflows when the flag is off.
+- How the prompt-injection classifier (I) balances cost against coverage: a fast model call in a
+  `PostToolUse` hook on every untrusted result is thorough but adds latency and tokens.
+- Budget mechanism: per-run token ceiling and how a run pauses when it would exceed it. Workflow
+  agent caps (16 concurrent, 1000 total) bound the worst case but are not a budget.
+- Connector authentication in headless or routine runs, where interactive auth is absent.
 - The full memory architecture (subsystem E), deferred until its slice.
+- Whether to ship the file-based work-tracker MVP (§8.4) early, ahead of full subsystem E, since
+  it solves a daily pain and needs only hooks plus the existing `memory/` directory.
+- Auto-classification accuracy for the work tracker: how reliably a prompt or edit is attached to
+  the right stream, and how the user corrects a misfile cheaply.
+- Which mirror target to default to (Notion, Linear, or Jira) and whether the mirror is per
+  project or per user.
