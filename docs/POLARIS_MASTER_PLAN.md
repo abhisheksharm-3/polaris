@@ -324,8 +324,14 @@ untrusted input before Polaris acts on it.
   with the skill security grading (§4.2), this is Polaris's safety layer. Auto-install and
   connector access are only acceptable with it in place.
 
-The classifier is a fixed guardrail, not configurable off. Its sensitivity may be tunable, its
-presence is not.
+**Relationship to Claude Code's built-in defense (grounded).** Claude Code already ships strong
+protection: auto mode's classifier strips tool results so hostile content cannot manipulate it,
+and a separate server-side probe scans incoming tool results before Claude reads them. Polaris
+does not reinvent that. Subsystem I is the added layer for the specific case the base model does
+not fully cover: untrusted content (fetched docs, connector payloads, referenced repos, installed
+skills) that flows into Polaris agents and the memory store. It runs as a `PostToolUse` pass that
+can quarantine or redact via `updatedToolOutput`. The classifier is a fixed guardrail, not
+configurable off; its sensitivity may be tunable, its presence is not.
 
 ---
 
@@ -443,6 +449,29 @@ A specialized agent for every SDLC role, grouped by phase. Each wires the releva
 for its job and installs missing ones (§4.2). Karpathy best practices apply to every agent, and
 every agent applies the quality gate before declaring done. This is the full roster; it is built
 incrementally, and simple tasks use only a few of these.
+
+### 6.0 The agent contract
+
+So 25+ agents stay consistent instead of drifting, every fleet agent follows one template,
+grounded in the verified plugin-agent frontmatter (`model`, `effort`, `maxTurns`, `tools`,
+`disallowedTools`, `skills`, `memory`, `background`, `isolation`):
+
+- **Model and effort** come from the routing policy (J): the agent's default tier is set in
+  frontmatter and matches its task class.
+- **Least privilege.** `tools` and `disallowedTools` grant only what the role needs. A reviewer
+  reads and runs checks; it does not write.
+- **Skills wired, not duplicated.** The `skills` field lists the host skills the role uses.
+  Knowledge lives in the skill; the agent body holds only the role's judgment.
+- **Isolation.** An agent that writes files in parallel sets `isolation: worktree`.
+- **A fixed body shape.** Every agent body states its role, then: load `.polaris/config.json`
+  and the standard, resolve stack skills and fresh docs (§4.1), do the work to the fixed bar,
+  run the quality gate before declaring done, and return output in the role's defined shape.
+- **What plugin agents cannot do.** `hooks`, `mcpServers`, and `permissionMode` are ignored for
+  plugin-shipped agents, so agents rely on session-level config for those, and the auto-mode
+  classifier evaluates every subagent regardless of any requested mode.
+
+The contract is written once as a spec and a template file; each agent fills in role, skills,
+tools, model, and output shape.
 
 ### Discovery and product
 
@@ -630,6 +659,11 @@ seed for working and project memory. Subsystem E grows it into a retrievable sto
 - **Retrieve.** On demand via RAG: embed the entries, retrieve the relevant ones for the task
   at hand rather than loading everything. This is why it is real infrastructure (a store plus
   embeddings), not markdown.
+- **Store (backing).** The default is local and private: a SQLite database plus a vector index
+  in `.polaris/`, with embeddings from a local model or an embedding API. Local keeps it working
+  offline and in headless runs, and keeps project data on the machine. An MCP-backed vector store
+  is an option for teams that want shared memory. Always-loaded facts still live in `CLAUDE.md`
+  and the agent `memory` field; the store is for what is too large to keep in context.
 - **Connect.** MCP connectors (Jira, Slack, Gmail, Calendar, analytics) pull external context.
   All connector data passes the injection classifier (§4.3) before use.
 
@@ -775,16 +809,40 @@ Concerns that apply to every subsystem, not just one.
   tree per project: `config.json`, and `runs/`, `specs/`, `plans/`, `reports/`, `handoffs/`.
   This is the enforced doc organization from subsystem C, applied to Polaris's own output. No
   stray files.
-- **Human approval model.** Approval gates are explicit and consolidated at the phase
-  boundaries in §5 (spec, design, plan). Nothing irreversible or outward-facing (a push, a PR,
-  a message to a connector) happens without confirmation unless the config authorizes it.
+- **Permissions and safety (grounded in the real model).** Claude Code enforces permissions
+  itself, not the model, with allow/ask/deny rules evaluated deny-first and a precedence of
+  managed over CLI over local over project over user. Polaris uses this rather than inventing a
+  policy layer:
+  - The setup writes a starting rule set into project settings: read-only and safe commands
+    allowed, outward-facing or destructive actions (`git push`, `gh pr create`, deploys, secret
+    access) set to ask or gated by the config.
+  - For autonomous cycle runs, Polaris recommends **auto mode**, whose classifier blocks
+    escalations, unrecognized infrastructure, and hostile-content-driven actions, and whose
+    server-side probe scans tool results before Claude reads them. This is the first safety
+    layer; subsystem I adds a `PostToolUse` pass for the specific case of untrusted content
+    flowing into agents (§4.3).
+  - **Protected paths** (`.git`, `.claude`, shell and package configs) are never auto-approved
+    outside bypass mode, so Polaris cannot corrupt repo or tool state by accident.
+  - Boundaries you state in chat ("don't push yet") are honored by the classifier. Teams can
+    lock Polaris's policy through managed settings.
+  - Nothing outward-facing happens without confirmation unless the config authorizes it.
+- **Rollback and checkpointing.** Claude Code checkpoints every file edit made through its edit
+  tools and exposes `/rewind`, persisting across sessions. Polaris relies on this: agents edit
+  through file tools (checkpointed and undoable), and use git for permanent history. The known
+  gap is that bash-driven file changes (`rm`, `mv`) are not checkpointed, so Polaris avoids
+  destructive bash, prefers file tools, and establishes a clean git commit point before any
+  large auto-change so there is always a place to roll back to.
 - **Failure handling and loop caps.** Every verify-until-green loop has a maximum iteration
   count. On non-convergence Polaris stops, reports the remaining failures and the state, and
   escalates to a human rather than looping forever. Retries are bounded. No silent give-up and
-  no infinite loop.
-- **Budgets and cost.** A fleet of Opus agents is expensive. Each run carries a token or cost
-  budget; model routing (J) keeps the floor sensible; the final report states what was spent.
-  A run that would exceed its budget pauses and asks.
+  no infinite loop. Workflow runs also carry hard caps (16 concurrent agents, 1000 per run) as
+  a runaway backstop.
+- **Budgets and cost (grounded).** There is no native per-run hard-dollar budget in the CLI, so
+  Polaris controls cost with the real levers: model routing (J) and effort tiers, preprocessing
+  hooks that shrink context before Claude sees it, delegating verbose work to subagents, and the
+  workflow agent caps. It reads `/usage` to attribute spend and states it in the final report.
+  Before a large fan-out it estimates scale and pauses to ask. For teams, Console workspace
+  spend limits or a gateway cap the hard ceiling.
 - **Concurrency and isolation.** Parallel sub-plans and standalone modes run in git worktrees
   so they do not collide, under a concurrency cap.
 - **Observability.** Two layers. Workflow runs are inspectable live through the `/workflows`
@@ -831,7 +889,12 @@ Each milestone is independently useful the day it ships.
 | Companions | Native plugin `dependencies` for marketplace plugins (cross-marketplace allowlisted) + an idempotent ensure step for the loose skill bulk |
 | Skill sources | Marketplace plugins + `Mindrally/skills` (Apache-2.0) for the stack bulk + discovery registries (`awesomeskills.dev`, `crossaitools.com`, `skillsmp.com` API/MCP, `skillsdirectory.com` with A–F security grades) |
 | Orchestration | Per-phase choice: subagents (default), agent teams (adversarial debate), dynamic workflows (fan-out + verify loops), routines (scheduled/triggered). D chains workflows with sign-off between them. |
-| Safety | Prompt-injection classifier (I) via `PostToolUse` on untrusted input + security-graded skill installs |
+| Safety | Lean on Claude Code's auto-mode classifier + server-side tool-result probe; subsystem I adds a `PostToolUse` pass for untrusted content into agents/memory; security-graded skill installs |
+| Permissions | Use Claude Code's allow/ask/deny rules (deny-first, managed-wins); setup writes a starting rule set; protected paths never auto-approved |
+| Rollback | Rely on native checkpointing (`/rewind`) + git; agents edit via file tools, avoid destructive bash, set a clean commit point before big auto-changes |
+| Cost control | No native hard budget; use model routing + effort + preprocessing hooks + subagent delegation + workflow caps; report `/usage` spend; team ceilings via Console/gateway |
+| Memory storage | Local SQLite + vector index in `.polaris/` by default (private, offline); MCP store optional for teams |
+| Agent contract | One template for all fleet agents (§6.0): model/effort from policy, least-privilege tools, skills wired, fixed body shape, gate before done |
 | Writing enforcement | Anti-slop as an output style (`force-for-plugin`) at the system-prompt level, plus the gate and the commit/PR hook |
 | Model routing | Native per-agent `model` + `effort` frontmatter (J); Opus floor for planning/QA/interview/review/adversarial, Sonnet for code, Haiku only for trivial |
 | Work tracking | Auto-maintained work streams in the memory store (source of truth), maintained by hooks; optional one-way mirror to Notion/Linear/Jira. No manual upkeep. |
@@ -847,11 +910,10 @@ Each milestone is independently useful the day it ships.
   dependency and installs natively) or keep the `ensure-companions.sh` sync. Leaning marketplace.
 - Agent teams are experimental and gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. Decide
   whether D's adversarial phases require them or fall back to workflows when the flag is off.
-- How the prompt-injection classifier (I) balances cost against coverage: a fast model call in a
-  `PostToolUse` hook on every untrusted result is thorough but adds latency and tokens.
-- Budget mechanism: per-run token ceiling and how a run pauses when it would exceed it. Workflow
-  agent caps (16 concurrent, 1000 total) bound the worst case but are not a budget.
+- Whether subsystem I's `PostToolUse` classifier runs on every untrusted result or only on
+  higher-risk sources, to balance coverage against latency and tokens.
 - Connector authentication in headless or routine runs, where interactive auth is absent.
+- Which embedding model backs the local memory store, and its size and refresh cost.
 - The full memory architecture (subsystem E), deferred until its slice.
 - Whether to ship the file-based work-tracker MVP (§8.4) early, ahead of full subsystem E, since
   it solves a daily pain and needs only hooks plus the existing `memory/` directory.
