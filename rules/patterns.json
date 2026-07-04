@@ -1,0 +1,18 @@
+{
+  "prose": {
+    "banned_words": ["delve", "tapestry", "pivotal", "underscore", "testament", "vibrant", "showcase", "seamless", "leverage", "intricate", "robust", "nestled", "boasts", "groundbreaking", "fostering", "cultivating", "holistic", "synergy", "cutting-edge"],
+    "banned_regex": [
+      { "id": "not-only-but", "pattern": "not only .* but( also)?", "message": "banned structure: not only X but Y" },
+      { "id": "em-dash-spray", "pattern": " — .* — ", "message": "em-dash spray; use commas or periods" },
+      { "id": "importance-preamble", "pattern": "it is (important|worth) (to note|noting)", "message": "importance preamble; state the fact directly" }
+    ]
+  },
+  "code": {
+    "ts": [
+      { "id": "as-any", "pattern": "\\bas any\\b", "message": "no as any; use a proper type" },
+      { "id": "ts-ignore", "pattern": "@ts-(ignore|expect-error)", "message": "no ts-ignore without a documented framework bug" },
+      { "id": "console", "pattern": "console\\.(log|debug)", "message": "remove debug logging" },
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+    ]
+  }
+}
