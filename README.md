@@ -1,86 +1,73 @@
 # Polaris
 
-Design intelligence + stack-aware skills for Claude Code. Auto-detects your project stack and routes to the right skill — no configuration needed.
+An opinionated quality foundation for Claude Code. Polaris holds one standard across every
+project: code that is simple, secure, self-explanatory, and low in complexity, and prose (comments,
+commit messages, PR text, docs) that reads like a careful human wrote it. It auto-detects your
+stack and enforces the standard through a callable gate and opt-in hooks.
 
 ## What's included
 
-| Component | Source | Purpose |
-|---|---|---|
-| `polaris:ui-new` skill | UI UX Pro Max | Generate new UI from scratch with industry-specific design systems |
-| `polaris:ui-polish` skill | Impeccable | Audit, refine, and quality-check UI with 27 anti-pattern rules |
-| `polaris:ui-prototype` skill | Huashu Design | Create prototypes, slide decks, motion graphics, and infographics |
-| `polaris:playwright-e2e` skill | playwright-skill | Browser automation and E2E testing with Playwright |
-| `/init` command | Karpathy 12-rule template | Creates or audits CLAUDE.md with behavioral rules + project context |
-| Frontend baseline rules | Taste-Skill | Always-on design quality constraints (no AI purple, no emoji icons, etc.) |
-| Next.js agents | abhisheksharm-3 gist | Four specialized agents for Next.js 15+ / React 19 workflows |
-| Auto-detect hook | Custom | Detects stack at session start, injects the right rules automatically |
+| Component | Purpose |
+|---|---|
+| `rules/core.md` | Language-agnostic engineering standard: simplicity, root-cause fixes, the docs protocol, the Karpathy surgical-vs-aggressive rule |
+| `rules/writing.md` | The anti-slop writing standard for all prose output |
+| `rules/patterns.json` | Machine-readable banned words and code tokens, shared by the gate and the hooks |
+| `rules/stacks/*` + `stack-map.json` | Per-stack overlays (ts, react, nextjs, python, go, rust) and the map from a detected stack to its skills, docs, and overlay |
+| `quality-gate` skill + `/gate` | Check or fix a changeset: a deterministic pass plus a judgment pass, with `file:line` findings |
+| `output-styles/polaris-writing.md` | Applies the writing standard at the system-prompt level |
+| `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
+| Hooks | `session-start` injects the standard and detected overlays; `guard-commit-pr` blocks commits and PRs that violate the writing standard; `guard-edit` surfaces slop on edit (opt-in) |
+| `/init` | Setup interview writing `.polaris/config.json`, companion install, and CLAUDE.md generation |
 
-## Companion plugin (required)
+## Companions
 
-Polaris handles design and stack workflows. For process skills (TDD, debugging, planning, code review), install **Superpowers** alongside it:
-
-```
-/plugin install superpowers@claude-plugins-official
-```
+Polaris installs its companions for you. `superpowers` and `frontend-design` are declared as
+native plugin dependencies and install with Polaris. The stack skill library (from
+`github.com/Mindrally/skills`, Apache-2.0) and other skills sync on first run.
 
 ## Installation
 
-### Option 1: From GitHub marketplace (recommended)
+From the marketplace:
 
 ```
 /plugin marketplace add abhisheksharm-3/polaris
 /plugin install polaris
 ```
 
-### Option 2: Local development
+Local development:
 
 ```
 claude --plugin-dir ./polaris
 ```
 
+## Setup
+
+Run `/init` (or `/polaris:init`) at a project root. It asks how you want the standard applied
+(dead code, backward compatibility, architecture, naming, PR standards, or a one-step auto mode),
+writes `.polaris/config.json`, installs companions, and sets up `CLAUDE.md`. The gate, hooks, and
+agents all read that config.
+
+## The quality gate
+
+Run `/gate` to check the current changeset, or `/gate --fix` to fix and re-verify. Scope it with
+`--scope code|writing|both`. The gate runs a fast deterministic pass (`scripts/check-patterns.sh`
+over `patterns.json`) plus a judgment pass against the standard, then reports pass or fail with
+`file:line` findings and the fix.
+
 ## Detected stacks
 
-Polaris auto-injects rules and agent routing for:
-- **Next.js** (detects `"next"` in package.json)
-- **React** (detects `"react"` in package.json, no Next)
-- **Python** (detects `pyproject.toml` or `requirements.txt`)
-- **Rust** (detects `Cargo.toml`)
-- **Go** (detects `go.mod`)
-- **Playwright** (detects `"playwright"` or `"@playwright/test"` in package.json)
+Polaris injects the right overlay for Next.js, React, Python, Rust, Go, and Playwright, detected
+from the project manifests at session start.
 
-## `/init` — CLAUDE.md generator
+## Testing
 
-Run `/init` (or `/polaris:init`) at the root of any project to set up a `CLAUDE.md` file.
-
-**No existing CLAUDE.md:** scans your project (commands, architecture, README, cursor rules) and generates a file combining the [Karpathy 12-rule behavioral template](https://www.reddit.com/r/AskVibecoders/comments/1ta7yr8/) with your project-specific context.
-
-**CLAUDE.md already exists:** audits it for missing behavioral rules and stale project sections, then proposes targeted diffs.
-
-The generated file always includes all 12 behavioral rules and stays under the 200-line compliance ceiling.
-
-## Skill routing
-
-| You want to... | Skill or agent used |
-|---|---|
-| Build new UI from scratch | `polaris:ui-new` → `polaris:ui-polish` |
-| Audit or refine existing UI | `polaris:ui-polish` |
-| Create a prototype or slide deck | `polaris:ui-prototype` |
-| Write E2E tests | `polaris:playwright-e2e` |
-| Build a Next.js feature | `polaris:feature-builder` agent |
-| Post-AI-session cleanup | `polaris:code-cleanup` agent |
-| Full codebase audit | `polaris:audit-refactor` agent |
-| Remove AI-generated artifacts | `polaris:slop-remover` agent |
+The deterministic checker and the commit guard have shell fixtures. Run `bash tests/run-tests.sh`.
 
 ## Attribution
 
-All skill content is MIT licensed. Source repositories:
-- [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
-- [Impeccable](https://github.com/pbakaus/impeccable)
-- [Huashu Design](https://github.com/alchaincyf/huashu-design)
-- [Taste-Skill](https://github.com/Leonxlnx/taste-skill)
-- [playwright-skill](https://github.com/lackeyjb/playwright-skill)
-- [Next.js Agents](https://gist.github.com/abhisheksharm-3/26caa5ebaeb08d58a0a60a866bb82473)
+Skill content is MIT or Apache-2.0 licensed. Sources include the Mindrally skill library
+(Apache-2.0), UI UX Pro Max, Impeccable, Huashu Design, and playwright-skill.
 
 ## License
 
-MIT — see LICENSE file.
+MIT. See the LICENSE file.
