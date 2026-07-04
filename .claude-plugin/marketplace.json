@@ -5,6 +5,7 @@
     "name": "Abhishek Sharma",
     "email": "abhitiku2003@gmail.com"
   },
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official", "karpathy-skills"],
   "plugins": [
     {
       "name": "polaris",

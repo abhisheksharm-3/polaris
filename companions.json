@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    { "name": "superpowers", "marketplace": "claude-plugins-official" },
+    { "name": "frontend-design", "marketplace": "claude-plugins-official" },
+    { "name": "andrej-karpathy-skills", "marketplace": "karpathy-skills" }
+  ],
+  "skillBulk": { "source": "https://github.com/Mindrally/skills", "dest": "~/.claude/skills/", "license": "Apache-2.0" }
+}

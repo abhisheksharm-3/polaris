@@ -1,17 +1,64 @@
 ---
 description: >
-  Initialize or improve CLAUDE.md for the current project. If no CLAUDE.md exists,
-  creates one with the full 12-rule behavioral baseline + project-specific context.
-  If CLAUDE.md already exists, audits it and fills any gaps.
+  Set up Polaris for this project: run the setup interview to write .polaris/config.json,
+  ensure companion skills are installed, then initialize or improve CLAUDE.md with the
+  12-rule behavioral baseline plus project-specific context.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash
+---
+
+# Polaris Project Setup
+
+Sets Polaris up for the current project in three parts: the project config interview, companion
+install, and the CLAUDE.md initializer.
+
+**Hard ceiling for CLAUDE.md: under 200 lines.** Compliance drops past it.
+
+---
+
+## Step 0: Polaris project config and companions
+
+### 0a. Ensure companions
+
+Run the idempotent companion installer (no-op after the first run):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/ensure-companions.sh"
+```
+
+### 0b. Setup interview
+
+If `.polaris/config.json` already exists, skip to Step 1 unless the user asks to reconfigure.
+
+Otherwise ask the user these questions (offer a one-step auto path first):
+
+- **One-step auto?** If yes, take the defaults and infer the rest from the existing code, then
+  write the config and skip the remaining questions.
+- **Dead code:** delete on sight / flag for review / keep.
+- **Backward compatibility:** none (change freely) / maintain.
+- **Architecture and structure:** describe it / mirror a GitHub repo / mirror a local project /
+  let Polaris decide. If a reference is given, read it and infer its structure and naming.
+- **Naming standards:** Polaris defaults / your own rules / infer from the reference.
+- **PR and commit standards:** your conventions / Polaris defaults.
+
+Auto defaults: `deadCode: "delete"`, `backwardCompat: "none"` unless release tags or a published
+package are detected (then `"maintain"`), `naming.source: "polaris"`, `architecture.source:
+"polaris"` (or `"local"`/`"github"` when a reference was given).
+
+### 0c. Write the config
+
+Copy `${CLAUDE_PLUGIN_ROOT}/templates/config.default.json` to `.polaris/config.json` in the
+project root and set each field from the answers. Validate it parses:
+
+```bash
+mkdir -p .polaris && jq . .polaris/config.json >/dev/null && echo "config written"
+```
+
 ---
 
 # CLAUDE.md Initializer
 
 Creates or improves CLAUDE.md for the current project, combining a universal behavioral
 rule baseline (Karpathy 12-rule template) with project-specific context.
-
-**Hard ceiling: keep the generated file under 200 lines.** Compliance drops past it.
 
 ---
 
