@@ -29,7 +29,7 @@ Never implement version-specific APIs from memory — always verify against curr
 | New feature, component, or API endpoint | `polaris:feature-builder` |
 | Post-generation quality pass before PR | `polaris:code-cleanup` |
 | Security audit, perf audit, architecture review | `polaris:audit-refactor` |
-| Removing AI artifacts from code | `polaris:slop-remover` |
+| Removing AI artifacts from code | `polaris:code-cleanup` |
 
 ---
 
