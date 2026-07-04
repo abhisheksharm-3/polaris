@@ -837,20 +837,33 @@ Concerns that apply to every subsystem, not just one.
   escalates to a human rather than looping forever. Retries are bounded. No silent give-up and
   no infinite loop. Workflow runs also carry hard caps (16 concurrent agents, 1000 per run) as
   a runaway backstop.
-- **Budgets and cost (grounded).** There is no native per-run hard-dollar budget in the CLI, so
-  Polaris controls cost with the real levers: model routing (J) and effort tiers, preprocessing
-  hooks that shrink context before Claude sees it, delegating verbose work to subagents, and the
-  workflow agent caps. It reads `/usage` to attribute spend and states it in the final report.
-  Before a large fan-out it estimates scale and pauses to ask. For teams, Console workspace
-  spend limits or a gateway cap the hard ceiling.
+- **Budgets and cost (grounded, and extractable live).** Cost is not just shown in `/usage`, it
+  is readable programmatically, so Polaris runs a real spend meter:
+  - **OpenTelemetry** (`CLAUDE_CODE_ENABLE_TELEMETRY=1`) emits `claude_code.cost.usage` (USD) and
+    `claude_code.token.usage`, attributed by `model`, `query_source` (main vs subagent),
+    `agent.name`, `skill.name`, `plugin.name`, and `session.id`, plus a `claude_code.api_request`
+    event carrying `cost_usd` per request. Polaris reads this stream to attribute spend per agent
+    and per phase in real time.
+  - **Agent SDK and workflow** results expose `total_cost_usd` and a per-model `modelUsage`
+    breakdown per query, so agents run that way report their own cost directly.
+  - A Polaris **statusline** surfaces running cost and budget remaining, since the statusline
+    script receives cost on stdin.
+  - **Enforcement.** There is still no built-in "stop at $X per run" in the CLI, so Polaris sets
+    a per-run ceiling and watches the telemetry stream against it: it pauses and asks as a run
+    approaches the ceiling, and states actual spend in the final report. Model routing (J), effort
+    tiers, context-shrinking hooks, subagent delegation, and workflow caps keep the baseline low.
+    For a hard cap, Console workspace spend limits or a gateway sit underneath.
+  - All of the above are client-side estimates; authoritative dollars come from the Console usage
+    and cost API.
 - **Concurrency and isolation.** Parallel sub-plans and standalone modes run in git worktrees
   so they do not collide, under a concurrency cap.
-- **Observability.** Two layers. Workflow runs are inspectable live through the `/workflows`
-  view, which shows each phase's agent count, token total, and elapsed time, and drills into any
-  agent's prompt and result. For live external signals (CI status, error logs), Polaris ships
-  plugin **monitors** (`monitors/monitors.json`) that watch a command's output and surface lines
-  to Claude as notifications. Polaris also writes its own run history to `.polaris/runs/`: which
-  agents ran, on which model, at what cost, with what findings and outcomes.
+- **Observability.** Three sources. Workflow runs are inspectable live through the `/workflows`
+  view (per-phase agent count, token total, elapsed time, drill into any agent). **OpenTelemetry**
+  metrics and events give per-agent, per-skill, per-session cost and token counts that Polaris
+  reads for the spend meter and the run log. For live external signals (CI status, error logs),
+  Polaris ships plugin **monitors** (`monitors/monitors.json`) that watch a command's output and
+  surface lines to Claude as notifications. Polaris writes its own run history to `.polaris/runs/`:
+  which agents ran, on which model, at what cost, with what findings and outcomes.
 - **Privacy.** Connector data is sensitive. It is used in-session and not persisted unless the
   user opts in, and it always passes the injection classifier first.
 
@@ -892,7 +905,7 @@ Each milestone is independently useful the day it ships.
 | Safety | Lean on Claude Code's auto-mode classifier + server-side tool-result probe; subsystem I adds a `PostToolUse` pass for untrusted content into agents/memory; security-graded skill installs |
 | Permissions | Use Claude Code's allow/ask/deny rules (deny-first, managed-wins); setup writes a starting rule set; protected paths never auto-approved |
 | Rollback | Rely on native checkpointing (`/rewind`) + git; agents edit via file tools, avoid destructive bash, set a clean commit point before big auto-changes |
-| Cost control | No native hard budget; use model routing + effort + preprocessing hooks + subagent delegation + workflow caps; report `/usage` spend; team ceilings via Console/gateway |
+| Cost control | Live spend meter from OpenTelemetry cost/token metrics (per agent/skill/session) + SDK `total_cost_usd` + a statusline; per-run ceiling watched against the stream, pause-and-ask near it; baseline held by model routing + effort + caps; hard cap via Console/gateway |
 | Memory storage | Local SQLite + vector index in `.polaris/` by default (private, offline); MCP store optional for teams |
 | Agent contract | One template for all fleet agents (§6.0): model/effort from policy, least-privilege tools, skills wired, fixed body shape, gate before done |
 | Writing enforcement | Anti-slop as an output style (`force-for-plugin`) at the system-prompt level, plus the gate and the commit/PR hook |
