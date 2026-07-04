@@ -13,7 +13,6 @@ found=0
 
 scan_prose() {
   local file="$1"
-  case "$file" in */rules/*|*patterns.json) return 0;; esac
   while IFS= read -r word; do
     grep -niwE "$word" "$file" 2>/dev/null | while IFS=: read -r ln _; do
       echo "$file:$ln: banned-word: '$word'"
@@ -35,6 +34,7 @@ scan_code() {
 
 for file in "$@"; do
   [ -f "$file" ] || continue
+  case "$file" in rules/*|*/rules/*|*patterns.json) continue;; esac
   out=""
   case "$scope" in
     prose) out="$(scan_prose "$file")";;
