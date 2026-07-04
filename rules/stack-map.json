@@ -1,0 +1,8 @@
+{
+  "nextjs":     { "skills": ["nextjs-react-typescript", "optimized-nextjs-typescript"], "docs": "https://nextjs.org/docs", "overlay": "stacks/nextjs.md" },
+  "react":      { "skills": ["react"], "docs": "https://react.dev", "overlay": "stacks/react.md" },
+  "typescript": { "skills": ["typescript"], "docs": "https://www.typescriptlang.org/docs/", "overlay": "stacks/typescript.md" },
+  "python":     { "skills": ["python"], "docs": "https://docs.python.org/3/", "overlay": "stacks/python.md" },
+  "go":         { "skills": ["go", "go-api-development"], "docs": "https://go.dev/doc", "overlay": "stacks/go.md" },
+  "rust":       { "skills": ["rust"], "docs": "https://doc.rust-lang.org/", "overlay": "stacks/rust.md" }
+}

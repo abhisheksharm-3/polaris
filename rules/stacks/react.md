@@ -127,3 +127,29 @@ export function useCreateUserMutation() {
 - No duplicate utility functions — search before creating
 - No orphan files — every file is imported somewhere
 - JSDoc on all exported hooks and utility functions
+
+## Frontend design baseline
+
+Typography:
+- Never use Inter as the primary font in premium UI. Prefer Geist, Outfit, or Cabinet Grotesk.
+- Never use serif fonts on dashboards or data-dense interfaces.
+- No emojis in UI. Use high-quality SVG icons.
+
+Color and layout:
+- No "AI purple" gradients or neon glows as a default aesthetic.
+- No generic card overuse in data-dense interfaces.
+- Full-height sections use `min-h-[100dvh]`, not `min-h-screen` (mobile collapse).
+
+Animation performance:
+- Animate only `transform` and `opacity`, never `width`, `height`, `top`, `left`.
+- Spring physics over linear or bounce easing.
+- `useMotionValue` and `useTransform` over React state for continuous animations.
+- Never mix GSAP and Framer Motion in the same component tree.
+
+Anti-patterns to never produce:
+- Purple gradients as a default aesthetic
+- Decorative emoji icons
+- Circular cards with left border accents
+- SVG-drawn product photography (use real images)
+- Centered hero sections when the content is asymmetric
+- Generic "loading..." skeletons without a branded style
