@@ -46,17 +46,21 @@ escape_for_json() {
 # --- Build context ---
 combined_context=""
 
-# Always include general rules
-if [ -f "${PLUGIN_ROOT}/rules/general.md" ]; then
-    combined_context=$(cat "${PLUGIN_ROOT}/rules/general.md")
+# Ensure companion plugins/skills are present (idempotent, no-op after first run)
+if [ -x "${PLUGIN_ROOT}/scripts/ensure-companions.sh" ]; then
+    "${PLUGIN_ROOT}/scripts/ensure-companions.sh" >/dev/null 2>&1 || true
 fi
 
-# Always include anti-AI-slop writing rules (local summary)
-# The rules file itself instructs Claude to also WebFetch the live Wikipedia article
-if [ -f "${PLUGIN_ROOT}/rules/no-ai-slop.md" ]; then
-    slop_content=$(cat "${PLUGIN_ROOT}/rules/no-ai-slop.md")
+# Always include the language-agnostic core standard
+if [ -f "${PLUGIN_ROOT}/rules/core.md" ]; then
+    combined_context=$(cat "${PLUGIN_ROOT}/rules/core.md")
+fi
+
+# Always include the writing standard (governs comments, commits, PRs, docs)
+if [ -f "${PLUGIN_ROOT}/rules/writing.md" ]; then
+    writing_content=$(cat "${PLUGIN_ROOT}/rules/writing.md")
     combined_context="${combined_context}
-${slop_content}"
+${writing_content}"
 fi
 
 # Append detected stack rules

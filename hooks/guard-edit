@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
+
+# opt-in: only run when the project config enables it
+cfg="${CLAUDE_PROJECT_DIR:-$PWD}/.polaris/config.json"
+[ -f "$cfg" ] || exit 0
+jq -e '.guardEdit == true' "$cfg" >/dev/null 2>&1 || exit 0
+
+input="$(cat)"
+file="$(echo "$input" | jq -r '.tool_input.file_path // ""')"
+[ -f "$file" ] || exit 0
+out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "${ROOT}/scripts/check-patterns.sh" code "$file" 2>/dev/null)"
+[ -z "$out" ] && exit 0
+jq -cn --arg c "Polaris: possible slop in ${file}:
+${out}" '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$c}}'
+exit 0

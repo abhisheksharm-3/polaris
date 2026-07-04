@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
+CHECK="${ROOT}/scripts/check-patterns.sh"
+
+input="$(cat)"
+cmd="$(echo "$input" | jq -r '.tool_input.command // ""')"
+case "$cmd" in
+  *"git commit"*|*"gh pr create"*) : ;;
+  *) exit 0 ;;
+esac
+
+# extract message text after -m / --body / --title, best-effort
+msg="$(echo "$cmd" | grep -oE '(-m|--body|--title)[= ]+"[^"]*"' | sed -E 's/(-m|--body|--title)[= ]+"//; s/"$//')"
+[ -z "$msg" ] && exit 0
+
+tmp="$(mktemp)"; printf '%s\n' "$msg" > "$tmp"
+out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "$CHECK" prose "$tmp" 2>/dev/null)"
+rm -f "$tmp"
+
+if [ -n "$out" ]; then
+  reason="Commit/PR message violates the writing standard: ${out}"
+  jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+fi
+exit 0

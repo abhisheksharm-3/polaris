@@ -19,4 +19,13 @@ expect_exit 0 "$CHECK" prose "${DIR}/fixtures/clean-prose.md"
 expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad-ts.ts"
 expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.ts"
 
+# guard-commit-pr: bad commit message denied, good allowed
+GUARD="${DIR}/../hooks/guard-commit-pr"
+bad_msg="$(cat "${DIR}/fixtures/commit-bad.txt")"
+good_msg="$(cat "${DIR}/fixtures/commit-good.txt")"
+bad_payload="$(jq -n --arg c "git commit -m \"${bad_msg}\"" '{tool_input:{command:$c}}')"
+good_payload="$(jq -n --arg c "git commit -m \"${good_msg}\"" '{tool_input:{command:$c}}')"
+if echo "$bad_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "ok: bad commit denied"; else echo "FAIL: bad commit not denied"; fail=1; fi
+if echo "$good_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "FAIL: good commit denied"; fail=1; else echo "ok: good commit allowed"; fi
+
 exit $fail
