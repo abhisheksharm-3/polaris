@@ -1,42 +1,31 @@
 # Polaris
 
-An opinionated quality foundation for Claude Code. Polaris holds one standard across every
-project: code that is simple, secure, self-explanatory, and low in complexity, and prose (comments,
-commit messages, PR text, docs) that reads like a careful human wrote it. It auto-detects your
-stack and enforces the standard through a callable gate and opt-in hooks.
+An all-in-one project operating system for Claude Code. Polaris runs the whole software lifecycle,
+from a rough idea through research, design, build, review, QA, docs, ship, and operate, and the work
+around it: product, marketing, and bug fixing. It holds one quality bar across every step. The code
+it produces is simple, secure, self-explanatory, and low in complexity, and every line of prose it
+writes, including commit messages and PR bodies, reads like a careful human wrote it.
 
-## What's included
+Polaris lives by its own rules. The standard it enforces on your code, it enforces on itself.
 
-| Component | Purpose |
-|---|---|
-| `rules/core.md` | Language-agnostic engineering standard: simplicity, root-cause fixes, the docs protocol, the Karpathy surgical-vs-aggressive rule |
-| `rules/writing.md` | The anti-slop writing standard for all prose output |
-| `rules/patterns.json` | Machine-readable banned words and code tokens, shared by the gate and the hooks |
-| `rules/stacks/*` + `stack-map.json` | Per-stack overlays (ts, react, nextjs, python, go, rust) and the map from a detected stack to its skills, docs, and overlay |
-| `quality-gate` skill + `/gate` | Check or fix a changeset: a deterministic pass plus a judgment pass, with `file:line` findings |
-| `output-styles/polaris-writing.md` | Applies the writing standard at the system-prompt level |
-| Agent fleet (27) | A role agent for every SDLC phase and domain: product, researcher, architect, api-designer, data-modeler, security-architect, ux, ui, frontend-logic, backend, integrations, infra, data-engineer, reviewer, verifier, tester, e2e, perf, bug-fixer, tech-writer, shipper, devops, sre, plus code-cleanup, audit-refactor, feature-builder, prod-audit. Each wires host skills and carries a model tier |
-| `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
-| `/flow` | Run the full cycle on a task: idea to spec to design to plan to build to review to QA to docs to shipped PR, with human approval at the spec, design, and plan gates and capped verify loops |
-| `/research`, `/onboard`, `/explain` | Standalone modes: research what to build next, onboard a developer, explain how code works |
-| Work tracker (`/track` + session-start) | Keeps your parallel work threads in `.polaris/work/streams.md`, surfaced every session so nothing is lost; `/track` reconciles the session into it |
-| Prompt enhancing (`/enhance` + hook) | Judges whether a prompt is clear and, only if vague, enriches it with project context. The automatic hook is off by default (`promptEnhance` in config) |
-| Memory (`/remember`, `/recall`, `/catchup`) | Global file-based memory at `~/.claude/polaris-memory/`, surfaced at session start; `/catchup` briefs you across memory, the work tracker, and connectors (when auth is active) |
-| `/synthesize` | Compose an ephemeral agent on the fly from the skill registries for a task no fleet agent covers, with a security-grade trust filter |
-| `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
-| `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
-| `rules/model-routing.md` | Model tier policy: Opus for planning, QA, and review; Sonnet for code; Haiku only for trivial. Agents carry a matching `model` |
-| Injection guardrail | `guard-input` flags prompt-injection markers in fetched and MCP tool results, so untrusted content is treated as data, not instructions |
-| Hooks | `session-start` injects the standard and detected overlays; `guard-commit-pr` blocks commits and PRs that violate the writing standard; `guard-edit` surfaces slop on edit (opt-in); `guard-input` flags injection in tool results |
-| `/init` | Setup interview writing `.polaris/config.json`, companion install, and CLAUDE.md generation |
+## The idea
 
-## Companions
+An AI agent left alone drifts two ways: it over-builds (fifty lines where one would do), and it
+writes text full of the tells that mark it as machine-generated. Polaris fixes both with one
+standard and the machinery to enforce it.
 
-Polaris installs its companions for you. `superpowers` and `frontend-design` are declared as
-native plugin dependencies and install with Polaris. The stack skill library (from
-`github.com/Mindrally/skills`, Apache-2.0) and other skills sync on first run.
+- **One canonical standard.** Simplicity first, root-cause fixes over symptom patches, security at
+  the boundary, and an anti-slop writing rule for all prose. It is split into a language-agnostic
+  core, per-stack overlays, and a machine-readable pattern file.
+- **A gate that enforces it.** A callable check runs a fast deterministic pass plus a judgment pass
+  and reports pass or fail with `file:line` findings. Agents call it before they declare work done.
+- **Hooks with teeth.** A commit and PR guard blocks banned words and AI attribution before they
+  land. A tool-result guard flags prompt-injection in fetched and MCP content. Session start injects
+  the standard and surfaces your open work.
+- **The least code that works.** The ponytail companion adds a laziness ladder (reuse and stdlib
+  before a new dependency, a one-liner before a class), applied by every code writer.
 
-## Installation
+## Install
 
 From the marketplace:
 
@@ -51,33 +40,95 @@ Local development:
 claude --plugin-dir ./polaris
 ```
 
+Companions install with Polaris: `superpowers` and `frontend-design` as native plugin dependencies,
+and the rest (karpathy, ponytail, the daymade skills, and the Mindrally stack-skill library) synced
+on first run. See `companions.json` for the full manifest.
+
 ## Setup
 
-Run `/init` (or `/polaris:init`) at a project root. It asks how you want the standard applied
-(dead code, backward compatibility, architecture, naming, PR standards, or a one-step auto mode),
-writes `.polaris/config.json`, installs companions, and sets up `CLAUDE.md`. The gate, hooks, and
-agents all read that config.
+Run `/init` (or `/polaris:init`) at a project root. It interviews you on how the standard should
+apply here (dead code, backward compatibility, architecture, naming, PR conventions, or a one-step
+auto mode), writes `.polaris/config.json`, installs companions, and sets up `CLAUDE.md`. The gate,
+the hooks, and every agent read that config, so the same engine enforces a different profile per
+project.
 
-## The quality gate
+## The command surface
 
-Run `/gate` to check the current changeset, or `/gate --fix` to fix and re-verify. Scope it with
-`--scope code|writing|both`. The gate runs a fast deterministic pass (`scripts/check-patterns.sh`
-over `patterns.json`) plus a judgment pass against the standard, then reports pass or fail with
-`file:line` findings and the fix.
+| Command | What it does |
+|---|---|
+| `/flow <task>` | The full build cycle: idea to a reviewed, tested, shipped PR, with human gates at spec, design, and plan, and capped verify loops |
+| `/debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
+| `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
+| `/gate [--fix] [--scope]` | Run the quality gate on the current changeset |
+| `/audit` | Whole-codebase four-category audit (security, performance, architecture, structure) |
+| `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
+| `/track` | Reconcile this session into the cross-session work tracker |
+| `/catchup` | Morning briefing across memory, the work tracker, and connectors |
+| `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
+| `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
+| `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
+| `/remember`, `/recall` | Write to and read from global memory |
+| `/init` | Setup interview, companions, and CLAUDE.md |
 
-## Detected stacks
+## The agent fleet
 
-Polaris injects the right overlay for Next.js, React, Python, Rust, Go, and Playwright, detected
-from the project manifests at session start.
+A specialized agent for every role, each following one contract (load the config and the standard,
+resolve the stack skills and fresh docs, run the gate before done), wiring the right host skills, and
+carrying a model tier.
+
+- **Product and research:** product, researcher
+- **Architecture and design:** architect, api-designer, data-modeler, security-architect, ux, ui
+- **Implementation:** frontend-logic, backend, integrations, infra, data-engineer, feature-builder
+- **Review and QA:** reviewer, verifier, tester, e2e, perf, bug-fixer
+- **Docs, ship, and ops:** tech-writer, shipper, devops, sre
+- **Quality and audit:** code-cleanup, audit-refactor, prod-audit
+
+## The standard and its enforcement
+
+`rules/core.md` holds the language-agnostic engineering standard, the docs protocol (fetch
+`llms.txt` then version docs before writing), the skill-resolution order, and the ponytail ladder.
+`rules/writing.md` is the anti-slop writing standard for all prose. `rules/stacks/*` add per-stack
+opinions, mapped by `rules/stack-map.json`. `rules/patterns.json` is the machine-readable data that
+drives the deterministic checker and the hooks. `rules/routing.md` classifies each task to the
+agent, command, ponytail intensity, and model tier to use.
+
+The gate lives in `skills/quality-gate/`. The hooks are `guard-commit-pr` (blocks bad commit and PR
+text), `guard-edit` (surfaces slop on edit, opt-in), `guard-input` (flags injection in tool
+results), `enhance-prompt` (gated), and `session-start` (injects the standard, surfaces work and
+memory, installs companions).
+
+## Memory and the work tracker
+
+The work tracker keeps your parallel threads in `.polaris/work/streams.md`, surfaced every session
+so nothing is lost, updated by `/track`. Global memory lives in `~/.claude/polaris-memory/`, written
+by `/remember` and read by `/recall`, with `/catchup` tying memory, the tracker, and connectors into
+one briefing. Retrieval is by the model reading the index and entries; vector recall is a later add.
+
+## Skill sources
+
+Stack expertise comes from skills, resolved in order: installed skills in `~/.claude/skills/` (the
+bulk synced from `github.com/Mindrally/skills`, Apache-2.0), the marketplace companions, then the
+discovery registries (`skillsmp.com` with its API and MCP, `awesomeskills.dev`, `crossaitools.com`)
+filtered by the `skillsdirectory.com` security grade. `/synthesize` uses the registries to build an
+agent for a novel task.
+
+## Model routing and safety
+
+Agents carry a model tier: Opus for planning, research, architecture, security, review, and
+adversarial QA; Sonnet for implementation and test writing; Haiku only for the trivial. The
+injection guardrail screens untrusted content before it reaches an agent or memory, and the
+auto-mode classifier backs it. Nothing outward-facing happens without confirmation unless the config
+authorizes it.
 
 ## Testing
 
-The deterministic checker and the commit guard have shell fixtures. Run `bash tests/run-tests.sh`.
+The deterministic checker, the commit guard, the injection guard, the enhance hook, and the agent
+and command validators have shell fixtures. Run `bash tests/run-tests.sh`.
 
-## Attribution
+## Docs
 
-Skill content is MIT or Apache-2.0 licensed. Sources include the Mindrally skill library
-(Apache-2.0), UI UX Pro Max, Impeccable, Huashu Design, and playwright-skill.
+The design record is in [docs/](docs/): start with [docs/POLARIS_MASTER_PLAN.md](docs/POLARIS_MASTER_PLAN.md),
+then the per-slice specs and plans. Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

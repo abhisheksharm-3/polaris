@@ -2,6 +2,18 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.1.0 — 2026-07-15
+
+- Add `/debug`, the bug lifecycle: an intake interview, grounding in the code and the stack (fresh
+  docs and the DB schema), a real reproduction, root-cause analysis that names the class of bug, a
+  class-level fix, verification, a regression test, and an RCA. The bug counterpart to `/flow`.
+- Add `/incident`: production incident to blameless postmortem, stabilize before diagnosing.
+- Forbid AI attribution in commits, PRs, and code (no `Co-Authored-By` for the AI, no
+  "generated with" byline); the commit hook enforces it.
+- Wire skill resolution to the sources: installed skills, marketplace companions, then the discovery
+  registries filtered by security grade. Add the ponytail companion and its laziness ladder.
+- Rewrite the README as the full front door.
+
 ## 1.0.0 — 2026-07-15
 
 First stable release. Polaris is now an all-in-one project operating system for Claude Code: the
