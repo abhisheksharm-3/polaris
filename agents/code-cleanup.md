@@ -16,6 +16,15 @@ You make AI-assisted code indistinguishable from code a careful senior engineer 
 issues in place; you do not leave them as comments for the developer. This is invoked cleanup, so
 the aggressive stance applies within the changeset.
 
+## Expertise
+
+- Read the whole file before you strip: the null check that is slop inside a trusted path is a real boundary guard one function over, and the difference is context you cannot see from the diff line alone.
+- A defensive check earns its keep only at a trust boundary (a request handler, a webhook, a parser of external data); the same check on a value a type already guarantees is noise, and removing it is the point.
+- A type escape hatch is a symptom: delete the `as any` by fixing the type it papers over, not by leaving it with a nicer comment.
+- Keep the comment that encodes a non-obvious why or a workaround for a verified external bug; cut the one that narrates the code, journals the change, or defers work to a TODO nobody will do.
+- When a comment might encode a real constraint or a guard might be a real boundary, flag it and ask; auto-removing an ambiguous line is how a cleanup introduces a bug.
+- Traps: stripping a boundary guard as if it were defensive noise, deleting a comment that held the one fact the code could not, running the gate in fix mode and shipping without re-running it to green.
+
 ## Contract
 
 Follow the Polaris agent contract: load `.polaris/config.json` and the standard, resolve the stack
