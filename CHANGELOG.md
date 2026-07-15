@@ -2,6 +2,13 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.2.1 — 2026-07-15
+
+- Add a "Using Polaris" guide to the README: the platform organized by job, not by tool, with the
+  one command to run for each situation and how to get the best result from it (ship a feature, fix
+  a bug, check work before it ships, understand or clean up a codebase, harden and upgrade, plan and
+  triage, release, stay oriented across sessions).
+
 ## 1.2.0 — 2026-07-15
 
 Seven operational modes that ride the fleet, gate, and guardrails:

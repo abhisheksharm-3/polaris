@@ -10,7 +10,7 @@
     {
       "name": "polaris",
       "description": "An all-in-one project operating system for Claude Code: standard, gate, SDLC agent fleet, orchestration cycle, and memory.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "./",
       "author": {
         "name": "Abhishek Sharma",
