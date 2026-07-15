@@ -15,6 +15,7 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | `rules/stacks/*` + `stack-map.json` | Per-stack overlays (ts, react, nextjs, python, go, rust) and the map from a detected stack to its skills, docs, and overlay |
 | `quality-gate` skill + `/gate` | Check or fix a changeset: a deterministic pass plus a judgment pass, with `file:line` findings |
 | `output-styles/polaris-writing.md` | Applies the writing standard at the system-prompt level |
+| Agent fleet (27) | A role agent for every SDLC phase and domain: product, researcher, architect, api-designer, data-modeler, security-architect, ux, ui, frontend-logic, backend, integrations, infra, data-engineer, reviewer, verifier, tester, e2e, perf, bug-fixer, tech-writer, shipper, devops, sre, plus code-cleanup, audit-refactor, feature-builder, prod-audit. Each wires host skills and carries a model tier |
 | `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
 | `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
 | `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
