@@ -56,6 +56,13 @@ if [ -f "${PLUGIN_ROOT}/rules/core.md" ]; then
     combined_context=$(cat "${PLUGIN_ROOT}/rules/core.md")
 fi
 
+# Always include the craft principles (cross-cutting engineering judgment)
+if [ -f "${PLUGIN_ROOT}/rules/craft.md" ]; then
+    craft_content=$(cat "${PLUGIN_ROOT}/rules/craft.md")
+    combined_context="${combined_context}
+${craft_content}"
+fi
+
 # Always include the writing standard (governs comments, commits, PRs, docs)
 if [ -f "${PLUGIN_ROOT}/rules/writing.md" ]; then
     writing_content=$(cat "${PLUGIN_ROOT}/rules/writing.md")
