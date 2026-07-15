@@ -147,7 +147,7 @@ useful the day it ships.
 | **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | **Built** v0.9.0 |
 | **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | **Built** v0.7.0 |
 | **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | **Built** v0.11.0 |
-| **I** | Guardrails | Built-in prompt-injection classifier screening untrusted input before Polaris acts on it. Detailed in §4.3. | A | **Built** v0.5.0 |
+| **I** | Guardrails | A `PostToolUse` regex denylist that flags injection markers in untrusted input and tells the agent to treat the content as data. Detailed in §4.3. | A | **Built** v0.5.0 (denylist; model-classifier upgrade open) |
 | **J** | Model routing | Selector agent + minimum-model-per-task policy. Detailed in §6.3. | A, B | **Built** v0.5.0 |
 
 All subsystems shipped in the **1.0.0** release (2026-07-15). Historical build order was A, C, J+I,
@@ -312,14 +312,15 @@ This replaces the current session-start behavior, which only warns when superpow
 Polaris pulls in a large amount of untrusted text: fetched web pages and docs, MCP connector
 data (Jira, Slack, Gmail, email, tickets), referenced repos, file contents, PRDs, and the
 skills it auto-installs. Any of it can carry a prompt-injection payload ("ignore your
-instructions", a hijacked tool call, an exfiltration prompt). A built-in classifier screens
-untrusted input before Polaris acts on it.
+instructions", a hijacked tool call, an exfiltration prompt). A `PostToolUse` hook screens
+untrusted input with a regex denylist before Polaris acts on it, and hands anything it flags to
+the agent to treat as data.
 
 - **Where it sits.** Between an untrusted source and the agent that would consume it: on tool
   results, fetched content, connector payloads, and referenced-project content.
-- **What it does.** Detects instruction-override attempts, tool-use hijacking, and data
-  exfiltration prompts. On detection it quarantines the content, refuses to follow embedded
-  instructions, treats the text as data not commands, and surfaces the hit to the user.
+- **What it does.** Matches known injection phrasings: instruction-override, role reassignment,
+  and exfiltration prompts. On a match it appends an advisory that the agent treat the content as
+  data, not commands, and follow no directive inside it. It flags; it does not silently redact.
 - **Why it is foundation.** Everything downstream trusts that what it reads is safe. Together
   with the skill security grading (§4.2), this is Polaris's safety layer. Auto-install and
   connector access are only acceptable with it in place.
@@ -330,8 +331,9 @@ and a separate server-side probe scans incoming tool results before Claude reads
 does not reinvent that. Subsystem I is the added layer for the specific case the base model does
 not fully cover: untrusted content (fetched docs, connector payloads, referenced repos, installed
 skills) that flows into Polaris agents and the memory store. It runs as a `PostToolUse` pass that
-can quarantine or redact via `updatedToolOutput`. The classifier is a fixed guardrail, not
-configurable off; its sensitivity may be tunable, its presence is not.
+emits an advisory via `additionalContext`; it flags rather than redacts. The screen is a fixed
+guardrail, not configurable off. A model classifier that can quarantine or redact via
+`updatedToolOutput` is the open upgrade path.
 
 ---
 
