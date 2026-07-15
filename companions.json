@@ -1,8 +1,33 @@
 {
-  "plugins": [
-    { "name": "superpowers", "marketplace": "claude-plugins-official" },
-    { "name": "frontend-design", "marketplace": "claude-plugins-official" },
-    { "name": "andrej-karpathy-skills", "marketplace": "karpathy-skills" }
+  "marketplaces": [
+    { "name": "claude-plugins-official", "add": "claude plugin marketplace add claude-plugins-official" },
+    { "name": "karpathy-skills", "source": "multica-ai/andrej-karpathy-skills", "add": "claude plugin marketplace add multica-ai/andrej-karpathy-skills" },
+    { "name": "daymade-skills", "source": "daymade/claude-code-skills", "license": "MIT", "add": "claude plugin marketplace add daymade/claude-code-skills" },
+    { "name": "ponytail", "source": "DietrichGebert/ponytail", "license": "MIT", "add": "claude plugin marketplace add DietrichGebert/ponytail" }
   ],
-  "skillBulk": { "source": "https://github.com/Mindrally/skills", "dest": "~/.claude/skills/", "license": "Apache-2.0" }
+  "plugins": [
+    { "name": "superpowers", "marketplace": "claude-plugins-official", "why": "process spine: brainstorming, planning, systematic debugging, verification" },
+    { "name": "frontend-design", "marketplace": "claude-plugins-official", "why": "Anthropic design skill the UI agent wires" },
+    { "name": "andrej-karpathy-skills", "marketplace": "karpathy-skills", "why": "best-practice coding guidelines (mode-dependent rules)" },
+    { "name": "skill-creator", "marketplace": "daymade-skills", "why": "scaffolds skills; the engine behind dynamic agent synthesis (H)" },
+    { "name": "qa-expert", "marketplace": "daymade-skills", "why": "autonomous QA execution for the tester fleet" },
+    { "name": "prompt-optimizer", "marketplace": "daymade-skills", "why": "EARS prompt enhancement (subsystem F)" },
+    { "name": "ponytail", "marketplace": "ponytail", "why": "the minimalism laziness ladder; code writers apply it before writing (see rules/core.md)" }
+  ],
+  "skillBulk": {
+    "source": "https://github.com/Mindrally/skills",
+    "dest": "~/.claude/skills/",
+    "license": "Apache-2.0",
+    "why": "the stack skill library the stack-resolution protocol routes to (240+ skills)"
+  },
+  "namedSkills": {
+    "ui": ["impeccable", "ui-ux-pro-max", "huashu-design", "design-taste-frontend"],
+    "note": "resolved through the registries when not already present locally"
+  },
+  "registries": [
+    { "name": "awesomeskills", "url": "https://www.awesomeskills.dev/llms.txt", "use": "discovery: 1000+ skills across coding, design, content, marketing, PM, research" },
+    { "name": "crossaitools", "url": "https://crossaitools.com/llms.txt", "use": "discovery: 21k+ skills, 12k+ MCP servers, 2.5k+ marketplaces; install via /plugin marketplace add" },
+    { "name": "skillsmp", "url": "https://skillsmp.com/llms.txt", "api": "https://skillsmp.com/mcp", "use": "discovery: 2M+ skills with a REST API and MCP server; the programmatic backend for /synthesize" },
+    { "name": "skillsdirectory", "url": "https://www.skillsdirectory.com/skills", "use": "trust filter: security-tested skills with A-F grades; prefer high grades, never auto-install ungraded" }
+  ]
 }

@@ -77,6 +77,13 @@ if [ -f "${PLUGIN_ROOT}/rules/model-routing.md" ]; then
 ${routing_content}"
 fi
 
+# Always include the routing classifier (what to use per task class + ponytail intensity)
+if [ -f "${PLUGIN_ROOT}/rules/routing.md" ]; then
+    routing_classifier=$(cat "${PLUGIN_ROOT}/rules/routing.md")
+    combined_context="${combined_context}
+${routing_classifier}"
+fi
+
 # Always include the memory conventions
 if [ -f "${PLUGIN_ROOT}/rules/memory.md" ]; then
     memory_rules=$(cat "${PLUGIN_ROOT}/rules/memory.md")
