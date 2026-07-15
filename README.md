@@ -17,6 +17,8 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | `output-styles/polaris-writing.md` | Applies the writing standard at the system-prompt level |
 | Agent fleet (27) | A role agent for every SDLC phase and domain: product, researcher, architect, api-designer, data-modeler, security-architect, ux, ui, frontend-logic, backend, integrations, infra, data-engineer, reviewer, verifier, tester, e2e, perf, bug-fixer, tech-writer, shipper, devops, sre, plus code-cleanup, audit-refactor, feature-builder, prod-audit. Each wires host skills and carries a model tier |
 | `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
+| `/flow` | Run the full cycle on a task: idea to spec to design to plan to build to review to QA to docs to shipped PR, with human approval at the spec, design, and plan gates and capped verify loops |
+| `/research`, `/onboard`, `/explain` | Standalone modes: research what to build next, onboard a developer, explain how code works |
 | `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
 | `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
 | `rules/model-routing.md` | Model tier policy: Opus for planning, QA, and review; Sonnet for code; Haiku only for trivial. Agents carry a matching `model` |

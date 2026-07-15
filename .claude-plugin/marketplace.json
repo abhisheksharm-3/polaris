@@ -10,7 +10,7 @@
     {
       "name": "polaris",
       "description": "Opinionated quality foundation: one standard, a callable gate, and stack-aware enforcement for Claude Code.",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "source": "./",
       "author": {
         "name": "Abhishek Sharma",
