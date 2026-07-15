@@ -42,4 +42,7 @@ if echo "$inj_clean" | "$GINPUT" | grep -q 'additionalContext'; then echo "FAIL:
 # agent frontmatter valid
 expect_exit 0 bash "${DIR}/../scripts/check-agents.sh"
 
+# flow.md references only real agents
+expect_exit 0 bash "${DIR}/../scripts/check-commands.sh"
+
 exit $fail
