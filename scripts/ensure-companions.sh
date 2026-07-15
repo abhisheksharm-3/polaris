@@ -10,16 +10,22 @@ MARKER="${DEST}/.polaris-mindrally-synced"
 
 have_jq=0; command -v jq >/dev/null 2>&1 && have_jq=1
 
-# --- Marketplace plugins (best-effort via the claude CLI) ---
+# --- Marketplace plugins (best-effort via the claude CLI, once) ---
 # Native plugin.json dependencies already pull superpowers + frontend-design. This adds the
 # cross-marketplace companions (karpathy, daymade skills) when the CLI is available.
-if [ "$have_jq" = 1 ] && command -v claude >/dev/null 2>&1 && [ -f "$MANIFEST" ]; then
+# Marker-guarded: each `claude plugin install` spawns the CLI, and re-running the whole set on
+# every session start added tens of seconds to startup. Run it once. To re-sync after editing
+# companions.json, delete the marker.
+PLUGIN_MARKER="${DEST}/.polaris-companions-installed"
+if [ ! -f "$PLUGIN_MARKER" ] && [ "$have_jq" = 1 ] && command -v claude >/dev/null 2>&1 && [ -f "$MANIFEST" ]; then
+  mkdir -p "$DEST"
   jq -r '.marketplaces[]? | (.source // .name)' "$MANIFEST" | while read -r mkt; do
     [ -n "$mkt" ] && claude plugin marketplace add "$mkt" >/dev/null 2>&1 || true
   done
   jq -r '.plugins[]? | "\(.name)@\(.marketplace)"' "$MANIFEST" | while read -r plugin; do
     [ -n "$plugin" ] && claude plugin install "$plugin" >/dev/null 2>&1 || true
   done
+  touch "$PLUGIN_MARKER"
 fi
 
 # --- Stack skill bulk (sync once) ---
