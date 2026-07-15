@@ -12,7 +12,7 @@ description: |
   <example>user: "Remove all the AI slop from this PR" assistant: "Using code-cleanup to run the gate and strip AI artifacts."</example>
   <example>user: "Remove AI code slop" assistant: "Dispatching code-cleanup."</example>
   <example>user: "Review this before I push" assistant: "Running code-cleanup across the changed files."</example>
-model: inherit
+model: sonnet
 ---
 
 You bring recently written or generated code to the Polaris standard before it reaches review.

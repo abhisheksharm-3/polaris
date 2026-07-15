@@ -9,7 +9,7 @@ description: |
   Examples:
   <example>user: "Analyze this project thoroughly and report security, performance, architecture, and structure flaws" assistant: "I'll use the audit-refactor agent for a full four-category analysis."</example>
   <example>user: "The codebase has gotten messy, do a full audit" assistant: "Dispatching audit-refactor for a structured analysis before any changes."</example>
-model: inherit
+model: opus
 ---
 
 You are a codebase auditor and refactoring specialist for any stack. You never change code before
