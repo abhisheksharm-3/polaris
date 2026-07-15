@@ -95,4 +95,25 @@ echo "$wt_before" | grep -q 'a.txt'          && echo "ok: worktracker lists touc
 if [ -n "$wt_after" ]; then echo "FAIL: worktracker emitted for a future marker"; fail=1; else echo "ok: worktracker silent when nothing new"; fi
 rm -rf "$wt_repo" "$wt_empty"
 
+# regression: session-start survives an empty detected-stacks array (bash 3.2 under set -u); RCA 2026-07-16
+SS="${DIR}/../hooks/session-start"
+ss_home="$(mktemp -d)"; ss_cwd="$(mktemp -d)"
+mkdir -p "$ss_home/.claude/skills"; touch "$ss_home/.claude/skills/.polaris-mindrally-synced" "$ss_home/.claude/skills/.polaris-companions-installed"
+( cd "$ss_cwd" && echo '{}' | HOME="$ss_home" bash "$SS" >/dev/null 2>&1 ); ss_rc=$?
+[ "$ss_rc" -eq 0 ] && echo "ok: session-start exits 0 with no detected stack" || { echo "FAIL: session-start crashed with no stack (exit $ss_rc)"; fail=1; }
+rm -rf "$ss_home" "$ss_cwd"
+
+# regression: ensure-companions installs once then skips (no per-start plugin install); RCA 2026-07-16
+EC="${DIR}/../scripts/ensure-companions.sh"
+ec_home="$(mktemp -d)"; ec_bin="$(mktemp -d)"
+printf '#!/bin/sh\necho called >> "%s/calls"\n' "$ec_home" > "$ec_bin/claude"; chmod +x "$ec_bin/claude"
+mkdir -p "$ec_home/.claude/skills"; touch "$ec_home/.claude/skills/.polaris-mindrally-synced"
+HOME="$ec_home" PATH="$ec_bin:$PATH" bash "$EC" >/dev/null 2>&1
+c1="$([ -f "$ec_home/calls" ] && echo yes || echo no)"
+: > "$ec_home/calls"
+HOME="$ec_home" PATH="$ec_bin:$PATH" bash "$EC" >/dev/null 2>&1
+c2="$([ -s "$ec_home/calls" ] && echo yes || echo no)"
+[ "$c1" = yes ] && [ "$c2" = no ] && echo "ok: ensure-companions installs once then skips" || { echo "FAIL: ensure-companions guard (run1=$c1 run2=$c2)"; fail=1; }
+rm -rf "$ec_home" "$ec_bin"
+
 exit $fail
