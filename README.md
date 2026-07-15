@@ -22,6 +22,7 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | Work tracker (`/track` + session-start) | Keeps your parallel work threads in `.polaris/work/streams.md`, surfaced every session so nothing is lost; `/track` reconciles the session into it |
 | Prompt enhancing (`/enhance` + hook) | Judges whether a prompt is clear and, only if vague, enriches it with project context. The automatic hook is off by default (`promptEnhance` in config) |
 | Memory (`/remember`, `/recall`, `/catchup`) | Global file-based memory at `~/.claude/polaris-memory/`, surfaced at session start; `/catchup` briefs you across memory, the work tracker, and connectors (when auth is active) |
+| `/synthesize` | Compose an ephemeral agent on the fly from the skill registries for a task no fleet agent covers, with a security-grade trust filter |
 | `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
 | `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
 | `rules/model-routing.md` | Model tier policy: Opus for planning, QA, and review; Sonnet for code; Haiku only for trivial. Agents carry a matching `model` |
