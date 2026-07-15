@@ -32,4 +32,11 @@ good_payload="$(jq -n --arg c "git commit -m \"${good_msg}\"" '{tool_input:{comm
 if echo "$bad_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "ok: bad commit denied"; else echo "FAIL: bad commit not denied"; fail=1; fi
 if echo "$good_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "FAIL: good commit denied"; fail=1; else echo "ok: good commit allowed"; fi
 
+# guard-input: injection in a tool result flagged, clean stays silent
+GINPUT="${DIR}/../hooks/guard-input"
+inj_bad="$(jq -n --rawfile t "${DIR}/fixtures/injection-bad.txt" '{tool_response:$t}')"
+inj_clean="$(jq -n --rawfile t "${DIR}/fixtures/injection-clean.txt" '{tool_response:$t}')"
+if echo "$inj_bad"   | "$GINPUT" | grep -q 'additionalContext'; then echo "ok: injection flagged"; else echo "FAIL: injection not flagged"; fail=1; fi
+if echo "$inj_clean" | "$GINPUT" | grep -q 'additionalContext'; then echo "FAIL: clean flagged"; fail=1; else echo "ok: clean tool result silent"; fi
+
 exit $fail
