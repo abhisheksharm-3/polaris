@@ -77,6 +77,15 @@ if [ -f "${PLUGIN_ROOT}/rules/model-routing.md" ]; then
 ${routing_content}"
 fi
 
+# Surface open work from the project's work tracker, so the session starts knowing what is open
+if [ -f "${PROJECT_DIR}/.polaris/work/streams.md" ]; then
+    work_content=$(cat "${PROJECT_DIR}/.polaris/work/streams.md")
+    combined_context="${combined_context}
+
+## Open work (from the Polaris tracker)
+${work_content}"
+fi
+
 # Append detected stack rules
 for stack in "${detected_stacks[@]}"; do
     rules_file="${PLUGIN_ROOT}/rules/stacks/${stack}.md"
