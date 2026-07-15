@@ -10,7 +10,7 @@ text="$(echo "$input" | jq -r '.tool_response | if type=="string" then . elif ty
 [ -z "$text" ] || [ "$text" = "null" ] && exit 0
 
 tmp="$(mktemp)"; printf '%s\n' "$text" > "$tmp"
-out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "$CHECK" injection "$tmp" 2>/dev/null)"
+out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "$CHECK" injection "$tmp" 2>/dev/null | sed "s#^${tmp}:#content line #")"
 rm -f "$tmp"
 
 if [ -n "$out" ]; then

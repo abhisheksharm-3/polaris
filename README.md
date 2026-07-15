@@ -18,7 +18,9 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
 | `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
 | `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
-| Hooks | `session-start` injects the standard and detected overlays; `guard-commit-pr` blocks commits and PRs that violate the writing standard; `guard-edit` surfaces slop on edit (opt-in) |
+| `rules/model-routing.md` | Model tier policy: Opus for planning, QA, and review; Sonnet for code; Haiku only for trivial. Agents carry a matching `model` |
+| Injection guardrail | `guard-input` flags prompt-injection markers in fetched and MCP tool results, so untrusted content is treated as data, not instructions |
+| Hooks | `session-start` injects the standard and detected overlays; `guard-commit-pr` blocks commits and PRs that violate the writing standard; `guard-edit` surfaces slop on edit (opt-in); `guard-input` flags injection in tool results |
 | `/init` | Setup interview writing `.polaris/config.json`, companion install, and CLAUDE.md generation |
 
 ## Companions
