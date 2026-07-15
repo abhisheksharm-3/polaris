@@ -1,6 +1,6 @@
 # Polaris Master Plan
 
-Status: living document. Last updated 2026-07-03.
+Status: living document. Last updated 2026-07-16.
 
 This is the single source of truth for what Polaris is becoming. Read this first in any
 new session. It captures the full vision, the decisions already made, the build order, and
@@ -143,16 +143,17 @@ useful the day it ships.
 | **B** | Agent fleet | A specialized agent for every role across every domain (§3.3): engineering, product, research, marketing, docs, and ops. Each wires the right host skills. | A | **Built** v0.6.0 (27 agents) |
 | **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | **Built** v0.4.0 |
 | **D** | Orchestration cycle | The full idea-to-shipped lifecycle. A thin orchestrator that chains A, B, C. | A, B, C | **Built** v0.7.0 |
-| **E** | Persistent memory + retrieval | Cross-session memory with pruning, connectors, startup catch-up, and the auto-maintained work tracker (§8.4). | independent infra | **Built** v0.8.0 (tracker) + v0.10.0 (memory); embeddings RAG deferred |
+| **E** | Persistent memory + retrieval | Cross-session memory with pruning, connectors, startup catch-up, and the auto-maintained work tracker (§8.4). | independent infra | **Partial** v0.8.0 (tracker MVP) + v0.10.0 (file memory) + auto-maintenance (§8.4); connectors and embeddings RAG not yet built (§3.4) |
 | **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | **Built** v0.9.0 |
 | **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | **Built** v0.7.0 |
 | **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | **Built** v0.11.0 |
 | **I** | Guardrails | A `PostToolUse` regex denylist that flags injection markers in untrusted input and tells the agent to treat the content as data. Detailed in §4.3. | A | **Built** v0.5.0 (denylist; model-classifier upgrade open) |
 | **J** | Model routing | Selector agent + minimum-model-per-task policy. Detailed in §6.3. | A, B | **Built** v0.5.0 |
 
-All subsystems shipped in the **1.0.0** release (2026-07-15). Historical build order was A, C, J+I,
-B, D+G, work tracker, F, E, H. Remaining refinements: embeddings-backed RAG for memory (needs a
-backend) and connector activation (needs claude.ai auth). See `CHANGELOG.md`.
+The ten subsystems' feature surface shipped by the **1.0.0** release (2026-07-15). Historical build
+order was A, C, J+I, B, D+G, work tracker, F, E, H. That surface is what "Built" above means. Several
+cross-cutting pieces the plan describes are designed but not yet in the tree; §3.4 lists them so the
+table is not read as "everything described exists". See `CHANGELOG.md`.
 
 ### 3.1 The architectural rule that shapes everything
 
@@ -198,6 +199,25 @@ own agents (§6) and available as standalone modes (§6.1):
 
 Every domain inherits the same quality bar, the same anti-slop writing standard, and the same
 gate. Marketing copy passes the writing standard exactly as commit messages do.
+
+### 3.4 Designed, not yet built
+
+The subsystem feature surface shipped. These cross-cutting pieces are specified in this plan but not
+yet in the tree, listed so the §3 status is not read as "everything described exists". Verified
+against the current repo on 2026-07-16.
+
+- **Run history beyond `/flow`** (`.polaris/runs/`, §11). `/flow` now writes a run log and the
+  doc-org tree lists `runs/`; the other multi-agent commands (`/audit`, `/debug`, `/incident`) do
+  not write one yet.
+- **Plugin monitors** (`monitors/monitors.json`, §11). None ship; live external signals (CI status,
+  error logs) are not surfaced to Claude as notifications.
+- **Cost meter** (§11). No statusline script and no OpenTelemetry wiring, so spend is not surfaced
+  live during a run.
+- **`/schedule` and routines** (§5, §10.1). No `/schedule` command; the maintenance track runs on
+  demand only, not on a schedule or a repository trigger.
+- **Connector activation and embeddings RAG memory** (subsystem E, §8.2). `/catchup` is
+  protocol-ready but no connector is active, and memory is file-based with no embeddings retrieval.
+  Both are deferred on an external dependency: connector auth, and an embedding store.
 
 ---
 
@@ -715,6 +735,16 @@ effect of the session:
 - The native in-session todo (`TaskCreate`/`TodoWrite`) is ephemeral; the tracker persists it at
   `SessionEnd` and rehydrates it at `SessionStart`, so per-session todos survive across sessions.
 
+**Status (shipped 2026-07-16).** Auto-maintenance is built, but as a session-start reconcile rather
+than the per-turn hooks sketched above. At session start, `hooks/session-start` runs
+`scripts/worktracker-snapshot.sh` to gather what the project did since the last reconcile (commits,
+touched files, and prompts) from git and the transcripts, then hands those facts to a background
+agent that updates `streams.md`. Running it at session start from durable sources means a crashed
+session never loses the update, and reconciling a whole session at once avoids the per-prompt
+classification-accuracy risk (§14). A `.last-reconciled.local` marker per project tracks the cutoff;
+the first run seeds it and does not backfill. The manual `/track` command stays as an on-demand
+override and a correction path.
+
 **Lifecycle.** Streams age. Stale ones are flagged ("the backend refactor has not moved in five
 days"), completed ones are archived, and nothing is silently dropped. Pruning keeps the set
 lean without losing history.
@@ -805,7 +835,8 @@ is how the cycle stays deterministic and resumable rather than turn-by-turn impr
 
 ## 11. Cross-cutting operations
 
-Concerns that apply to every subsystem, not just one.
+Concerns that apply to every subsystem, not just one. Some are shipped and some are designed but not
+yet built; §3.4 lists which.
 
 - **Run workspace and artifacts.** Everything Polaris produces lands in a single `.polaris/`
   tree per project: `config.json`, and `runs/`, `specs/`, `plans/`, `reports/`, `handoffs/`.

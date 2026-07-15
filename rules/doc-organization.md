@@ -13,6 +13,8 @@ repo. The layout:
   specs/               YYYY-MM-DD-<topic>-spec.md
   plans/               YYYY-MM-DD-<topic>-plan.md
   reports/             YYYY-MM-DD-<topic>-report.md
+  runs/                YYYY-MM-DD-<command>-<topic>.md   run history: agents, models, outcomes
+  work/                streams.md   the work tracker, auto-maintained across sessions
 ```
 
 Rules:

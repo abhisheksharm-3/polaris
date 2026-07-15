@@ -79,4 +79,20 @@ echo "$jf_out" | grep -q 'add the login form'   && echo "ok: journal ask capture
 echo "$jf_out" | grep -q 'fix the checkout bug' && echo "ok: journal second ask"        || { echo "FAIL: journal second ask"; fail=1; }
 if echo "$jf_out" | grep -q 'OTHER DAY'; then echo "FAIL: journal leaked another day"; fail=1; else echo "ok: journal excludes other days"; fi
 
+# worktracker-snapshot: commits after the marker are captured, a future marker yields nothing
+WTS="${DIR}/../scripts/worktracker-snapshot.sh"
+wt_repo="$(mktemp -d)"
+(
+  cd "$wt_repo" && git init -q && git config user.email t@t && git config user.name t
+  GIT_AUTHOR_DATE="2026-07-15T12:00:00Z" GIT_COMMITTER_DATE="2026-07-15T12:00:00Z" \
+    sh -c 'echo hi > a.txt && git add a.txt && git commit -qm "add the widget"'
+)
+wt_empty="$(mktemp -d)"   # no transcripts, so git commits are the signal under test
+wt_before="$(POLARIS_JOURNAL_PROJECTS_DIR="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-15T00:00:00Z")"
+wt_after="$(POLARIS_JOURNAL_PROJECTS_DIR="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-16T00:00:00Z")"
+echo "$wt_before" | grep -q 'add the widget' && echo "ok: worktracker captures commit since marker" || { echo "FAIL: worktracker missed commit"; fail=1; }
+echo "$wt_before" | grep -q 'a.txt'          && echo "ok: worktracker lists touched file"          || { echo "FAIL: worktracker missed file"; fail=1; }
+if [ -n "$wt_after" ]; then echo "FAIL: worktracker emitted for a future marker"; fail=1; else echo "ok: worktracker silent when nothing new"; fi
+rm -rf "$wt_repo" "$wt_empty"
+
 exit $fail

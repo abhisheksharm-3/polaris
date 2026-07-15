@@ -20,6 +20,16 @@ a real feature runs the whole thing. Read `.polaris/config.json` first and honor
   otherwise use a workflow.
 - Write every artifact to `.polaris/` per the doc-organization rule.
 
+## Run log (write as you go)
+
+Keep a durable trace of the run so it can be audited later. At the start, create
+`.polaris/runs/<date>-flow-<slug>.md` (the date from `date +%F`, the slug from the task) holding the
+task, the date, and a `## Timeline` heading. As each phase completes, append one line naming the
+phase, the agent dispatched, its model tier, and the result in a few words: the findings, the fixes,
+or the approval outcome. Append as you go; do not reconstruct it from memory at the end. This is the
+machine-oriented history that complements the human report in phase 10, not a substitute for it, so
+keep it terse.
+
 ## The phases
 
 ### Phase 0 — Intake and discovery
@@ -73,7 +83,8 @@ change.
 ### Phase 10 — Report
 Write a final report to `.polaris/reports/`: what was built, what was found and fixed, what is
 accepted with rationale, the residual risk, the PR link, and the spend (from telemetry when
-enabled).
+enabled). Close the run log with an `## Outcome` line: shipped or stopped-at-phase-N, the PR link,
+and the spend.
 
 ## Rules
 
