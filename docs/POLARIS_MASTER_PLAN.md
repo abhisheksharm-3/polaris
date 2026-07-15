@@ -139,20 +139,20 @@ useful the day it ships.
 
 | # | Subsystem | What it is | Depends on | Status |
 |---|---|---|---|---|
-| **A** | Quality foundation | One canonical standard + a callable gate + opt-in hooks. The bedrock everything references. | none | **In design.** Spec: `docs/specs/2026-07-03-slice-a-quality-foundation.md` |
-| **B** | Agent fleet | A specialized agent for every role across every domain (§3.3): engineering, product, research, marketing, docs, and ops. Each wires the right host skills. | A | Planned |
-| **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | Planned |
-| **D** | Orchestration cycle | The full idea-to-shipped lifecycle. A thin orchestrator that chains A, B, C. | A, B, C | Planned |
-| **E** | Persistent memory + retrieval | Cross-session memory with pruning, RAG, connectors, startup catch-up, and the auto-maintained work tracker (§8.4). | independent infra | Deferred (scoped in §8); tracker has a file-based MVP |
-| **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | Backlog (small) |
-| **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | Planned |
-| **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | Designed, may not ship first |
-| **I** | Guardrails | Built-in prompt-injection classifier screening untrusted input before Polaris acts on it. Detailed in §4.3. | A | Planned (foundation safety) |
-| **J** | Model routing | Selector agent + minimum-model-per-task policy. Detailed in §6.3. | A, B | Planned |
+| **A** | Quality foundation | One canonical standard + a callable gate + opt-in hooks. The bedrock everything references. | none | **Built** v0.3.0 |
+| **B** | Agent fleet | A specialized agent for every role across every domain (§3.3): engineering, product, research, marketing, docs, and ops. Each wires the right host skills. | A | **Built** v0.6.0 (27 agents) |
+| **C** | Handoff + audit docs | Handoff-doc creator (feature + audit variants), strict audit agent, enforced doc organization. | A | **Built** v0.4.0 |
+| **D** | Orchestration cycle | The full idea-to-shipped lifecycle. A thin orchestrator that chains A, B, C. | A, B, C | **Built** v0.7.0 |
+| **E** | Persistent memory + retrieval | Cross-session memory with pruning, connectors, startup catch-up, and the auto-maintained work tracker (§8.4). | independent infra | **Built** v0.8.0 (tracker) + v0.10.0 (memory); embeddings RAG deferred |
+| **F** | Prompt enhancing | Toggleable prompt enhancement (can wire the EARS prompt-optimizer skill). | none | **Built** v0.9.0 |
+| **G** | Standalone modes | Task-scoped agents invoked on their own, outside the cycle (research, onboarding, and more). Detailed in §6.1. | A, B | **Built** v0.7.0 |
+| **H** | Dynamic agent synthesis | Compose an agent on the fly from the skill registries for a task no predefined agent covers. Detailed in §6.2. | A, B | **Built** v0.11.0 |
+| **I** | Guardrails | Built-in prompt-injection classifier screening untrusted input before Polaris acts on it. Detailed in §4.3. | A | **Built** v0.5.0 |
+| **J** | Model routing | Selector agent + minimum-model-per-task policy. Detailed in §6.3. | A, B | **Built** v0.5.0 |
 
-Build order: **A, then C, then B, then D**, with G riding on B and J landing with B. E, F, and H
-slot in independently. I is part of the foundation safety layer and lands with A once connectors
-or auto-install are live.
+All subsystems shipped in the **1.0.0** release (2026-07-15). Historical build order was A, C, J+I,
+B, D+G, work tracker, F, E, H. Remaining refinements: embeddings-backed RAG for memory (needs a
+backend) and connector activation (needs claude.ai auth). See `CHANGELOG.md`.
 
 ### 3.1 The architectural rule that shapes everything
 
@@ -910,6 +910,8 @@ Each milestone is independently useful the day it ships.
 | Agent contract | One template for all fleet agents (§6.0): model/effort from policy, least-privilege tools, skills wired, fixed body shape, gate before done |
 | Writing enforcement | Anti-slop as an output style (`force-for-plugin`) at the system-prompt level, plus the gate and the commit/PR hook |
 | Model routing | Native per-agent `model` + `effort` frontmatter (J); Opus floor for planning/QA/interview/review/adversarial, Sonnet for code, Haiku only for trivial |
+| Minimalism | The ponytail companion + its laziness ladder in `core.md`; code writers build the least code that works; auto-injects into subagents |
+| Task routing | `rules/routing.md` classifies each task to the agent, command, ponytail intensity, and model tier |
 | Work tracking | Auto-maintained work streams in the memory store (source of truth), maintained by hooks; optional one-way mirror to Notion/Linear/Jira. No manual upkeep. |
 | Version control | Work stays on `main` for this project; no feature branches |
 

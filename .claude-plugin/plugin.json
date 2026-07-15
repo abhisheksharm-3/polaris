@@ -1,7 +1,7 @@
 {
   "name": "polaris",
-  "description": "Design intelligence + stack-aware skills for Claude Code. Auto-detects your stack and routes to the right skill. Companion: superpowers@claude-plugins-official.",
-  "version": "0.11.0",
+  "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, a 27-agent SDLC fleet, an orchestration cycle, memory, and stack-aware enforcement.",
+  "version": "1.0.0",
   "dependencies": [
     { "name": "superpowers", "marketplace": "claude-plugins-official" },
     { "name": "frontend-design", "marketplace": "claude-plugins-official" }
