@@ -120,15 +120,17 @@ ${work_content}"
     fi
 fi
 
-# Append detected stack rules
-for stack in "${detected_stacks[@]}"; do
-    rules_file="${PLUGIN_ROOT}/rules/stacks/${stack}.md"
-    if [ -f "$rules_file" ]; then
-        stack_content=$(cat "$rules_file")
-        combined_context="${combined_context}
+# Append detected stack rules (guard empty-array expansion for bash 3.2 under set -u)
+if [ ${#detected_stacks[@]} -gt 0 ]; then
+    for stack in "${detected_stacks[@]}"; do
+        rules_file="${PLUGIN_ROOT}/rules/stacks/${stack}.md"
+        if [ -f "$rules_file" ]; then
+            stack_content=$(cat "$rules_file")
+            combined_context="${combined_context}
 ${stack_content}"
-    fi
-done
+        fi
+    done
+fi
 
 # Check for superpowers companion (any version subdir)
 superpowers_dir="${HOME}/.claude/plugins/cache/claude-plugins-official/superpowers"
@@ -136,6 +138,42 @@ if [ ! -d "$superpowers_dir" ]; then
     combined_context="${combined_context}
 
 <important-reminder>⚠️ Polaris works best alongside Superpowers. Install it with: /plugin install superpowers@claude-plugins-official</important-reminder>"
+fi
+
+# --- Daily journal: next-session lookback (best-effort; never blocks a session) ---
+JOURNAL_CTX=""
+polaris_journal() {
+    local jdir="${HOME}/.claude/polaris-memory/journal"
+    local facts="${PLUGIN_ROOT}/scripts/journal-facts.sh"
+    [ -x "$facts" ] || return 0
+    mkdir -p "$jdir" 2>/dev/null || return 0
+    local marker="$jdir/.last-journaled"
+
+    local today yesterday
+    today="$(date +%F)"
+    yesterday="$(date -v-1d +%F 2>/dev/null || date -d 'yesterday' +%F)"
+    if [ ! -f "$marker" ]; then echo "$yesterday" > "$marker"; return 0; fi   # first run: seed, no backfill
+
+    local d written=""
+    d="$(cat "$marker" 2>/dev/null || echo "$yesterday")"
+    while [ "$d" \< "$yesterday" ]; do
+        d="$(date -v+1d -jf %F "$d" +%F 2>/dev/null || date -d "$d + 1 day" +%F)"
+        local out; out="$("$facts" "$d" hook 2>/dev/null || true)"
+        if [ -n "$out" ]; then printf '%s\n' "$out" > "$jdir/$d.md"; written="$written $d"; fi
+        echo "$d" > "$marker"
+    done
+
+    if [ -n "$written" ]; then
+        JOURNAL_CTX="Polaris journal: wrote a factual skeleton for day(s):${written} in ${jdir}. For each file there whose frontmatter says 'status: facts', dispatch a background agent (Task) to read that day's session transcripts and rewrite it as a prose narrative that preserves every listed fact, then set status: narrative. Redact any secret that appears in a prompt. Do this without blocking the user's request."
+    fi
+}
+polaris_journal || true
+
+if [ -n "$JOURNAL_CTX" ]; then
+    combined_context="${combined_context}
+
+## Daily journal
+${JOURNAL_CTX}"
 fi
 
 escaped_context=$(escape_for_json "$combined_context")
