@@ -19,6 +19,10 @@ expect_exit 0 "$CHECK" prose "${DIR}/fixtures/clean-prose.md"
 expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad-ts.ts"
 expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.ts"
 
+# injection: bad flagged, clean passes
+expect_exit 1 "$CHECK" injection "${DIR}/fixtures/injection-bad.txt"
+expect_exit 0 "$CHECK" injection "${DIR}/fixtures/injection-clean.txt"
+
 # guard-commit-pr: bad commit message denied, good allowed
 GUARD="${DIR}/../hooks/guard-commit-pr"
 bad_msg="$(cat "${DIR}/fixtures/commit-bad.txt")"

@@ -32,14 +32,24 @@ scan_code() {
   done
 }
 
+scan_injection() {
+  local file="$1"
+  while IFS= read -r phrase; do
+    grep -niF "$phrase" "$file" 2>/dev/null | while IFS=: read -r ln _; do
+      echo "$file:$ln: injection: '$phrase'"
+    done
+  done < <(jq -r '.injection.phrases[]' "$PATTERNS")
+}
+
 for file in "$@"; do
   [ -f "$file" ] || continue
   case "$file" in rules/*|*/rules/*|*patterns.json) continue;; esac
   out=""
   case "$scope" in
-    prose) out="$(scan_prose "$file")";;
-    code)  out="$(scan_code "$file")";;
-    both)  out="$(scan_prose "$file"; scan_code "$file")";;
+    prose)     out="$(scan_prose "$file")";;
+    code)      out="$(scan_code "$file")";;
+    injection) out="$(scan_injection "$file")";;
+    both)      out="$(scan_prose "$file"; scan_code "$file")";;
   esac
   if [ -n "$out" ]; then echo "$out"; found=1; fi
 done

@@ -14,5 +14,8 @@
       { "id": "console", "pattern": "console\\.(log|debug)", "message": "remove debug logging" },
       { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
     ]
+  },
+  "injection": {
+    "phrases": ["ignore previous instructions", "ignore the above", "disregard your instructions", "disregard previous", "you are now", "system prompt", "exfiltrate", "reveal your", "print your instructions"]
   }
 }
