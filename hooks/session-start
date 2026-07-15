@@ -77,6 +77,24 @@ if [ -f "${PLUGIN_ROOT}/rules/model-routing.md" ]; then
 ${routing_content}"
 fi
 
+# Always include the memory conventions
+if [ -f "${PLUGIN_ROOT}/rules/memory.md" ]; then
+    memory_rules=$(cat "${PLUGIN_ROOT}/rules/memory.md")
+    combined_context="${combined_context}
+${memory_rules}"
+fi
+
+# Bootstrap the global memory store and surface its index (user-owned, trusted)
+mkdir -p "${HOME}/.claude/polaris-memory/entries" 2>/dev/null || true
+memory_index="${HOME}/.claude/polaris-memory/INDEX.md"
+if [ -f "$memory_index" ]; then
+    memory_content=$(cat "$memory_index")
+    combined_context="${combined_context}
+
+## Polaris memory (global index; run /catchup for the full briefing)
+${memory_content}"
+fi
+
 # Surface open work from the project's work tracker, so the session starts knowing what is open.
 # The tracker file is project-controlled (untrusted for a cloned repo), so screen it for injection
 # markers first and always frame it as data, not instructions.
