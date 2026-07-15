@@ -16,6 +16,8 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | `quality-gate` skill + `/gate` | Check or fix a changeset: a deterministic pass plus a judgment pass, with `file:line` findings |
 | `output-styles/polaris-writing.md` | Applies the writing standard at the system-prompt level |
 | `code-cleanup`, `audit-refactor` agents | Recent-code quality pass and whole-codebase audit, both stack-aware |
+| `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
+| `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
 | Hooks | `session-start` injects the standard and detected overlays; `guard-commit-pr` blocks commits and PRs that violate the writing standard; `guard-edit` surfaces slop on edit (opt-in) |
 | `/init` | Setup interview writing `.polaris/config.json`, companion install, and CLAUDE.md generation |
 
