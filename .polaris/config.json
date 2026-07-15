@@ -1,0 +1,10 @@
+{
+  "mode": "custom",
+  "deadCode": "delete",
+  "backwardCompat": "none",
+  "architecture": { "source": "polaris", "reference": null, "conventions": "" },
+  "naming": { "source": "polaris", "rules": {} },
+  "pr": { "source": "polaris", "standards": "" },
+  "guardEdit": false,
+  "promptEnhance": false
+}
