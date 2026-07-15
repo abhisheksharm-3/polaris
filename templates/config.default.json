@@ -5,5 +5,6 @@
   "architecture": { "source": "polaris", "reference": null, "conventions": "" },
   "naming": { "source": "polaris", "rules": {} },
   "pr": { "source": "polaris", "standards": "" },
-  "guardEdit": false
+  "guardEdit": false,
+  "promptEnhance": false
 }

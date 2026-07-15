@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+cfg="${CLAUDE_PROJECT_DIR:-$PWD}/.polaris/config.json"
+[ -f "$cfg" ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+jq -e '.promptEnhance == true' "$cfg" >/dev/null 2>&1 || exit 0
+
+# Read and discard the payload; this hook adds context, it does not inspect the prompt text.
+cat >/dev/null
+
+directive="Before acting: judge whether this request is clear and specific. If it is, proceed as written. If it is vague, ambiguous, or underspecified, first restate it precisely using the project config, the Polaris standard, and the codebase, name the assumptions you are making, then act on the restated version."
+
+jq -cn --arg c "$directive" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$c}}'
+exit 0

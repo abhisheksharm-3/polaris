@@ -45,4 +45,13 @@ expect_exit 0 bash "${DIR}/../scripts/check-agents.sh"
 # flow.md references only real agents
 expect_exit 0 bash "${DIR}/../scripts/check-commands.sh"
 
+# enhance-prompt: injects when enabled, silent when disabled
+ENH="${DIR}/../hooks/enhance-prompt"
+tmp_on="$(mktemp -d)"; mkdir -p "${tmp_on}/.polaris"; echo '{"promptEnhance":true}' > "${tmp_on}/.polaris/config.json"
+tmp_off="$(mktemp -d)"; mkdir -p "${tmp_off}/.polaris"; echo '{"promptEnhance":false}' > "${tmp_off}/.polaris/config.json"
+payload='{"prompt":"make the thing better"}'
+if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on"  "$ENH" | grep -q 'additionalContext'; then echo "ok: enhance injects when enabled"; else echo "FAIL: enhance did not inject when enabled"; fail=1; fi
+if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_off" "$ENH" | grep -q 'additionalContext'; then echo "FAIL: enhance injected when disabled"; fail=1; else echo "ok: enhance silent when disabled"; fi
+rm -rf "$tmp_on" "$tmp_off"
+
 exit $fail
