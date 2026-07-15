@@ -39,4 +39,7 @@ inj_clean="$(jq -n --rawfile t "${DIR}/fixtures/injection-clean.txt" '{tool_resp
 if echo "$inj_bad"   | "$GINPUT" | grep -q 'additionalContext'; then echo "ok: injection flagged"; else echo "FAIL: injection not flagged"; fail=1; fi
 if echo "$inj_clean" | "$GINPUT" | grep -q 'additionalContext'; then echo "FAIL: clean flagged"; fail=1; else echo "ok: clean tool result silent"; fi
 
+# agent frontmatter valid
+expect_exit 0 bash "${DIR}/../scripts/check-agents.sh"
+
 exit $fail
