@@ -20,6 +20,7 @@ stack and enforces the standard through a callable gate and opt-in hooks.
 | `/flow` | Run the full cycle on a task: idea to spec to design to plan to build to review to QA to docs to shipped PR, with human approval at the spec, design, and plan gates and capped verify loops |
 | `/research`, `/onboard`, `/explain` | Standalone modes: research what to build next, onboard a developer, explain how code works |
 | Work tracker (`/track` + session-start) | Keeps your parallel work threads in `.polaris/work/streams.md`, surfaced every session so nothing is lost; `/track` reconciles the session into it |
+| Prompt enhancing (`/enhance` + hook) | Judges whether a prompt is clear and, only if vague, enriches it with project context. The automatic hook is off by default (`promptEnhance` in config) |
 | `/handoff` + templates | Generate a feature or audit handoff doc from real repo state, into `.polaris/` |
 | `prod-audit` agent | Strict, evidence-backed production-readiness audit; reports findings and residual risk |
 | `rules/model-routing.md` | Model tier policy: Opus for planning, QA, and review; Sonnet for code; Haiku only for trivial. Agents carry a matching `model` |
