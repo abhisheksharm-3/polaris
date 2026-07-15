@@ -15,9 +15,34 @@
       { "id": "ts-ignore", "pattern": "@ts-(ignore|expect-error)", "message": "no ts-ignore without a documented framework bug" },
       { "id": "console", "pattern": "console\\.(log|debug)", "message": "remove debug logging" },
       { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+    ],
+    "py": [
+      { "id": "bare-except", "pattern": "except\\s*:", "message": "no bare except; catch a specific exception" },
+      { "id": "type-ignore", "pattern": "#\\s*type:\\s*ignore", "message": "no type: ignore without a documented reason" },
+      { "id": "wildcard-import", "pattern": "from\\s+[\\w.]+\\s+import\\s+\\*", "message": "no wildcard import" },
+      { "id": "todo", "pattern": "#\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+    ],
+    "go": [
+      { "id": "panic", "pattern": "\\bpanic\\(", "message": "no panic in library code; return an error" },
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+    ],
+    "rust": [
+      { "id": "unwrap", "pattern": "\\.unwrap\\(\\)", "message": "no .unwrap(); handle the error or expect() with context" },
+      { "id": "dbg", "pattern": "\\bdbg!\\(", "message": "remove dbg! debug macro" },
+      { "id": "todo-macro", "pattern": "\\b(todo|unimplemented)!\\(", "message": "no todo!()/unimplemented!() left in code" },
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
     ]
   },
   "injection": {
-    "phrases": ["ignore previous instructions", "ignore the above", "disregard your instructions", "disregard previous", "you are now", "system prompt", "exfiltrate", "reveal your", "print your instructions"]
+    "phrases": [
+      "(ignore|disregard|forget|override|bypass) (the |all |any |your |these |those |previous |prior |earlier |above )*(instruction|guidance|rule|prompt|direction|command)",
+      "(ignore|disregard|forget|override) (the )?(above|previous|prior|earlier|preceding|foregoing)",
+      "you are now (a |an |the )?",
+      "(reveal|print|show|repeat|output|share|expose|leak|disclose|dump) (me |us )?(your|the) (system |initial |original |developer )?(prompt|instruction|rule|guideline|configuration)",
+      "(system|developer) prompt",
+      "new instructions?:",
+      "exfiltrat",
+      "act as (a |an )?(dan|jailbreak|unrestricted|unfiltered)"
+    ]
   }
 }

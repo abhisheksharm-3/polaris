@@ -29,8 +29,15 @@ scan_prose() {
 }
 
 scan_code() {
-  local file="$1"
-  jq -c '.code.ts[]' "$PATTERNS" | while read -r rule; do
+  local file="$1" lang=""
+  case "$file" in
+    *.ts|*.tsx|*.js|*.jsx) lang=ts;;
+    *.py)                   lang=py;;
+    *.go)                   lang=go;;
+    *.rs)                   lang=rust;;
+  esac
+  [ -n "$lang" ] || return 0
+  jq -c --arg l "$lang" '.code[$l][]? // empty' "$PATTERNS" | while read -r rule; do
     pat=$(echo "$rule" | jq -r '.pattern'); id=$(echo "$rule" | jq -r '.id'); msg=$(echo "$rule" | jq -r '.message')
     grep -nE "$pat" "$file" 2>/dev/null | while IFS=: read -r ln _; do echo "$file:$ln: $id: $msg"; done
   done
@@ -38,8 +45,11 @@ scan_code() {
 
 scan_injection() {
   local file="$1"
+  # ponytail: regex denylist over known injection phrasings; a model classifier is
+  # the upgrade path if paraphrase evasion becomes a real problem. The hook that calls
+  # this hands flagged content to the model, which is the actual classifier in the loop.
   while IFS= read -r phrase; do
-    grep -niF "$phrase" "$file" 2>/dev/null | while IFS=: read -r ln _; do
+    grep -niE "$phrase" "$file" 2>/dev/null | while IFS=: read -r ln _; do
       echo "$file:$ln: injection: '$phrase'"
     done
   done < <(jq -r '.injection.phrases[]' "$PATTERNS")

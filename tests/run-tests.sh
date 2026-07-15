@@ -15,13 +15,20 @@ expect_exit() {
 # prose: bad flagged, clean passes
 expect_exit 1 "$CHECK" prose "${DIR}/fixtures/bad-prose.md"
 expect_exit 0 "$CHECK" prose "${DIR}/fixtures/clean-prose.md"
-# code: bad flagged, clean passes
+# code: bad flagged, clean passes (per language)
 expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad-ts.ts"
 expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.ts"
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad.py"
+expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.py"
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad.go"
+expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.go"
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad.rs"
+expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.rs"
 
-# injection: bad flagged, clean passes
+# injection: bad flagged, clean passes, paraphrase (no literal denylist match) still flagged
 expect_exit 1 "$CHECK" injection "${DIR}/fixtures/injection-bad.txt"
 expect_exit 0 "$CHECK" injection "${DIR}/fixtures/injection-clean.txt"
+expect_exit 1 "$CHECK" injection "${DIR}/fixtures/injection-paraphrase.txt"
 
 # guard-commit-pr: bad commit message denied, good allowed
 GUARD="${DIR}/../hooks/guard-commit-pr"
