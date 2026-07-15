@@ -17,43 +17,72 @@ presenting a complete written audit and getting explicit approval on which areas
 
 ## Contract
 
-Follow the Polaris agent contract: load `.polaris/config.json` and the standard, detect the
-stacks present, resolve each stack's overlay and skills and fresh docs (the docs protocol), and
-draw the concrete checks from those, not from a single hardcoded framework. Backward-compat and
-dead-code findings honor the project config.
+Follow the Polaris agent contract: load `.polaris/config.json` and the standard. Detect the stacks
+present, load each one's overlay from `rules/stack-map.json` plus its host skills and fresh docs via
+the docs protocol, and draw the concrete checks from those, not from a single hardcoded framework.
+Honor the config's dead-code and backward-compat policy. Run the quality gate as one lens.
 
-## Phase 1: Pre-audit setup
+## Phase 1: Pre-audit setup (read-only)
 
-Detect stacks and versions from the manifests, then load per `rules/stack-map.json`: the stack
-overlay, the host skill(s), and fresh version-correct docs. Map the project structure before
-auditing.
+Detect stacks and versions from the manifests. Load the stack overlays, skills, and version-correct
+docs. Map the project structure (`find` the source tree) so you know the surface before judging it.
 
-## Phase 2: Audit (read-only, zero changes)
+## Phase 2: The audit (read-only, zero changes)
 
-Investigate four categories with Grep, Read, and the quality gate in `--check` mode. Do not guess.
-The specific checks come from the loaded stack overlay and `rules/core.md`; below is the shape.
+Investigate four categories with Grep, Read, and the gate. Do not guess; cite `file:line`. The
+concrete forms come from the loaded overlay; below is the shape and the kind of thing to find.
 
-- **Security.** Auth gaps before data access, unvalidated input reaching queries or the shell,
-  data exposure (secrets in logs, overfetching, internal IDs), injection risks. The overlay
-  supplies the stack's concrete forms.
-- **Performance.** N+1 and unindexed queries, missing pagination, unnecessary work on the hot
-  path, oversized payloads and bundles, missing caching or memoization. Overlay-specific.
-- **Architecture.** Business logic in the wrong layer, cross-feature coupling, types not
-  extracted, anti-patterns, escape hatches. From `core.md` plus the overlay.
-- **Directory structure.** Misplaced files, orphan code, naming violations, dumping-ground files
-  (`utils.ts`, `helpers.ts`, `misc.ts`), needless nesting.
+### Security
+
+- Authorization checked on the specific resource, before data access, server-side, on every path.
+  Hunt IDOR: an id from the request reaching a query with no ownership check.
+- Untrusted input validated at the boundary before use. Injection at every sink: SQL, NoSQL, shell,
+  HTML/script (XSS), template, and email headers.
+- Secrets and PII: none in the repo, none in logs, none over-returned in responses. No internal
+  stack traces or existence oracles leaked to clients.
+- Money and grant paths idempotent; no replay or race that double-charges or double-grants. Fail
+  closed, not open.
+
+### Performance
+
+- N+1 queries: a query per row in a loop instead of a batch or join. Missing indexes on filtered or
+  sorted columns; read the query plan.
+- Unbounded work: a query or fetch with no limit, a loop over a set that grows with data, repeated
+  expensive computation that could be cached or hoisted.
+- Oversized payloads and bundles: selecting more than is used, no pagination, a heavy dependency in
+  the initial load.
+
+### Architecture
+
+- Business logic in the wrong layer (in controllers, views, or ORM callbacks instead of a service).
+- Cross-feature coupling: two modules sharing internals or a table so neither can change alone.
+- Types and contracts not extracted; duplicated logic that should be one function.
+- Anti-patterns and escape hatches (type-system bypasses, swallowed errors, prop drilling, effects
+  used for derived state) as the stack overlay defines them.
+
+### Directory structure
+
+- Misplaced files, orphan code (exported but never imported, files nothing references).
+- Naming violations against the stack overlay's conventions.
+- Dumping-ground files (`utils`, `helpers`, `misc`, `common`) that hide unrelated concerns; needless
+  deep nesting.
 
 ## Phase 3: Present findings
 
 Present a structured report: each category split into Critical and Important, every finding with a
-`file:line` reference. End with a fix plan for each Critical finding. Then ask: "Which categories
-would you like me to address? (all / security / performance / architecture / structure)" Make no
-changes until the user answers.
+`file:line` reference and a one-line fix. End with a fix plan for each Critical finding. Then ask:
+"Which categories would you like me to address? (all / security / performance / architecture /
+structure)" Make no changes until the user answers.
 
 ## Phase 4: Refactor (only after approval)
 
 For each approved area, per file: read it fully, state exactly what will change and why, apply the
-change, verify importers are not broken, and commit with a focused message (one concern per
-commit). Run the quality gate before considering any file done. No hacky patterns, no
-anti-patterns, one file one responsibility, honor the config's backward-compat and dead-code
-policy. Never batch unrelated changes into one commit.
+change, verify importers still resolve, and commit with a focused message (one concern per commit).
+Run the quality gate before considering a file done. No hacky patterns, no anti-patterns, one file
+one responsibility, honor the config's dead-code and backward-compat policy, never weaken a gate.
+Never batch unrelated changes into one commit.
+
+## Output
+
+The written audit report (Phase 3) and, after approval, the committed refactor with the gate green.
+Findings that are out of the approved scope are logged, not fixed.
