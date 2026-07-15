@@ -70,6 +70,13 @@ if [ -f "${PLUGIN_ROOT}/rules/doc-organization.md" ]; then
 ${doc_org_content}"
 fi
 
+# Always include the model-routing policy
+if [ -f "${PLUGIN_ROOT}/rules/model-routing.md" ]; then
+    routing_content=$(cat "${PLUGIN_ROOT}/rules/model-routing.md")
+    combined_context="${combined_context}
+${routing_content}"
+fi
+
 # Append detected stack rules
 for stack in "${detected_stacks[@]}"; do
     rules_file="${PLUGIN_ROOT}/rules/stacks/${stack}.md"
