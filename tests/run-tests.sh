@@ -70,4 +70,13 @@ if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_on"  "$GEDIT" | grep -q 'additio
 if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_off" "$GEDIT" | grep -q 'additionalContext'; then echo "FAIL: guard-edit warned when disabled"; fail=1; else echo "ok: guard-edit silent when disabled"; fi
 rm -rf "$ge_on" "$ge_off"
 
+# journal-facts: buckets a day's activity by project, excludes other days
+JF="${DIR}/../scripts/journal-facts.sh"
+jf_out="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+echo "$jf_out" | grep -q '## demo'              && echo "ok: journal project section" || { echo "FAIL: journal project section"; fail=1; }
+echo "$jf_out" | grep -q 'Sessions: 2'          && echo "ok: journal session count"    || { echo "FAIL: journal session count"; fail=1; }
+echo "$jf_out" | grep -q 'add the login form'   && echo "ok: journal ask captured"      || { echo "FAIL: journal ask captured"; fail=1; }
+echo "$jf_out" | grep -q 'fix the checkout bug' && echo "ok: journal second ask"        || { echo "FAIL: journal second ask"; fail=1; }
+if echo "$jf_out" | grep -q 'OTHER DAY'; then echo "FAIL: journal leaked another day"; fail=1; else echo "ok: journal excludes other days"; fi
+
 exit $fail

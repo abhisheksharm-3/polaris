@@ -1,0 +1,4 @@
+{"type":"user","sessionId":"s1","timestamp":"2026-07-14T09:00:00.000Z","cwd":"/Users/test/Projects/demo","message":{"role":"user","content":"add the login form"}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-14T09:01:00.000Z","cwd":"/Users/test/Projects/demo","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}
+{"type":"user","sessionId":"s2","timestamp":"2026-07-14T14:00:00.000Z","cwd":"/Users/test/Projects/demo","message":{"role":"user","content":"fix the checkout bug"}}
+{"type":"user","sessionId":"s3","timestamp":"2026-07-13T10:00:00.000Z","cwd":"/Users/test/Projects/demo","message":{"role":"user","content":"OTHER DAY must not appear"}}
