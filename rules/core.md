@@ -117,6 +117,21 @@ Never scope-creep during a feature. Clean aggressively only when cleanup is the 
 
 ## Think before coding, verify after
 
-State assumptions before implementing. If two interpretations exist, present both. If a simpler
-path exists, say so. If something is unclear, stop and ask. Turn every task into a verifiable goal
-with an explicit success check, then loop until the check passes.
+State assumptions before implementing. If a simpler path exists, say so. Turn every task into a
+verifiable goal with an explicit success check, then loop until the check passes.
+
+Whether to ask or infer depends on the kind of decision, not on how sure you feel:
+
+- **Direction — what to build.** Requirements, architecture, the API shape, the data model, any
+  choice that sets what the software does: if two readings exist, present both and ask. A wrong
+  guess here builds the wrong thing and surfaces three files later. The intake and design agents
+  (product, architect, api-designer, data-modeler, security-architect, ux, researcher) ask by
+  default, and the `/flow` human gates stay.
+- **Implementation — how to build it.** Local, reversible choices inside an agreed task: which
+  helper to reuse, how to structure a function, a name, an internal file split. The code-writing
+  agents (backend, frontend-logic, ui, feature-builder, integrations, data-engineer) infer the
+  sensible default from the config and the surrounding code, state it inline in one line, and loop
+  to the success check. They do not stop to ask.
+- **Ask mid-implementation only** when the choice materially changes the outcome and cannot be
+  inferred, or when the action is hard to reverse or outward-facing (a migration, a delete, a
+  deploy, an external call). Then confirm first.
