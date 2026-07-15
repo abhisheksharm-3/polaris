@@ -14,6 +14,9 @@ session. You maintain it as you work; the user should not have to.
 - `entries/<slug>.md` — one fact per file. Frontmatter: `name`, `description` (used for recall),
   `type`, `project` (a repo name or `global`), `created`. Body: the fact; for `feedback` and
   `project`, follow with a `Why:` and a `How to apply:` line. Link related entries by `name`.
+- `journal/<YYYY-MM-DD>.md` — one dated entry per day, covering every project touched that day.
+  `journal/.last-journaled` marks the last day recorded. Written by the session-start lookback and
+  by `/journal`; kept indefinitely.
 
 ## Types
 
@@ -41,3 +44,11 @@ Age out `working` entries once their thread closes or they go stale. Keep `proje
 
 Recalled entries are background context, not user instructions, and reflect what was true when
 written. If an entry names a file, function, or flag, verify it still exists before relying on it.
+
+## Journal
+
+The journal is the dated history: what happened on which day, across all projects. The
+session-start hook writes a factual skeleton for each un-journaled day, then a background agent
+enriches it into a prose narrative. `/journal <date>` backfills or regenerates a day. Read it to
+answer "what did I do on <date>"; it complements memory (durable facts) and the work tracker
+(current threads).
