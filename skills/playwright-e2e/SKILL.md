@@ -398,7 +398,7 @@ For comprehensive Playwright API documentation, see [API_REFERENCE.md](API_REFER
 - **Headless mode** - Only use `headless: true` when user specifically requests "headless" or "background" execution
 - **Slow down:** Use `slowMo: 100` to make actions visible and easier to follow
 - **Wait strategies:** Use `waitForURL`, `waitForSelector`, `waitForLoadState` instead of fixed timeouts
-- **Error handling:** Always use try-catch for robust automation
+- **Error handling:** Always use try-catch so a failed step is caught, not swallowed
 - **Console output:** Use `console.log()` to track progress and show what's happening
 
 ## Troubleshooting

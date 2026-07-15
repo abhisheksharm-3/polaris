@@ -54,4 +54,13 @@ if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on"  "$ENH" | grep -q 'additionalC
 if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_off" "$ENH" | grep -q 'additionalContext'; then echo "FAIL: enhance injected when disabled"; fail=1; else echo "ok: enhance silent when disabled"; fi
 rm -rf "$tmp_on" "$tmp_off"
 
+# guard-edit: warns on slop in an edited file when enabled, silent when disabled
+GEDIT="${DIR}/../hooks/guard-edit"
+ge_on="$(mktemp -d)";  mkdir -p "${ge_on}/.polaris";  echo '{"guardEdit":true}'  > "${ge_on}/.polaris/config.json"
+ge_off="$(mktemp -d)"; mkdir -p "${ge_off}/.polaris"; echo '{"guardEdit":false}' > "${ge_off}/.polaris/config.json"
+ge_payload="$(jq -n --arg f "${DIR}/fixtures/bad-ts.ts" '{tool_input:{file_path:$f}}')"
+if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_on"  "$GEDIT" | grep -q 'additionalContext'; then echo "ok: guard-edit warns when enabled"; else echo "FAIL: guard-edit did not warn when enabled"; fail=1; fi
+if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_off" "$GEDIT" | grep -q 'additionalContext'; then echo "FAIL: guard-edit warned when disabled"; fail=1; else echo "ok: guard-edit silent when disabled"; fi
+rm -rf "$ge_on" "$ge_off"
+
 exit $fail

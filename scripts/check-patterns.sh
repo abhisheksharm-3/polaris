@@ -13,14 +13,18 @@ found=0
 
 scan_prose() {
   local file="$1"
+  # Blank out fenced code blocks (line numbers preserved) so code/config examples
+  # aren't linted for English banned words — a ```json``` sample is not prose.
+  local body
+  body="$(awk '/^```/{f=!f; print ""; next} f{print ""; next} {print}' "$file")"
   while IFS= read -r word; do
-    grep -niwE "$word" "$file" 2>/dev/null | while IFS=: read -r ln _; do
+    grep -niwE "$word" <<<"$body" | while IFS=: read -r ln _; do
       echo "$file:$ln: banned-word: '$word'"
     done
   done < <(jq -r '.prose.banned_words[]' "$PATTERNS")
   jq -c '.prose.banned_regex[]' "$PATTERNS" | while read -r rule; do
     pat=$(echo "$rule" | jq -r '.pattern'); id=$(echo "$rule" | jq -r '.id'); msg=$(echo "$rule" | jq -r '.message')
-    grep -nEi "$pat" "$file" 2>/dev/null | while IFS=: read -r ln _; do echo "$file:$ln: $id: $msg"; done
+    grep -nEi "$pat" <<<"$body" | while IFS=: read -r ln _; do echo "$file:$ln: $id: $msg"; done
   done
 }
 
@@ -43,7 +47,7 @@ scan_injection() {
 
 for file in "$@"; do
   [ -f "$file" ] || continue
-  case "$file" in rules/*|*/rules/*|*patterns.json) continue;; esac
+  case "$file" in rules/*|*/rules/*|output-styles/*|*/output-styles/*|*patterns.json) continue;; esac
   out=""
   case "$scope" in
     prose)     out="$(scan_prose "$file")";;
