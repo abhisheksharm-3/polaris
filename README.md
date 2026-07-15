@@ -61,6 +61,13 @@ project.
 | `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
 | `/gate [--fix] [--scope]` | Run the quality gate on the current changeset |
 | `/audit` | Whole-codebase four-category audit (security, performance, architecture, structure) |
+| `/harden` | Security hardening pass: threat-model, find, verify, fix |
+| `/modernize` | Upgrade dependencies or a framework safely via the migration guide |
+| `/review-pr <pr>` | Review an existing PR across dimensions, verified, with an over-engineering check |
+| `/triage` | Classify a batch of bugs or issues by severity, area, and next step |
+| `/docs-drift` | Find docs that no longer match the code and fix them |
+| `/release` | Cut a release: changelog, version bump, notes, tag |
+| `/spike <question>` | A timeboxed throwaway prototype to answer a feasibility question |
 | `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
 | `/track` | Reconcile this session into the cross-session work tracker |
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |

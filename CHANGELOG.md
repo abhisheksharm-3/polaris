@@ -2,6 +2,15 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.2.0 — 2026-07-15
+
+Seven operational modes that ride the fleet, gate, and guardrails:
+
+- `/modernize` (dependency and framework upgrades), `/harden` (security pass), `/review-pr` (review
+  an existing PR), `/triage` (classify a batch of bugs or issues), `/release` (cut a release),
+  `/docs-drift` (fix docs that no longer match the code), and `/spike` (a timeboxed throwaway
+  prototype to answer a feasibility question).
+
 ## 1.1.0 — 2026-07-15
 
 - Add `/debug`, the bug lifecycle: an intake interview, grounding in the code and the stack (fresh
