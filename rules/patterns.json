@@ -4,7 +4,9 @@
     "banned_regex": [
       { "id": "not-only-but", "pattern": "not only .* but( also)?", "message": "banned structure: not only X but Y" },
       { "id": "em-dash-spray", "pattern": " — .* — ", "message": "em-dash spray; use commas or periods" },
-      { "id": "importance-preamble", "pattern": "it is (important|worth) (to note|noting)", "message": "importance preamble; state the fact directly" }
+      { "id": "importance-preamble", "pattern": "it is (important|worth) (to note|noting)", "message": "importance preamble; state the fact directly" },
+      { "id": "ai-coauthor", "pattern": "co-authored-by:.*(claude|gpt|copilot|anthropic|openai)", "message": "no AI co-author trailer in commits or PRs" },
+      { "id": "ai-attribution", "pattern": "(generated with|written by|authored by|created by).*(claude|chatgpt|copilot|anthropic|openai|an ai)", "message": "no AI attribution in commits, PRs, or code" }
     ]
   },
   "code": {

@@ -13,6 +13,13 @@ This standard governs every line of natural language Polaris emits: code comment
 messages, PR titles and bodies, documentation, and marketing copy. A commit message is held to
 the same bar as an article.
 
+## No AI attribution
+
+Never put AI attribution in a commit message, a PR title or body, or code. No
+`Co-Authored-By: Claude` (or any AI) trailer, no "Generated with Claude", no "🤖" byline, no
+"written by an AI" note. The work is the author's; commits and PRs read as a human wrote them.
+This is enforced by the commit hook.
+
 ## Banned vocabulary
 
 Never use these words. Find a concrete, specific alternative.
