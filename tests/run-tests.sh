@@ -99,8 +99,11 @@ rm -rf "$wt_repo" "$wt_empty"
 SS="${DIR}/../hooks/session-start"
 ss_home="$(mktemp -d)"; ss_cwd="$(mktemp -d)"
 mkdir -p "$ss_home/.claude/skills"; touch "$ss_home/.claude/skills/.polaris-mindrally-synced" "$ss_home/.claude/skills/.polaris-companions-installed"
+ss_start=$(date +%s)
 ( cd "$ss_cwd" && echo '{}' | HOME="$ss_home" bash "$SS" >/dev/null 2>&1 ); ss_rc=$?
+ss_dur=$(( $(date +%s) - ss_start ))
 [ "$ss_rc" -eq 0 ] && echo "ok: session-start exits 0 with no detected stack" || { echo "FAIL: session-start crashed with no stack (exit $ss_rc)"; fail=1; }
+[ "$ss_dur" -lt 10 ] && echo "ok: session-start completes under 10s" || { echo "FAIL: session-start took ${ss_dur}s (startup perf regression)"; fail=1; }
 rm -rf "$ss_home" "$ss_cwd"
 
 # regression: ensure-companions installs once then skips (no per-start plugin install); RCA 2026-07-16
