@@ -95,6 +95,22 @@ gets cut.
 6. Vary sentence length. Short. Then medium. Then a longer one when the idea needs room.
 7. No unsolicited predictions about the future unless asked.
 
+## Response shape
+
+<!-- adapted from ayghri/i-have-adhd, MIT -->
+This governs how a response is structured. It complements the word and structure rules above, it
+does not replace them, and it stays compatible with the ponytail companion's terse, code-first
+output.
+
+1. Lead with the answer or the next doable action. The first line is the takeaway, not preamble.
+2. No preamble, recap, or closing pleasantries. Start with the answer, end when done.
+3. Number a multi-step task, one bounded action per step.
+4. End with one concrete next action.
+5. State an error matter-of-factly: the cause and the fix, no "uh oh", no "there seems to be".
+
+Dropped from the source as conflicting with terse output (Rule 7 — surfaced, not blended): restate
+state every turn, cap lists at five items, give specific time estimates.
+
 ## Quick self-check before submitting
 
 - Any word from the banned list

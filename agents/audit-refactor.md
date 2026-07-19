@@ -36,6 +36,14 @@ Honor the config's dead-code and backward-compat policy. Run the quality gate as
 Detect stacks and versions from the manifests. Load the stack overlays, skills, and version-correct
 docs. Map the project structure (`find` the source tree) so you know the surface before judging it.
 
+<!-- churn-ranking idea from mattpocock/skills (MIT): improve-codebase-architecture -->
+Before the full scan, rank the source files by git churn and recency to find the hot spots, so the
+audit concentrates where risk actually lives. Files that change most often carry the most accreted
+risk. Get the ranking with `git log --since=<cutoff> --name-only --pretty=format: -- <src>` counted
+per file (most-changed first), and note which of those changed in the last few weeks. Audit the hot
+spots first, then widen to the rest. A file that has not changed in a year is lower priority than
+one touched every week.
+
 ## Phase 2: The audit (read-only, zero changes)
 
 Investigate four categories with Grep, Read, and the gate. Do not guess; cite `file:line`. The

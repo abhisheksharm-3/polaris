@@ -86,6 +86,19 @@ modals, focus restored on close. Check color contrast against WCAG AA. Check tha
 labels and icon-only controls have an accessible name. Check that motion respects
 `prefers-reduced-motion`.
 
+## Lens: spec-conformance
+
+<!-- spec-conformance axis credits code-review from mattpocock/skills -->
+The lenses above are all quality lenses: they judge how well the diff is built. This one judges
+something none of them cover, whether the diff does what the spec asked. Locate the spec source:
+the issue reference in the commits or PR, or a spec file under `.polaris/specs/`. Read its
+acceptance criteria and check the diff against each one. Report every unmet criterion.
+
+Report spec-conformance as a distinct axis, separate from the quality findings. A clean quality
+review does not mean the diff met the spec, and a spec that is fully met does not excuse a quality
+finding; one axis passing must never mask the other. If no spec source exists, say so and report
+the axis as not applicable rather than guessing intent.
+
 ## Severity rules
 
 - Critical: data loss, security hole, money computed wrong, or a crash on a common path. Blocks

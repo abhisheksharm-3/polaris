@@ -2,6 +2,37 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.3.0 — 2026-07-19
+
+Adapt ideas from `mattpocock/skills` and `ayghri/i-have-adhd` (both MIT) into Polaris-native form.
+A gap analysis kept only what Polaris did not already do: most of the source skills duplicated
+existing agents and commands, so the work adds four new pieces and folds the rest into what exists.
+
+New:
+
+- `/recon` — plan a large, foggy effort as a shared decision map of open questions before any spec
+  or code. Typed decision tickets (research, grilling, prototype, task), a frontier of unblocked
+  tickets, and one decision per session. Runs before `/flow`.
+- `/domain` — model the domain into a ubiquitous-language glossary (`CONTEXT.md`) and a numbered
+  `docs/adr/` decision ledger, written inline as terms resolve, with a three-gate filter on what
+  earns an ADR.
+- `/route` — route a situation to the one right Polaris command and say why.
+- `merge-conflicts` skill — resolve an in-progress merge or rebase by intent, hunk by hunk, running
+  the quality gate before finishing.
+
+Folded into existing agents and commands:
+
+- `product`: the spec now names its testing seams, resolves facts by looking them up instead of
+  asking, and captures domain terms into the glossary as they settle.
+- `reviewer` and `/review-pr`: a spec-conformance lens that checks the diff against acceptance
+  criteria as an axis separate from the quality lenses.
+- `architect`: a three-gate ADR filter and a numbered `docs/adr/` ledger.
+- `audit-refactor`: rank targets by git churn before the full scan.
+- `/triage`: a `ready-for-agent` versus `ready-for-human` lifecycle state.
+- `/handoff`: a secret and PII redaction pass, plus a suggested-skills line.
+- `/onboard`: a resumable learner-progress ledger across sessions.
+- The writing standard and output style: an answer-first response shape.
+
 ## 1.2.1 — 2026-07-15
 
 - Add a "Using Polaris" guide to the README: the platform organized by job, not by tool, with the

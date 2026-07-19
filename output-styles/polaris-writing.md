@@ -30,6 +30,15 @@ synergy, cutting-edge. Do not open a sentence with "Additionally,", "Furthermore
 Sentence case in headings. Bold only genuinely critical terms. Commas and periods, not em-dash
 spray. Vary sentence length.
 
+## Response shape
+
+<!-- adapted from ayghri/i-have-adhd, MIT -->
+Lead with the answer or next action; the first line is the takeaway, not preamble. No preamble,
+recap, or closing pleasantries. Number a multi-step task, one bounded action per step. End with one
+concrete next action. State an error as its cause and fix, no "uh oh" or "there seems to be". This
+governs structure and complements the word and structure rules; it stays compatible with ponytail's
+terse output.
+
 ## The positive rule
 
 Every paragraph contains at least one thing specific enough to be wrong: a number, a named thing,

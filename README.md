@@ -57,6 +57,7 @@ project.
 | Command | What it does |
 |---|---|
 | `/flow <task>` | The full build cycle: idea to a reviewed, tested, shipped PR, with human gates at spec, design, and plan, and capped verify loops |
+| `/recon <effort>` | Chart a large, foggy effort as a shared decision map of open questions, before any spec or code |
 | `/debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
 | `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
 | `/gate [--fix] [--scope]` | Run the quality gate on the current changeset |
@@ -68,12 +69,14 @@ project.
 | `/docs-drift` | Find docs that no longer match the code and fix them |
 | `/release` | Cut a release: changelog, version bump, notes, tag |
 | `/spike <question>` | A timeboxed throwaway prototype to answer a feasibility question |
+| `/domain <term>` | Model the domain into a ubiquitous-language glossary and an ADR ledger |
 | `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
 | `/track` | Reconcile this session into the cross-session work tracker |
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |
 | `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
 | `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
+| `/route <situation>` | Route a situation to the one right Polaris command, and say why |
 | `/remember`, `/recall` | Write to and read from global memory |
 | `/init` | Setup interview, companions, and CLAUDE.md |
 

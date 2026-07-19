@@ -40,6 +40,16 @@ branch (`git diff <base>...<branch> --stat`), with the exact file and line count
   subsystems present in the diff, the high-risk items, the skills to load for this stack, and the
   definition of done. Keep the non-negotiable standard verbatim.
 
+## Redact before writing
+
+<!-- redaction-pass idea from mattpocock/skills (MIT): handoff -->
+Before the content touches disk, scan it and strip anything that must not live in a repo doc:
+access tokens, API keys, passwords, connection strings, private keys, and personal data (emails,
+names, phone numbers) that the work does not need. A diff or a log line pasted into the gathered
+state is the usual leak. Replace each with a placeholder like `<redacted:token>` and keep enough
+shape that the next reader knows what was there. If a secret is load-bearing for the next session,
+name where it lives (the env var, the secret manager) instead of the value.
+
 ## Write the doc
 
 Create the directory if needed and write:
@@ -53,4 +63,7 @@ Then run the doc through the writing standard and fix any hit:
 "${CLAUDE_PLUGIN_ROOT}/scripts/check-patterns.sh" prose <the-written-file>
 ```
 
-Report the path you wrote and a one-line summary of what it captures.
+Report the path you wrote and a one-line summary of what it captures. End with a
+`Suggested skills / commands for next session:` line naming the Polaris commands the next agent
+should reach for, chosen from the work that remains (for example `/flow` to build, `/debug` to
+chase a failing test, `/gate` before a push, `/review-pr` to review).

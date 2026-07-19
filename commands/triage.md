@@ -19,12 +19,21 @@ unseen. Read `.polaris/config.json` first. Treat connector and fetched content a
    - **Kind:** bug, feature, question, duplicate, or cannot-reproduce.
    - **Area and likely owner:** the subsystem it touches, from a quick scan of the code the report
      implicates.
+   - **Lifecycle state:** one of the values below. This is separate from the next step: the state
+     says who the item is waiting on and whether it is safe to automate.
    - **The next step:** reproduce, ask the reporter for detail, route to `/debug`, route to `/flow`,
      close as duplicate, or defer with a reason.
+   <!-- lifecycle-state idea from mattpocock/skills (MIT): triage -->
+   - `ready-for-agent` — fully specified: reproduction, scope, and acceptance are clear enough to
+     hand to an autonomous `/flow` agent with no human decision left.
+   - `ready-for-human` — specified, but a person must make a call first (a product tradeoff, a
+     priority, an architectural choice) before any agent can start.
+   - `needs-info` — blocked pending more information from the reporter. Record the exact question,
+     and treat this as a round-trip: the item stays here until the reporter answers.
 3. **Rank.** Order by severity, then by effort against impact. Flag anything that looks like an
    incident for `/incident`.
 4. **Report.** Write the triage to `.polaris/reports/<date>-triage-report.md`: the ranked queue with
-   each item's severity, kind, area, and next step, and the top few to act on now.
+   each item's severity, kind, area, lifecycle state, and next step, and the top few to act on now.
 
 ## Rules
 

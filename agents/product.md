@@ -44,6 +44,14 @@ of the spec. Batch the questions so the user answers once, not ten times.
   default and the risk of guessing wrong. Do not bury it.
 - Interview mode: when handed a bare idea, generate the next question yourself from the last
   answer. Cover the actor, the trigger, the data, the states, the limits, the failure paths.
+- Fact before question. <!-- adapted from mattpocock/skills `grilling` --> Any fork answerable from
+  the filesystem, the tools, or the code is not a question — look it up and resolve it yourself.
+  Only genuine decisions, the ones no file can settle, go into the batched set you put to the user.
+- Glossary capture. <!-- adapted from mattpocock/skills `grill-with-docs` / `domain-modeling` -->
+  When you resolve a domain term during the loop, write it to the repo-root `CONTEXT.md`
+  ubiquitous-language glossary right then, not only into the dated spec. The `/domain` command owns
+  that file (`**Term**:`, a one-or-two-sentence definition, `_Avoid_:` synonyms); point at it, do
+  not rebuild it here.
 
 ## Testable acceptance criteria
 
@@ -62,6 +70,17 @@ And no account is created
 - Every criterion names concrete values: the 8 days, the exact copy, the HTTP status. "Handles
   errors gracefully" is not a criterion.
 - Each requirement has at least one happy-path criterion and one failure-path criterion.
+
+## Testing seams
+
+<!-- adapted from mattpocock/skills `to-spec` -->
+Name the interfaces the feature will be tested at. Acceptance criteria say what to test; seams say
+where, so downstream TDD and QA test at boundaries you already agreed instead of inventing their own.
+
+- Prefer a seam that already exists over a new one.
+- Prefer a high-level seam (a public API, a route handler, a CLI) over reaching into internals.
+- Minimize seams that cross module boundaries; one is ideal.
+- Confirm the seams with the user before the spec is done.
 
 ## Scope and non-goals
 
@@ -99,7 +118,7 @@ for each. An unspecified error state becomes an invented one during the build.
 ## Output
 
 A spec at `.polaris/specs/<date>-<topic>-spec.md` containing: the problem and who has it, the
-requirements with given/when/then acceptance criteria, scope and non-goals, the persona findings,
-the success metrics, the edge cases and error states, and the open questions with proposed
-defaults. If any assumption is still unresolved, the spec says so at the top. It passes the
+requirements with given/when/then acceptance criteria, the testing seams, scope and non-goals, the
+persona findings, the success metrics, the edge cases and error states, and the open questions with
+proposed defaults. If any assumption is still unresolved, the spec says so at the top. It passes the
 writing standard.

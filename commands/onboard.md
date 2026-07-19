@@ -20,3 +20,15 @@ Read to understand the project, do not guess:
 Write `.polaris/reports/<date>-onboarding-report.md`: what the project is, how it is structured,
 how to run it, the architecture in brief, and a clear "start here" for the first day. It passes the
 writing standard.
+
+## Resume across sessions
+
+<!-- progress-ledger idea from mattpocock/skills (MIT): teach -->
+Onboarding runs over more than one sitting. Keep a progress ledger so a later session continues
+instead of restarting. Use `.polaris/onboarding/<dev-or-topic>-progress.md`, where the slug comes
+from `$ARGUMENTS` (the focus area) or the developer's name. Create the directory on demand.
+
+At the start of a run, read this file if it exists and skip what is already covered. At the end of
+every run, append a dated entry with three parts: what this session covered, open questions still
+unanswered, and the next area to cover. This ledger is additive and grows over sessions; the
+one-shot report above is still produced each run. Both pass the writing standard.

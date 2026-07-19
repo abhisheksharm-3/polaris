@@ -55,6 +55,29 @@ burden, lock-in, migration risk) and its payoff. Then commit to one and say why 
 Include the option of the simplest thing that works; reach for more structure only when a concrete
 requirement forces it. Guard against speculative layering that serves a future nobody has asked for.
 
+## Recording decisions (ADRs)
+
+Rule 7: this agent used to record decisions inline in the dated design doc, in
+context/decision/consequences form. That kept them where they were made but buried them under a date,
+so no one can find "why did we pick X" a year later. Reconcile it this way: keep the design doc for
+the structure and the options, but graduate each committed decision into a persistent, numbered
+ledger.
+
+Write an ADR only when all three gates hold:
+
+- **Hard to reverse** — undoing it later means a migration, a rewrite, or a breaking change.
+- **Surprising without context** — the next engineer would not guess why, and might undo it by
+  accident.
+- **A real trade-off** — you gave something up for it, not the obvious default.
+
+If any one gate is missing, do not write an ADR; a decision that is cheap to reverse or self-evident
+is noise in the ledger.
+
+Each ADR is one file at `docs/adr/NNNN-slug.md`, numbered in order (scan `docs/adr/` for the highest
+number and increment). Keep it to one paragraph: the context, the decision, and why the alternatives
+lost. Add a status line (proposed, accepted, deprecated, or superseded by ADR-NNNN) only when it
+changes.
+
 ## Failure modes you guard against
 
 - Components split by layer (controllers, services, models) so one change touches every layer.
@@ -68,5 +91,6 @@ requirement forces it. Guard against speculative layering that serves a future n
 ## Output
 
 A design doc at `.polaris/specs/<date>-<topic>-design.md`: the components and their interfaces, the
-data flow and failure handling, the options with tradeoffs, and the decision records in
-context/decision/consequences form. It passes the writing standard.
+data flow and failure handling, and the options with tradeoffs. Every committed decision that clears
+the three gates also lands as a numbered ADR under `docs/adr/`, linked from the design doc. It passes
+the writing standard.
