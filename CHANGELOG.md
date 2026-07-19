@@ -33,6 +33,23 @@ Folded into existing agents and commands:
 - `/onboard`: a resumable learner-progress ledger across sessions.
 - The writing standard and output style: an answer-first response shape.
 
+## 1.2.3 — 2026-07-16
+
+- Escape the session-start context with `jq` instead of bash, cutting startup from 19 seconds to 0.4.
+
+## 1.2.2 — 2026-07-16
+
+- Add `/journal`: write or regenerate a day's journal on demand, with automatic journaling of the
+  previous day on the first session of a new day, backed by a daily-facts extractor.
+- Auto-maintain the work tracker and log every `/flow` run.
+- Give every agent a role-specific Expertise section.
+- Add a craft-principles rule, injected every session.
+- Extend the quality gate to Python, Go, and Rust, and harden the injection screen.
+- Run the test suite on every push and pull request.
+- Fix the session-start crash and the 30-second startup hang: run the companion install once rather
+  than on every session, with regression tests and a recorded RCA.
+- Add the missing `/audit` command and stop linting code fences as prose.
+
 ## 1.2.1 — 2026-07-15
 
 - Add a "Using Polaris" guide to the README: the platform organized by job, not by tool, with the
