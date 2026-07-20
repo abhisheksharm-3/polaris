@@ -50,6 +50,7 @@ Match the situation to the closest row, then hand the user that command.
 | Situation | Use |
 |---|---|
 | Starting the day, need to know where you left off | `/catchup` |
+| A full start-of-day or end-of-day sweep of every source into a durable Notion briefing | `/sweep` |
 | Reconcile this session's work into the tracker | `/track` |
 | Write a handoff for someone picking this up | `/handoff` |
 | Cut a release | `/release` |
