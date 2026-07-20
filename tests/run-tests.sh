@@ -148,6 +148,14 @@ echo '{"lastRunAt":"2026-07-01T00:00:00Z"}' > "$sw_state"
 sw3="$(bash "$SW" --now 2026-07-20T00:00:00Z --state "$sw_state" --max-lookback-hours 168)"
 echo "$sw3" | jq -e '.capped==true and .start=="2026-07-13T00:00:00Z" and .trueGapHours==456' >/dev/null \
   && echo "ok: sweep-window cap at maxLookback" || { echo "FAIL: sweep-window cap ($sw3)"; fail=1; }
+echo '{"lastRunAt":"2026-07-25T00:00:00Z"}' > "$sw_state"
+sw4="$(bash "$SW" --now 2026-07-20T00:00:00Z --state "$sw_state" --max-lookback-hours 168)"
+echo "$sw4" | jq -e '.firstRun==true and .start=="2026-07-19T00:00:00Z"' >/dev/null \
+  && echo "ok: sweep-window future lastRunAt falls back to first-run" || { echo "FAIL: sweep-window future lastRunAt ($sw4)"; fail=1; }
+echo '{"lastRunAt":"not-a-date"}' > "$sw_state"
+sw5="$(bash "$SW" --now 2026-07-20T00:00:00Z --state "$sw_state" --max-lookback-hours 168)"
+echo "$sw5" | jq -e '.firstRun==true' >/dev/null \
+  && echo "ok: sweep-window malformed lastRunAt falls back to first-run" || { echo "FAIL: sweep-window malformed lastRunAt ($sw5)"; fail=1; }
 rm -f "$sw_state"
 
 exit $fail

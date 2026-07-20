@@ -20,15 +20,18 @@ if [ -n "$state" ] && [ -f "$state" ]; then
 fi
 
 jq -cn --arg now "$now" --arg last "$last" --argjson max "$max" '
+  def firstrun($n): { start: (($n - 86400) | todateiso8601), firstRun: true, capped: false, trueGapHours: 24 };
   ($now | fromdateiso8601) as $n
   | ($max * 3600) as $cap
-  | if ($last | length) == 0 then
-      { start: (($n - 86400) | todateiso8601), firstRun: true,  capped: false, trueGapHours: 24 }
+  | ($last | try fromdateiso8601 catch null) as $l
+  # No cursor, an unparseable cursor, or a cursor at/after now (clock skew, corrupt state):
+  # fall back to a first run rather than crashing or pulling a backwards window.
+  | if ($last | length) == 0 or $l == null then firstrun($n)
     else
-      ($last | fromdateiso8601) as $l
-      | ($n - $l) as $gap
+      ($n - $l) as $gap
       | (($gap / 3600) | floor) as $gaph
-      | if $gap > $cap then
+      | if $gap <= 0 then firstrun($n)
+        elif $gap > $cap then
           { start: (($n - $cap) | todateiso8601), firstRun: false, capped: true,  trueGapHours: $gaph }
         else
           { start: $last,                         firstRun: false, capped: false, trueGapHours: $gaph }
