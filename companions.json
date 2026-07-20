@@ -14,6 +14,18 @@
     { "name": "prompt-optimizer", "marketplace": "daymade-skills", "why": "EARS prompt enhancement (subsystem F)" },
     { "name": "ponytail", "marketplace": "ponytail", "why": "the minimalism laziness ladder; code writers apply it before writing (see rules/core.md)" }
   ],
+  "optionalCompanions": {
+    "note": "Declared but NOT auto-installed (deliberately absent from plugins[]). These are heavy or project-specific; opt in per project when you want them rather than pushing them into every session.",
+    "components": [
+      {
+        "name": "shadcn",
+        "source": "shadcn-ui/ui",
+        "license": "MIT",
+        "why": "component registry + CLI + MCP for building UI from shadcn primitives; the ui agent's ui-ux-pro-max skill already references the shadcn MCP",
+        "optIn": "run `npx shadcn@latest init` in a project, or add the shadcn MCP server"
+      }
+    ]
+  },
   "skillBulk": {
     "source": "https://github.com/Mindrally/skills",
     "dest": "~/.claude/skills/",

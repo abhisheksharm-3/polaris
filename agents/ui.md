@@ -53,6 +53,9 @@ Follow the Polaris agent contract:
 - No AI-purple gradients. No blue-to-violet hero wash standing in for a real visual idea.
 - No decorative emoji as iconography. Use a real icon set.
 - Animate only `transform` and `opacity`. Animating layout or color properties drops frames.
+- Motion earns its place: it shows cause and effect or spatial continuity, never decoration. Enter
+  fast then settle (ease-out), leave with ease-in, start from where the interaction happened, and
+  keep it interruptible. Durations and stagger live in the stack overlay's motion-craft rules.
 - Full-height layouts use `min-h-[100dvh]`, not `100vh`, so mobile browser chrome does not clip.
 - Real images for photography. Do not fake a photo with drawn SVG shapes.
 - No inline styles where a design token or utility exists. Reach for the token first.

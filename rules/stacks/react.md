@@ -146,6 +146,19 @@ Animation performance:
 - `useMotionValue` and `useTransform` over React state for continuous animations.
 - Never mix GSAP and Framer Motion in the same component tree.
 
+Motion craft:
+- Motion has a job: show cause and effect, or spatial continuity. If a movement does not clarify
+  what changed or where something went, cut it. Decoration that moves is still decoration.
+- Duration by size and role: ~150–250ms for state feedback, ~300–500ms for entering or leaving; the
+  larger the element, the longer it takes. Past ~500ms reads as slow.
+- Easing by direction: ease-out for entering (fast, then settle), ease-in for leaving; reserve
+  ease-in-out for continuous loops. Linear reads mechanical — never for UI.
+- Origin matters: a menu grows from the control it belongs to, not from screen center. Motion starts
+  where the interaction happened.
+- Stagger a list or grid by ~20–40ms per item so a group reads as a sequence, not a single pop.
+- Interruptible, always: a user action mid-animation redirects it; it never queues behind it. Honor
+  `prefers-reduced-motion` by cutting non-essential motion and making essential changes instant.
+
 Anti-patterns to never produce:
 - Purple gradients as a default aesthetic
 - Decorative emoji icons
