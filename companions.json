@@ -25,6 +25,21 @@
     "research": ["deep-research"],
     "note": "resolved through the registries when not already present locally"
   },
+  "companionSkills": {
+    "note": "Every skill an agent names in its `skills:` frontmatter that is not a local skills/ dir. The source of truth check-commands.sh validates against, so a mistyped or undeclared skill token fails the suite. Provided by the plugins, the skill bulk, and the registries above.",
+    "skills": [
+      "accessibility-a11y", "api-development", "ci-cd-best-practices", "clean-architecture",
+      "cypress", "data-analyst", "deep-research", "design-taste-frontend", "docker",
+      "frontend-design", "git-workflow", "github-workflow", "graphql", "grpc-development",
+      "huashu-design", "impeccable", "jwt-security", "kubernetes", "microservices",
+      "mongodb-development", "monitoring-guidelines", "nodejs-development", "oauth-implementation",
+      "observability-guidelines", "pandas-best-practices", "performance-optimization", "playwright",
+      "playwright-cli", "postgresql-best-practices", "prisma", "pytorch", "react-query",
+      "security-best-practices", "sql-best-practices", "stripe", "systematic-debugging",
+      "technical-writing", "terraform", "testing", "typescript", "ui-ux-pro-max", "ux-design",
+      "zustand-state-management"
+    ]
+  },
   "registries": [
     { "name": "awesomeskills", "url": "https://www.awesomeskills.dev/llms.txt", "use": "discovery: 1000+ skills across coding, design, content, marketing, PM, research" },
     { "name": "crossaitools", "url": "https://crossaitools.com/llms.txt", "use": "discovery: 21k+ skills, 12k+ MCP servers, 2.5k+ marketplaces; install via /plugin marketplace add" },

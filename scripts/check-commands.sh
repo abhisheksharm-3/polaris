@@ -26,7 +26,14 @@ for f in "${ROOT}"/commands/*.md; do
   done
 done
 
-# 2. agent skills frontmatter is well-formed
+# 2. agent skills frontmatter: each token is well-formed AND resolves — to a local skill/command
+#    or a companion declared in companions.json. A mistyped or undeclared skill token fails here.
+#    The valid set: local skills/ dirs, local commands, and companions.json .companionSkills.skills.
+localskills="$( { ls "${ROOT}/skills" 2>/dev/null; ls "${ROOT}/commands" 2>/dev/null | sed 's/\.md$//'; } | sort -u)"
+companionskills=""
+if command -v jq >/dev/null 2>&1 && [ -f "${ROOT}/companions.json" ]; then
+  companionskills="$(jq -r '.companionSkills.skills[]?' "${ROOT}/companions.json" 2>/dev/null)"
+fi
 for f in "${ROOT}"/agents/*.md; do
   [ -f "$f" ] || continue
   name="$(basename "$f")"
@@ -39,7 +46,14 @@ for f in "${ROOT}"/agents/*.md; do
     if ! echo "$s" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then
       echo "FAIL: ${name} skills entry '${s}' is not a well-formed skill token"
       fail=1
+      continue
     fi
+    printf '%s\n' "$localskills" | grep -qx "$s" && continue
+    # jq or companions.json missing: companions cannot be verified, so accept a well-formed token.
+    [ -z "$companionskills" ] && continue
+    printf '%s\n' "$companionskills" | grep -qx "$s" && continue
+    echo "FAIL: ${name} skills entry '${s}' resolves to no local skill/command or companion in companions.json"
+    fail=1
   done
 done
 
