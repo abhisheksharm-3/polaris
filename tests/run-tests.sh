@@ -106,6 +106,15 @@ ss_dur=$(( $(date +%s) - ss_start ))
 [ "$ss_dur" -lt 10 ] && echo "ok: session-start completes under 10s" || { echo "FAIL: session-start took ${ss_dur}s (startup perf regression)"; fail=1; }
 rm -rf "$ss_home" "$ss_cwd"
 
+# hardening: session-start surfaces a visible notice when the companion skill bulk is not synced.
+# Plugin marker present (skip real `claude plugin install`); git stubbed to fail (skip network clone).
+ss_home2="$(mktemp -d)"; ss_cwd2="$(mktemp -d)"; ss_bin2="$(mktemp -d)"
+mkdir -p "$ss_home2/.claude/skills"; touch "$ss_home2/.claude/skills/.polaris-companions-installed"
+printf '#!/bin/sh\nexit 1\n' > "$ss_bin2/git"; chmod +x "$ss_bin2/git"
+ss_out2="$( cd "$ss_cwd2" && echo '{}' | HOME="$ss_home2" PATH="$ss_bin2:$PATH" bash "$SS" 2>/dev/null )"
+echo "$ss_out2" | grep -q "companion skills are not installed" && echo "ok: session-start warns when skill bulk missing" || { echo "FAIL: no companion-missing notice"; fail=1; }
+rm -rf "$ss_home2" "$ss_cwd2" "$ss_bin2"
+
 # regression: ensure-companions installs once then skips (no per-start plugin install); RCA 2026-07-16
 EC="${DIR}/../scripts/ensure-companions.sh"
 ec_home="$(mktemp -d)"; ec_bin="$(mktemp -d)"
@@ -117,6 +126,12 @@ c1="$([ -f "$ec_home/calls" ] && echo yes || echo no)"
 HOME="$ec_home" PATH="$ec_bin:$PATH" bash "$EC" >/dev/null 2>&1
 c2="$([ -s "$ec_home/calls" ] && echo yes || echo no)"
 [ "$c1" = yes ] && [ "$c2" = no ] && echo "ok: ensure-companions installs once then skips" || { echo "FAIL: ensure-companions guard (run1=$c1 run2=$c2)"; fail=1; }
+: > "$ec_home/calls"
+# stub git to fail fast so --force exercises the plugin re-install without a real network clone
+printf '#!/bin/sh\nexit 1\n' > "$ec_bin/git"; chmod +x "$ec_bin/git"
+HOME="$ec_home" PATH="$ec_bin:$PATH" bash "$EC" --force >/dev/null 2>&1
+c3="$([ -s "$ec_home/calls" ] && echo yes || echo no)"
+[ "$c3" = yes ] && echo "ok: ensure-companions --force re-runs after marker" || { echo "FAIL: --force did not re-sync (c3=$c3)"; fail=1; }
 rm -rf "$ec_home" "$ec_bin"
 
 exit $fail

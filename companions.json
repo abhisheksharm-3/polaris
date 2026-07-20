@@ -22,6 +22,7 @@
   },
   "namedSkills": {
     "ui": ["impeccable", "ui-ux-pro-max", "huashu-design", "design-taste-frontend"],
+    "research": ["deep-research"],
     "note": "resolved through the registries when not already present locally"
   },
   "registries": [

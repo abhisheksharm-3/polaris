@@ -8,6 +8,13 @@ MANIFEST="${ROOT}/companions.json"
 DEST="${HOME}/.claude/skills"
 MARKER="${DEST}/.polaris-mindrally-synced"
 
+# Manual re-sync: `ensure-companions.sh --force` clears the run-once markers so both the
+# marketplace plugins and the skill bulk re-install on this invocation. Use it when the
+# first sync was skipped (no git/CLI/network) or to pull companions.json edits.
+if [ "${1:-}" = "--force" ] || [ "${1:-}" = "--reset" ]; then
+  rm -f "${DEST}/.polaris-companions-installed" "${MARKER}"
+fi
+
 have_jq=0; command -v jq >/dev/null 2>&1 && have_jq=1
 
 # --- Marketplace plugins (best-effort via the claude CLI, once) ---

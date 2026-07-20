@@ -154,6 +154,15 @@ if [ ! -d "$superpowers_dir" ]; then
 <important-reminder>⚠️ Polaris works best alongside Superpowers. Install it with: /plugin install superpowers@claude-plugins-official</important-reminder>"
 fi
 
+# The companion skill bulk is what the agents' preloaded `skills:` fields resolve against. Its
+# install is best-effort and silent (needs git + the claude CLI + network), so surface a visible,
+# actionable notice when it did not land — otherwise a fresh machine runs agents without them.
+if [ ! -f "${HOME}/.claude/skills/.polaris-mindrally-synced" ]; then
+    combined_context="${combined_context}
+
+<important-reminder>⚠️ Polaris companion skills are not installed, so agents run without their preloaded domain skills. Ensure git and the claude CLI are available, then run: bash \"${PLUGIN_ROOT}/scripts/ensure-companions.sh\" --force</important-reminder>"
+fi
+
 # --- Daily journal: next-session lookback (best-effort; never blocks a session) ---
 JOURNAL_CTX=""
 polaris_journal() {
