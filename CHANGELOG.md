@@ -2,6 +2,42 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.4.0 — 2026-07-20
+
+Adopt the useful pieces from an external-skill review (the recent.design skill set, claude-mem, and
+obsidian-second-brain) into Polaris-native form, and tighten the fleet's skill wiring. A gap analysis
+kept only what Polaris did not already do: most sources duplicated existing agents and skills or clashed
+with the markdown-and-shell constraint, so the work adds one skill, a memory convention, a motion
+baseline, and one validation check.
+
+New:
+
+- `extract-design-system` skill — reverse-engineer a design system from a live URL into a DESIGN.md
+  token set. A thin wrapper over the external `npx` engine, invoked on demand; feeds `ui-new` and the
+  `ui` agent. Covers the one design gap the ui layer lacked (tokens from a live site, versus impeccable's
+  `extract` from project code).
+
+Memory:
+
+- Freshness markers on memory entries — `timeless`, `dated`, or `pointer` (a missing value reads as
+  `timeless`). Recall re-verifies a `dated` fact and weighs its age, and checks the source behind a
+  `pointer` rather than trusting the stored copy.
+- `/remember` now checks for a duplicate by grepping entry bodies, not only the `INDEX.md` descriptions,
+  so a near-duplicate worded differently no longer slips through.
+
+Design baseline:
+
+- Motion craft folded into the ui baseline (`rules/stacks/react.md`, `agents/ui.md`): motion earns its
+  place, duration by size and role, easing by direction, motion starts where the interaction happened,
+  stays interruptible, and honors `prefers-reduced-motion`.
+
+Tooling:
+
+- `check-commands.sh` validates that every agent `skills:` token resolves to a local skill or command,
+  or a companion declared in `companions.json`, so a mistyped or renamed skill fails the suite instead of
+  passing silently. `companions.json` gains `companionSkills` (the fleet's external skill contract) and
+  an `optionalCompanions` entry for `shadcn` (declared, deliberately not auto-installed).
+
 ## 1.3.0 — 2026-07-19
 
 Adapt ideas from `mattpocock/skills` and `ayghri/i-have-adhd` (both MIT) into Polaris-native form.
