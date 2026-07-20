@@ -2,6 +2,25 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.5.0 — 2026-07-21
+
+Add `/sweep`, a deep start-of-day and end-of-day briefing that succeeds `/catchup` for when a fast
+skim is not enough.
+
+New:
+
+- `/sweep` command — pulls Gmail, Slack, Jira, Fathom, and Calendar in full over a bounded window,
+  extracts every action item and buried signal (an offhand client remark in a transcript, say) into
+  two tiers, groups them by configured lists, carries unresolved items forward between runs, and
+  writes one dated Notion subpage per run. Configured once via a `sweep` block in
+  `.polaris/config.json`; run manually at a calendar block, no cron. `--dry-run` renders the briefing
+  to stdout without writing.
+- `scripts/sweep-window.sh` — deterministic pull-window helper (since-last-run, 24h first-run
+  fallback, 7-day cap), so the command does no date math itself. Covered by unit tests, including a
+  first-run fallback on a corrupt or future cursor.
+
+`/catchup` is unchanged — it stays the fast, transient briefing.
+
 ## 1.4.0 — 2026-07-20
 
 Adopt the useful pieces from an external-skill review (the recent.design skill set, claude-mem, and

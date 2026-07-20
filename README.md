@@ -73,6 +73,7 @@ project.
 | `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
 | `/track` | Reconcile this session into the cross-session work tracker |
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |
+| `/sweep` | Deep start-of-day/end-of-day sweep of every source into a dated Notion briefing |
 | `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
 | `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
@@ -216,6 +217,10 @@ memory.
 Use them well:
 
 - Run `/catchup` first thing. It tells you where every parallel thread stood when you left it.
+- Run `/sweep` at a start-of-day or end-of-day block when you need the exhaustive version: it pulls
+  Gmail, Slack, Jira, Fathom, and Calendar in full, tiers every task and buried signal, and writes a
+  dated Notion page so nothing is dropped. `/catchup` is the fast skim; `/sweep` is the deep, durable
+  sweep.
 - Run `/track` when you switch threads or end a session, so the tracker stays current on its own.
 - Use `/remember` for decisions and constraints that outlive one session, not for things the code
   already records.
