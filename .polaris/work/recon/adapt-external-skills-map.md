@@ -45,33 +45,27 @@ Standing preferences, honor in every ticket:
   markers on facts (`timeless`/`dated`/`pointer`), and a search-before-write reconcile rule for
   `/remember`. See [004-obsidian-second-brain](adapt-external-skills/004-obsidian-second-brain.md).
 
-## Not yet specified
+## Status — all items resolved (2026-07-20)
 
-The research frontier is empty; these are the spec-stage items to hand to `/flow`. Graduate any into a
-grilling/prototype ticket if a decision is needed before a spec.
+Everything charted has been built, decided, or deliberately skipped. Commits on `main`:
 
-Build candidates (adopt/adapt):
-
-- **Memory-quality bundle** (one ticket — all three touch `/remember` + memory + a hook):
-  claude-mem auto-capture SessionEnd hook + obsidian recency markers + reconcile-before-write.
-  Read `hooks/session-start`, `/track`, `/journal`, `/remember` first to avoid duplication.
-- **extract-design-system skill** (recent.design): extract design tokens from a live/public UI into
-  Polaris's DESIGN.md token format; feeds `ui-new` and the `ui` agent. Caveat: the engine is an external
-  npm CLI + Playwright, so the local skill is only a thin wrapper — decide if the npm dependency is
-  acceptable (per deps-decide rule this leans companion-ish).
-- **Motion skill/baseline** (recent.design): adapt `apple-design` + `animation-vocabulary` (the Motion
-  trio, MIT) under Polaris's "animate transform/opacity only" rule. Decide: standalone skill vs fold
-  into `ui` baseline. (emil-design-eng is redundant — do not use as the source.)
-
-Open decisions (need a call before spec):
-
-- **shadcn companion:** wire into `scripts/ensure-companions.sh` or just document as a pointer? (grilling)
-- **Skill-name discrepancy — RESOLVED 2026-07-20.** Already-have claims verified. ui agent wires the
-  design companions; `skills/ui-polish` IS impeccable. New non-blocking finding: agent refs use
-  companion names that don't match local skill dirs, so they depend on the Mindrally sync and
-  `check-commands.sh` doesn't catch it. Details in [002](adapt-external-skills/002-recent-design-skills.md).
-  Optional follow-ups: rename `ui-polish`→`impeccable`; extend `check-commands.sh` to validate `skills:`
-  tokens resolve.
+- **Memory-quality bundle** → **SHIPPED** `ad45f36`. Scope collapsed after discovery: auto-capture and
+  reconcile were already-have, so built only freshness markers (`timeless`/`dated`/`pointer`) + a
+  reconcile-by-body tweak to `/remember`. No SessionEnd hook.
+- **extract-design-system** → **SHIPPED** `46f60a7`. Thin local skill over the `npx` engine, mapping to
+  DESIGN.md. npm engine stays external, invoked on demand.
+- **Motion** → **SHIPPED** `46f60a7`. Folded `apple-design` + `animation-vocabulary` into the ui
+  baseline (`rules/stacks/react.md` + `agents/ui.md`), not a competing skill.
+- **shadcn** → **SHIPPED** `46f60a7`. Declared in `companions.json` as an optional companion, not
+  auto-installed.
+- **ui.md wiring verification** → **DONE** `9d839f3`. Already-have claims hold; recorded in ticket 002.
+- **check-commands.sh skills-token validation** → **SHIPPED** `fcac4b8`. Validates each agent `skills:`
+  token resolves to a local skill/command or a declared companion; `companions.json .companionSkills`
+  is the source of truth.
+- **Rename `ui-polish`→`impeccable`** → **SKIPPED (decided).** `skills/ui-new` invokes `polaris:ui-polish`
+  by name, so the rename would break the ui-new pipeline; the drift it would fix is already handled by
+  the check + the `companions.json` declaration. Not worth the churn. Possible future cleanup: dedupe the
+  locally-bundled impeccable (`ui-polish`) against the companion `impeccable` the ui agent wires.
 
 ## Out of scope
 
