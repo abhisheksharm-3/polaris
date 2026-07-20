@@ -66,10 +66,12 @@ Build candidates (adopt/adapt):
 Open decisions (need a call before spec):
 
 - **shadcn companion:** wire into `scripts/ensure-companions.sh` or just document as a pointer? (grilling)
-- **Skill-name discrepancy (verify first):** ticket 002 cites `ui-ux-pro-max`, `frontend-design`,
-  `design-taste-frontend`, `accessibility-a11y`, `impeccable`, `animate` — only `ui-polish`/`ui-new`/
-  `ui-prototype` exist in `skills/`. Confirm what the `ui` agent actually wires before trusting the
-  "already-have" claims for the rules-manual/defaults/a11y entries. (task — read `agents/ui.md`)
+- **Skill-name discrepancy — RESOLVED 2026-07-20.** Already-have claims verified. ui agent wires the
+  design companions; `skills/ui-polish` IS impeccable. New non-blocking finding: agent refs use
+  companion names that don't match local skill dirs, so they depend on the Mindrally sync and
+  `check-commands.sh` doesn't catch it. Details in [002](adapt-external-skills/002-recent-design-skills.md).
+  Optional follow-ups: rename `ui-polish`→`impeccable`; extend `check-commands.sh` to validate `skills:`
+  tokens resolve.
 
 ## Out of scope
 

@@ -59,10 +59,18 @@ Motion trio = `emilkowalski/skill`.
 - **License:** `oklch-skill` has no license (all rights reserved) — do not copy.
 - **extract-design-system needs npm** — flag against the deps-decide rule: it's adapt-local only as a
   thin wrapper; the extraction engine stays an external npm/Playwright dependency either way.
-- **Skill-name discrepancy (verify):** ticket cites `ui-ux-pro-max`, `frontend-design`,
-  `design-taste-frontend`, `accessibility-a11y`, `impeccable`, `animate` — only `ui-polish`/`ui-new`/
-  `ui-prototype` are in `skills/`. Confirm what `agents/ui.md` actually wires before trusting the
-  "already-have" claims for the audit/rules/a11y overlaps.
+- **Skill-name discrepancy — VERIFIED 2026-07-20.** Already-have claims hold. `agents/ui.md:10` wires
+  `impeccable, ui-ux-pro-max, huashu-design, design-taste-frontend, frontend-design`;
+  `accessibility-a11y` is on `agents/ux.md:10`. `skills/ui-polish/` IS pbakaus/impeccable (source
+  comment + full command table: quieter/distill/critique/polish/animate/audit/craft/extract), so those
+  overlaps are real. Bonus: impeccable already has an `extract` command (tokens from project code — vs
+  extract-design-system's live-URL extraction; still a distinct gap).
+  **New finding (drift, non-blocking):** the ui agent references companion names (`impeccable`,
+  `ui-ux-pro-max`, ...) that do NOT match the local skill dirs (`ui-polish`/`ui-new`/`ui-prototype`), so
+  they resolve only when the Mindrally companion sync has run (session-start warns otherwise), and
+  `check-commands.sh` does not verify skill tokens resolve to an installed skill. Consider: rename local
+  `ui-polish`→`impeccable` (or add a name: field) to close the gap, and extend `check-commands.sh` to
+  validate `skills:` tokens against installed/companion skills.
 - Per-skill licenses inside the `wshobson/*` and `mattpocock/skills` monorepos not confirmed at file
   level (permissive by convention). Gallery pages not opened to prove zero installable skills.
 
