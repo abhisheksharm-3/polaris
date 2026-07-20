@@ -134,4 +134,20 @@ c3="$([ -s "$ec_home/calls" ] && echo yes || echo no)"
 [ "$c3" = yes ] && echo "ok: ensure-companions --force re-runs after marker" || { echo "FAIL: --force did not re-sync (c3=$c3)"; fail=1; }
 rm -rf "$ec_home" "$ec_bin"
 
+# sweep-window: window resolution, first-run fallback, and lookback cap
+SW="${DIR}/../scripts/sweep-window.sh"
+sw_state="$(mktemp)"
+echo '{"lastRunAt":"2026-07-20T03:30:00Z"}' > "$sw_state"
+sw1="$(bash "$SW" --now 2026-07-20T12:30:00Z --state "$sw_state" --max-lookback-hours 168)"
+echo "$sw1" | jq -e '.start=="2026-07-20T03:30:00Z" and .firstRun==false and .capped==false' >/dev/null \
+  && echo "ok: sweep-window normal span" || { echo "FAIL: sweep-window normal span ($sw1)"; fail=1; }
+sw2="$(bash "$SW" --now 2026-07-20T12:00:00Z --state /nonexistent-state --max-lookback-hours 168)"
+echo "$sw2" | jq -e '.firstRun==true and .start=="2026-07-19T12:00:00Z"' >/dev/null \
+  && echo "ok: sweep-window first-run 24h fallback" || { echo "FAIL: sweep-window first-run ($sw2)"; fail=1; }
+echo '{"lastRunAt":"2026-07-01T00:00:00Z"}' > "$sw_state"
+sw3="$(bash "$SW" --now 2026-07-20T00:00:00Z --state "$sw_state" --max-lookback-hours 168)"
+echo "$sw3" | jq -e '.capped==true and .start=="2026-07-13T00:00:00Z" and .trueGapHours==456' >/dev/null \
+  && echo "ok: sweep-window cap at maxLookback" || { echo "FAIL: sweep-window cap ($sw3)"; fail=1; }
+rm -f "$sw_state"
+
 exit $fail
