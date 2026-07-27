@@ -68,6 +68,7 @@ project.
 | `/triage` | Classify a batch of bugs or issues by severity, area, and next step |
 | `/docs-drift` | Find docs that no longer match the code and fix them |
 | `/release` | Cut a release: changelog, version bump, notes, tag |
+| `/notes [version]` | Detailed release notes for two audiences: the dev team and client, and the people who use the product |
 | `/spike <question>` | A timeboxed throwaway prototype to answer a feasibility question |
 | `/domain <term>` | Model the domain into a ubiquitous-language glossary and an ADR ledger |
 | `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
@@ -198,12 +199,17 @@ Use them well:
 ### Release
 
 **Use `/release`** to cut a release: it assembles the changelog, bumps the version, writes the notes,
-and tags. **Use `/handoff [feature|audit]`** to generate a handoff document from real repository
-state when you are passing work to someone else.
+and tags. **Use `/notes`** when the notes themselves are the deliverable. **Use
+`/handoff [feature|audit]`** to generate a handoff document from real repository state when you are
+passing work to someone else.
 
 Use them well:
 
 - Run `/docs-drift` and `/gate` before `/release` so the release is clean.
+- Run `/notes` for the two documents a human reads instead of the diff. It confirms which range it is
+  reading, then writes one set of notes for the dev team and client and one for the people who use the
+  product, researching who they are first and showing you that judgment before you send. It publishes
+  to GitHub, Notion, or Slack only after you confirm.
 - Pick the `/handoff` variant that fits: `feature` to hand off in-progress work, `audit` for a
   production-readiness assessment.
 

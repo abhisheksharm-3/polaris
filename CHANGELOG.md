@@ -2,6 +2,26 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.6.0 — 2026-07-27
+
+Add `/notes`, which writes the release notes a person would be proud to send, for two audiences at
+once.
+
+New:
+
+- `/notes [version]` command — detects the change source (a `dev`-style branch ahead of `main`, else
+  the latest tag to `HEAD`, else the last 50 commits), shows the commit count, file count, and date
+  span, and stops for confirmation before reading further; a project that ships by merged-PR window,
+  tag pair, or Jira fix version says so at that prompt. It then reads the diff behind each change
+  rather than trusting commit messages, classifies each one, and writes two documents to
+  `.polaris/releases/`: one for the dev team and client, with breaking changes and migrations above
+  the feature list, and one for the people who use the product, written to an ICP the `researcher`
+  agent establishes and states at the top so the sender can correct it. An entry that cannot say what
+  the reader can now do is filed internal-only instead of padded. Publishing to a GitHub release,
+  Notion, or Slack happens only after confirmation, never in the same turn as the offer.
+
+`/release` is unchanged — it still cuts the version, changelog, and tag.
+
 ## 1.5.0 — 2026-07-21
 
 Add `/sweep`, a deep start-of-day and end-of-day briefing that succeeds `/catchup` for when a fast
