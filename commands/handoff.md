@@ -2,6 +2,7 @@
 description: Generate a handoff doc (feature or audit) from real repo state, into .polaris/
 argument-hint: "[feature|audit] [topic]"
 allowed-tools: Read, Write, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Handoff generator

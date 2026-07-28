@@ -2,6 +2,7 @@
 description: Retrieve relevant facts from Polaris global memory
 argument-hint: "<what you want to recall>"
 allowed-tools: Read, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Recall

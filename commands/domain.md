@@ -2,6 +2,7 @@
 description: Run a domain-modeling session that builds a ubiquitous-language glossary and an ADR ledger
 argument-hint: "<the domain, feature, or term to model>"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+model: opus
 ---
 
 <!-- Adapted from mattpocock/skills (MIT): domain-modeling -->

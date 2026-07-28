@@ -2,6 +2,7 @@
 description: Explain how something works in this codebase, grounded in the actual code
 argument-hint: "<what to explain>"
 allowed-tools: Read, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Codebase explainer mode

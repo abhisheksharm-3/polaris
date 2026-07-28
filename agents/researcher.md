@@ -7,6 +7,7 @@ description: |
   <example>user: "Research how three competitors handle rate limiting" assistant: "I'll use the researcher agent for a cited comparison and a recommendation."</example>
   <example>user: "Is this feature technically feasible on our stack?" assistant: "Dispatching the researcher agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__*
 skills: deep-research, data-analyst
 ---
 

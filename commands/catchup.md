@@ -1,6 +1,7 @@
 ---
 description: Morning briefing — lay out what you were doing and what to do next, across memory, the work tracker, and connectors
 allowed-tools: Read, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Catch up

@@ -7,6 +7,7 @@ description: |
   <example>user: "Here's a rough idea for a referrals feature, spec it out" assistant: "I'll use the product agent to clear assumptions and write requirements with acceptance criteria."</example>
   <example>user: "What are the acceptance criteria for this?" assistant: "Dispatching the product agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__*
 skills: deep-research, technical-writing
 ---
 

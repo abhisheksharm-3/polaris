@@ -1,6 +1,8 @@
 ---
 description: Run the Polaris quality gate on the current changeset (check or fix, code and prose)
 argument-hint: "[--fix] [--scope code|writing|both]"
+allowed-tools: Skill, Read, Edit, Write, Bash, Grep, Glob
+model: sonnet
 ---
 
 Invoke the `quality-gate` skill on the current changeset.

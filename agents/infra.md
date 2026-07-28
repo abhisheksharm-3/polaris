@@ -6,6 +6,7 @@ description: |
   <example>user: "Set up the Terraform for the new service" assistant: "I'll use the infra agent to write the IaC."</example>
   <example>user: "Containerize this app" assistant: "Dispatching the infra agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: terraform, docker, kubernetes
 ---
 

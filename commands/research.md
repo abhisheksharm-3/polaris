@@ -2,6 +2,7 @@
 description: Research what to build next: read the code and data, the web, and connectors, then propose features with reasoning
 argument-hint: "[question or focus area]"
 allowed-tools: Task, Read, Bash, Grep, Glob, WebFetch, WebSearch
+model: opus
 ---
 
 # Project research mode

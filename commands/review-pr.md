@@ -2,6 +2,7 @@
 description: Review an existing pull request across dimensions, verify findings, and check for over-engineering
 argument-hint: "<PR number or URL>"
 allowed-tools: Task, Read, Bash, Grep, Glob, WebFetch
+model: opus
 ---
 
 # Review a PR

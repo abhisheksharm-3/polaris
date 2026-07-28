@@ -2,6 +2,7 @@
 description: Judge a prompt and, if it is vague, rewrite it precisely with full project context
 argument-hint: "<the prompt to enhance>"
 allowed-tools: Read, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Enhance a prompt

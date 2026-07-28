@@ -6,6 +6,7 @@ description: |
   <example>user: "Commit this and open a PR" assistant: "I'll use the shipper agent to commit and raise the PR to the project's standards."</example>
   <example>user: "Get this branch's CI green" assistant: "Dispatching the shipper agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: git-workflow, github-workflow
 ---
 

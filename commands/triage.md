@@ -2,6 +2,7 @@
 description: Triage a batch of bugs or issues: classify each by severity, owner, and next step
 argument-hint: "[a list, a connector query, or 'open issues']"
 allowed-tools: Task, Read, Bash, Grep, Glob, WebFetch, WebSearch
+model: sonnet
 ---
 
 # Triage

@@ -2,6 +2,7 @@
 description: Run the full Polaris cycle on a task, from idea to a reviewed, tested, shipped change
 argument-hint: "<task, PRD, or idea>"
 allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch
+model: opus
 ---
 
 # Polaris orchestration cycle

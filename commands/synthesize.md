@@ -2,6 +2,7 @@
 description: Compose an ephemeral agent on the fly from the skill registries, for a task no fleet agent covers
 argument-hint: "<task with no fitting fleet agent>"
 allowed-tools: Task, Read, Write, Bash, Grep, Glob, WebFetch, WebSearch
+model: opus
 ---
 
 # Synthesize an agent

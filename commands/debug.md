@@ -2,6 +2,7 @@
 description: The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix, verify, prevent
 argument-hint: "<the bug or symptom>"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: opus
 ---
 
 # Polaris bug lifecycle

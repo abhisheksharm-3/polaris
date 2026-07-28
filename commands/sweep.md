@@ -1,6 +1,7 @@
 ---
 description: Deep start-of-day and end-of-day sweep of every work source into a dated Notion briefing, so nothing is missed
 allowed-tools: Read, Bash, Grep, Glob
+model: opus
 ---
 
 # Sweep
@@ -37,21 +38,34 @@ Takes one other flag, `--okr-init [path]`: a distinct mode that reads an OKR doc
 
 ## Step 1 — resolve the config, migrating a legacy project config if needed
 
-The sweep config is user-level, at `~/.claude/polaris-memory/sweep/config.json`, so one config serves
-every project. Resolve it in order:
+The sweep config is user-level, so one config serves every project and nothing is written into a repo.
+It has two halves. The three scalars come from the plugin's own user options, which Claude Code
+prompts for at install and stores in your user settings:
 
-1. If `~/.claude/polaris-memory/sweep/config.json` exists, read it and use it.
-2. Else, if the running project's `.polaris/config.json` has a `sweep` block, migrate it up, once:
+- `notionParentPageId` — `${user_config.notionParentPageId}`
+- `timezone` — `${user_config.timezone}`
+- `maxLookbackHours` — `${user_config.maxLookbackHours}`
+
+`sources` has no scalar form, so it stays in `~/.claude/polaris-memory/sweep/config.json`.
+
+Resolve each value in order:
+
+1. The user option above, when it is set. A scalar found there wins, and the JSON file need not exist.
+2. Else the same key in `~/.claude/polaris-memory/sweep/config.json`, which is also the only source
+   for `sources`.
+3. Else, if the running project's `.polaris/config.json` has a `sweep` block, migrate it up, once:
    write that block's contents to `~/.claude/polaris-memory/sweep/config.json`; if the legacy
    `.polaris/work/sweep-state.json` exists, move it to `~/.claude/polaris-memory/sweep/state.json`;
    then remove only the `sweep` key from the project's `.polaris/config.json`, leaving its other keys
    untouched. Report exactly what moved, then proceed with the migrated config. This is the one time
    the command writes outside the user-level `sweep` and `okr` directories.
-3. Else, stop before pulling anything, write nothing, and tell the user:
+4. Else, stop before pulling anything, write nothing, and tell the user:
 
-   > sweep not configured — create `~/.claude/polaris-memory/sweep/config.json` and re-run.
+   > sweep not configured. Set the Polaris plugin options with `/plugin`, or create
+   > `~/.claude/polaris-memory/sweep/config.json`, then re-run.
 
-   Then show this to fill in once:
+   The plugin options cover `notionParentPageId`, `timezone`, and `maxLookbackHours`. Anything beyond
+   those, `sources` above all, needs the file. Show this to fill in once:
 
    ```json
    {

@@ -7,6 +7,7 @@ description: |
   <example>user: "Build the settings page UI" assistant: "I'll use the ui agent to implement it against the design baseline."</example>
   <example>user: "Make this component look less generic" assistant: "Dispatching the ui agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__claude-in-chrome__*
 skills: impeccable, ui-ux-pro-max, huashu-design, design-taste-frontend, frontend-design
 ---
 

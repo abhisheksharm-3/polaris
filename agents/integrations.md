@@ -7,6 +7,7 @@ description: |
   <example>user: "Integrate Stripe checkout and the webhook" assistant: "I'll use the integrations agent for the client, webhook verification, and idempotency."</example>
   <example>user: "Add a webhook receiver for this provider" assistant: "Dispatching the integrations agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: stripe
 ---
 

@@ -7,6 +7,7 @@ description: |
   <example>user: "Try to break the new checkout flow" assistant: "I'll use the tester agent to attack every edge and state."</example>
   <example>user: "QA this feature hard before we ship" assistant: "Dispatching the tester agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__claude-in-chrome__*
 skills: playwright, cypress, testing
 ---
 

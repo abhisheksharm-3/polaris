@@ -7,6 +7,7 @@ description: |
   <example>user: "Wire up the data fetching and cache for the dashboard" assistant: "I'll use the frontend-logic agent for the hooks and query layer."</example>
   <example>user: "Add optimistic updates to this mutation" assistant: "Dispatching the frontend-logic agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: react-query, zustand-state-management
 ---
 

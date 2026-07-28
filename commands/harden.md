@@ -2,6 +2,7 @@
 description: Security hardening pass: threat-model the surface, find issues, fix them, verify
 argument-hint: "[area or feature to harden, or the whole app]"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: opus
 ---
 
 # Harden

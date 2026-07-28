@@ -275,8 +275,9 @@ that finds thread replies and DMs.
 
 The gate lives in `skills/quality-gate/`. The hooks are `guard-commit-pr` (blocks bad commit and PR
 text), `guard-edit` (surfaces slop on edit, opt-in), `guard-input` (flags injection in tool
-results), `enhance-prompt` (gated), and `session-start` (injects the standard, surfaces work and
-memory, installs companions).
+results), `enhance-prompt` (gated), `session-start` (injects the standard, surfaces work and
+memory, installs companions), and `stop-capture` (requires the journal narrative, the tracker
+reconcile, and the memory pass before a working session ends).
 
 ## Memory and the work tracker
 

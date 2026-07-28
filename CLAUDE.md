@@ -92,8 +92,8 @@ enforces on itself.
 - `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, …)
 - `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e,
   extract-design-system, merge-conflicts)
-- `hooks/` — `session-start`, `guard-commit-pr`, `guard-edit`, `guard-input`, `guard-review`,
-  `inject-standard`, `enhance-prompt`, wired in `hooks.json`
+- `hooks/` — `session-start`, `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
+  `guard-review`, `inject-standard`, `enhance-prompt`, wired in `hooks.json`
 - `rules/` — the standard: `core.md`, `clean-code.md`, `craft.md`, `writing.md`,
   `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`, `connectors.md`,
   `patterns.json`, plus per-stack overlays in `stacks/` mapped by `stack-map.json`
@@ -117,5 +117,11 @@ enforces on itself.
   fails the `guard-edit` hook and the edit has to be fixed before the turn continues. Doc comments
   only, at the top of a file and above a declaration, in multi-line doc syntax.
 - Every review reports the over-engineering axis. `guard-review` sends back a reviewer that omits it.
+- Capture is enforced at `Stop`, not requested at `SessionStart`. `SessionStart` accepts only
+  `command` and `mcp_tool` handlers, so it can inject a request but never require it, and the earlier
+  design was ignored on twelve of thirteen days. `stop-capture` blocks once per session instead.
+- `/sweep`'s three scalars (`notionParentPageId`, `timezone`, `maxLookbackHours`) are `userConfig`
+  options in `plugin.json`, prompted at install and stored in user settings. `sources` has no scalar
+  form and stays in `~/.claude/polaris-memory/sweep/config.json`.
 - `.polaris/config.json` drives the gate, hooks, and every agent. Changing it changes enforcement.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

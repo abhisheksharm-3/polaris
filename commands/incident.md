@@ -2,6 +2,7 @@
 description: Production incident to postmortem: triage, stabilize, find the cause, fix, write a blameless postmortem
 argument-hint: "<the alert or incident description>"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: opus
 ---
 
 # Polaris incident response

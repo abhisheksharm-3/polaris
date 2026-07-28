@@ -2,6 +2,7 @@
 description: Find docs that no longer match the code and bring them back in sync
 argument-hint: "[a docs path or area, or the whole repo]"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write
+model: sonnet
 ---
 
 # Docs drift

@@ -2,6 +2,7 @@
 description: A timeboxed throwaway prototype to answer a feasibility question, then discard or graduate it
 argument-hint: "<the question to answer>"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: opus
 ---
 
 # Spike

@@ -2,6 +2,7 @@
 description: Onboard a developer onto this project: read the repo and history, write an onboarding doc
 argument-hint: "[area to focus the onboarding on]"
 allowed-tools: Read, Bash, Grep, Glob, Write
+model: sonnet
 ---
 
 # Dev onboarding mode

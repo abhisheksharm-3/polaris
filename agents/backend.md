@@ -7,6 +7,7 @@ description: |
   <example>user: "Implement the create-order endpoint" assistant: "I'll use the backend agent to build the handler, validation, and data access."</example>
   <example>user: "Add the business logic for refunds" assistant: "Dispatching the backend agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: api-development, nodejs-development
 ---
 

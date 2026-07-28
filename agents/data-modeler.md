@@ -6,6 +6,7 @@ description: |
   <example>user: "Design the schema for multi-tenant billing" assistant: "I'll use the data-modeler agent for the schema, constraints, and migration."</example>
   <example>user: "Write a safe migration for this change" assistant: "Dispatching the data-modeler agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: postgresql-best-practices, prisma, mongodb-development, sql-best-practices
 ---
 

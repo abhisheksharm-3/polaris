@@ -6,6 +6,7 @@ description: |
   <example>user: "This endpoint is slow, find out why" assistant: "I'll use the perf agent to measure and locate the bottleneck."</example>
   <example>user: "Will this hold under load?" assistant: "Dispatching the perf agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__*
 skills: performance-optimization
 ---
 

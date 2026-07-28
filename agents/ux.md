@@ -7,6 +7,7 @@ description: |
   <example>user: "Design the onboarding flow for new users" assistant: "I'll use the ux agent for the flow, states, and copy."</example>
   <example>user: "Is this flow accessible and clear?" assistant: "Dispatching the ux agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: ux-design, accessibility-a11y
 ---
 

@@ -2,6 +2,7 @@
 description: Route a situation to the one right Polaris command or agent, and say why, then stop
 argument-hint: "<the situation you are in>"
 allowed-tools: Read, Grep, Glob
+model: sonnet
 ---
 
 <!-- Adapted from mattpocock/skills (MIT): ask-matt -->

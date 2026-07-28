@@ -2,6 +2,7 @@
 description: Cut a release: changelog, version bump, release notes, and a tag
 argument-hint: "[major|minor|patch, or a version]"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write
+model: sonnet
 ---
 
 # Release

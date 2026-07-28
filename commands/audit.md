@@ -2,6 +2,7 @@
 description: Whole-codebase four-category audit (security, performance, architecture, structure), read-first
 argument-hint: "[area or path to scope the audit, or the whole project]"
 allowed-tools: Task, Read, Bash, Grep, Glob, WebFetch, WebSearch
+model: opus
 ---
 
 # Audit

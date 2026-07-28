@@ -2,6 +2,7 @@
 description: Plan a large, foggy effort as a shared decision map of open questions, before any spec or code
 argument-hint: "<the large effort to chart, or a ticket to work>"
 allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch
+model: opus
 ---
 
 <!-- Adapted from mattpocock/skills (MIT): wayfinder -->

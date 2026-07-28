@@ -1,11 +1,35 @@
 {
   "name": "polaris",
   "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, a 27-agent SDLC fleet, an orchestration cycle, memory, and stack-aware enforcement.",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "dependencies": [
-    { "name": "superpowers", "marketplace": "claude-plugins-official" },
-    { "name": "frontend-design", "marketplace": "claude-plugins-official" }
+    {
+      "name": "superpowers",
+      "marketplace": "claude-plugins-official"
+    },
+    {
+      "name": "frontend-design",
+      "marketplace": "claude-plugins-official"
+    }
   ],
+  "userConfig": {
+    "notionParentPageId": {
+      "type": "string",
+      "title": "Sweep Notion parent page",
+      "description": "Page id or url that /sweep writes each dated briefing under. One value for every project."
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Your timezone",
+      "description": "IANA name used to bound each day for /sweep and /journal, for example Asia/Kolkata."
+    },
+    "maxLookbackHours": {
+      "type": "number",
+      "title": "Sweep maximum lookback (hours)",
+      "description": "Ceiling on how far back /sweep pulls when it has not run in a while.",
+      "default": 168
+    }
+  },
   "author": {
     "name": "Abhishek Sharma",
     "email": "abhitiku2003@gmail.com"
@@ -13,5 +37,13 @@
   "homepage": "https://github.com/abhisheksharm-3/polaris",
   "repository": "https://github.com/abhisheksharm-3/polaris",
   "license": "MIT",
-  "keywords": ["design", "ui-ux", "nextjs", "react", "playwright", "stack-aware", "auto-detect"]
+  "keywords": [
+    "design",
+    "ui-ux",
+    "nextjs",
+    "react",
+    "playwright",
+    "stack-aware",
+    "auto-detect"
+  ]
 }

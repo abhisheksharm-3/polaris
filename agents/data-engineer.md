@@ -7,6 +7,7 @@ description: |
   <example>user: "Build the ETL for the analytics events" assistant: "I'll use the data-engineer agent for the pipeline."</example>
   <example>user: "Add a model training script for this dataset" assistant: "Dispatching the data-engineer agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: pandas-best-practices, pytorch
 ---
 

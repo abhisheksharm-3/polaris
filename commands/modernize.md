@@ -2,6 +2,7 @@
 description: Upgrade dependencies or a framework safely: read the migration guide, upgrade, fix breakages, verify
 argument-hint: "<dependency or framework, or 'all outdated'>"
 allowed-tools: Task, Read, Bash, Grep, Glob, Edit, Write, WebFetch, WebSearch
+model: sonnet
 ---
 
 # Modernize

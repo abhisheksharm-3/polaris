@@ -2,6 +2,7 @@
 description: Save a fact to Polaris global memory so it persists across sessions and projects
 argument-hint: "<the fact to remember>"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Remember

@@ -4,6 +4,7 @@ description: >
   ensure companion skills are installed, then initialize or improve CLAUDE.md with the
   12-rule behavioral baseline plus project-specific context.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash
+model: opus
 ---
 
 # Polaris Project Setup

@@ -6,6 +6,7 @@ description: |
   <example>user: "Set up the CI pipeline for this repo" assistant: "I'll use the devops agent to write the pipeline."</example>
   <example>user: "Add a deploy step for staging" assistant: "Dispatching the devops agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: ci-cd-best-practices, docker
 ---
 

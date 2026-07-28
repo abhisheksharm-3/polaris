@@ -6,6 +6,7 @@ description: |
   <example>user: "Write E2E tests for the signup flow" assistant: "I'll use the e2e agent to script and run the browser tests."</example>
   <example>user: "Add a Playwright test for checkout" assistant: "Dispatching the e2e agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__claude-in-chrome__*
 skills: playwright, playwright-cli
 ---
 

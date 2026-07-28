@@ -2,6 +2,7 @@
 description: Write detailed release notes for two audiences — the dev team and client, and the people who use the product
 argument-hint: "[version or release name]"
 allowed-tools: Task, Read, Bash, Grep, Glob, Write
+model: sonnet
 ---
 
 # Notes

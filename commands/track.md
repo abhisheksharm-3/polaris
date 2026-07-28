@@ -1,6 +1,7 @@
 ---
 description: Update the work tracker: reconcile this session's work into .polaris/work/streams.md
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
 ---
 
 # Update the work tracker

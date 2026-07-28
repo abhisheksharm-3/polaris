@@ -2,6 +2,55 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.9.0 — 2026-07-28
+
+Capture that actually happens. The journal, the work tracker, and memory all relied on an instruction
+injected at session start, which the model was free to ignore, and did: twelve of thirteen journal
+days sat unwritten and memory held one entry after two weeks. That work now runs on a `Stop` hook that
+blocks the turn once per session, so the request has to be answered before the session ends.
+
+New:
+
+- **`hooks/stop-capture`, wired on `Stop`.** When a journal day is still `status: facts` or the work
+  tracker has an unreconciled window, the hook blocks once and asks for the narrative, the reconcile,
+  and a memory pass. It stays silent when nothing is outstanding, honors `stop_hook_active`, and
+  blocks at most once per session, and only asks about journal days inside the last 14 days.
+- **`/sweep`'s scalars are plugin options.** `notionParentPageId`, `timezone`, and `maxLookbackHours`
+  are `userConfig` options that Claude Code prompts for at install and stores in user settings, so
+  sweep no longer needs a hand-written JSON file to run. `sources` keeps its file.
+- **Tool restrictions across the fleet.** All 27 agents declare `tools`; `reviewer` and `verifier` are
+  read-only. `check-agents.sh` now rejects an unknown tool name, which previously dropped a
+  restriction silently.
+- **A model tier on all 29 commands**, matching the classes in `rules/model-routing.md`.
+
+Fixed:
+
+- **`/journal` read sweep config that `/sweep` deletes.** Sweep moved to user-level config and state
+  in 1.8.0, and its migration strips the `sweep` key from the project config, but `/journal` and
+  `journal-facts.sh` still read the old project-level paths. On any machine where sweep had run,
+  `/journal` silently lost the timezone, the source queries, and the briefing backlink.
+- **The work tracker reconciled the wrong session.** `session-start` advanced the cursor before the
+  session did any work, so each reconcile covered the previous session and never the current one. It
+  now runs at `Stop`, which is late enough to include the session's own work.
+- **The `Stop` reason was not actually bounded.** `cut -c1-9500` truncates per line, not per string,
+  so a busy repo produced a reason past the platform's 10,000-character cap and the harness cut the
+  tail, dropping the memory instruction. It is bounded with `head -c` now, and every instruction is
+  emitted before the untrusted snapshot so truncation eats data rather than the work being asked for.
+- **A withheld snapshot advanced the tracker cursor**, making the window unreachable, since the
+  snapshot only reads forward. The cursor now stays put whenever the snapshot is withheld, and the
+  hook no longer advances it at all: the reconcile stamps it on completion, so an interrupted or
+  half-done pass costs a repeated ask instead of a lost window.
+- **`commands/gate.md` had no `allowed-tools`**, the only command missing it.
+- **Hardening found by QA on the new hook**, all before release: the once-per-session marker is an
+  atomic `mkdir` rather than a check-then-write, so eight parallel stops now block once instead of
+  eight times, an unwritable temp dir makes the hook silent instead of blocking every turn, and a
+  planted symlink can no longer redirect the write. An unsafe session id is rejected rather than
+  mangled into a shared key. An unparseable cursor reseeds instead of handing `git log` a date it
+  ignores, which returned the whole repo history as the session's delta. A two-object payload no
+  longer defeats the `stop_hook_active` loop-breaker. The frontmatter scan is bounded, so a large
+  journal file cannot stall session end. A screen that fails to run is reported as that, not as an
+  injection attempt.
+
 ## 1.8.0 — 2026-07-28
 
 Code has to explain itself. The comment law is now enforced by a hook rather than requested by a

@@ -7,6 +7,7 @@ description: |
   <example>user: "Review this PR for security" assistant: "I'll use the reviewer agent with the security lens."</example>
   <example>user: "Check this diff for performance problems" assistant: "Dispatching the reviewer agent, performance lens."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch
 skills: security-best-practices, performance-optimization
 ---
 

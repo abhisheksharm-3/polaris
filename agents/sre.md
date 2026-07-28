@@ -7,6 +7,7 @@ description: |
   <example>user: "Add observability for the new service" assistant: "I'll use the sre agent for logs, metrics, traces, and alerts."</example>
   <example>user: "What should we alert on here?" assistant: "Dispatching the sre agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, mcp__*
 skills: observability-guidelines, monitoring-guidelines
 ---
 

@@ -7,6 +7,7 @@ description: |
   <example>user: "Fix this bug where the total is sometimes wrong" assistant: "I'll use the bug-fixer agent to find the root cause and fix the class, not the case."</example>
   <example>user: "The tester found these breaks, fix them properly" assistant: "Dispatching the bug-fixer agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: testing, typescript
 ---
 

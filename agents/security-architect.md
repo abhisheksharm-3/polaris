@@ -7,6 +7,7 @@ description: |
   <example>user: "Threat model the new public proposal endpoint" assistant: "I'll use the security-architect agent to map the surface and required mitigations."</example>
   <example>user: "What could go wrong security-wise here?" assistant: "Dispatching the security-architect agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: security-best-practices, jwt-security, oauth-implementation
 ---
 

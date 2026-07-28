@@ -9,6 +9,7 @@ description: |
   <example>user: "Audit this branch for production readiness before we merge" assistant: "I'll use the prod-audit agent for an adversarial multi-agent audit and a written report."</example>
   <example>user: "Is this safe to ship?" assistant: "Dispatching prod-audit to prove it, not assume it."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Agent
 skills: quality-gate, security-best-practices, systematic-debugging
 ---
 

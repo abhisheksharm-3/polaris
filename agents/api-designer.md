@@ -7,6 +7,7 @@ description: |
   <example>user: "Design the API for the orders service" assistant: "I'll use the api-designer agent to define the contract and error shapes."</example>
   <example>user: "What should the GraphQL schema look like here?" assistant: "Dispatching the api-designer agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: graphql, api-development, grpc-development
 ---
 

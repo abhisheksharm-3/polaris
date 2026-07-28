@@ -6,6 +6,7 @@ description: |
   <example>user: "Document the new API and update the changelog" assistant: "I'll use the tech-writer agent."</example>
   <example>user: "Write a migration guide for this breaking change" assistant: "Dispatching the tech-writer agent."</example>
 model: sonnet
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit, Agent
 skills: technical-writing
 ---
 

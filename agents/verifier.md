@@ -7,6 +7,7 @@ description: |
   <example>user: "Verify these review findings are real before we fix them" assistant: "I'll use the verifier agent to confirm or refute each."</example>
   <example>user: "Did that fix actually work?" assistant: "Dispatching the verifier agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, mcp__claude-in-chrome__*
 skills: testing, playwright
 ---
 

@@ -7,6 +7,7 @@ description: |
   <example>user: "How should we structure the notifications system?" assistant: "I'll use the architect agent to design it and record the tradeoffs."</example>
   <example>user: "Write an ADR for this decision" assistant: "Dispatching the architect agent."</example>
 model: opus
+tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 skills: clean-architecture, microservices
 ---
 

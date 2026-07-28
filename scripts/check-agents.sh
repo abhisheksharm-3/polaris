@@ -18,6 +18,24 @@ for f in "${ROOT}"/agents/*.md; do
     opus|sonnet|haiku) ;;
     *) echo "FAIL $name: model must be opus/sonnet/haiku, got '${model:-none}'"; fail=1;;
   esac
+  # A misspelled tool name in tools/disallowedTools does not error at load, it silently drops the
+  # restriction or the capability. Check every token against the canonical tool names.
+  canonical="Agent Artifact AskUserQuestion Bash CronCreate CronDelete CronList Edit EndConversation
+EnterPlanMode EnterWorktree ExitPlanMode ExitWorktree Glob Grep ListMcpResourcesTool LSP Monitor
+NotebookEdit PowerShell PushNotification Read ReadMcpResourceTool RemoteTrigger ReportFindings
+ScheduleWakeup SendMessage SendUserFile ShareOnboardingGuide Skill TaskCreate TaskGet TaskList
+TaskOutput TaskStop TaskUpdate TodoWrite ToolSearch WaitForMcpServers WebFetch WebSearch Workflow
+Write"
+  for field in tools disallowedTools; do
+    line="$(echo "$fm" | awk -v f="^${field}:" '$0~f{sub(/^[a-zA-Z]+:[[:space:]]*/,"");print;exit}')"
+    [ -n "$line" ] || continue
+    for tok in $(printf '%s' "$line" | tr ',' ' '); do
+      [ -n "$tok" ] || continue
+      case "$tok" in mcp__*) continue;; esac
+      printf '%s\n' $canonical | grep -qx "$tok" \
+        || { echo "FAIL $name: ${field} names unknown tool '${tok}'"; fail=1; }
+    done
+  done
   for bad in hooks mcpServers permissionMode; do
     echo "$fm" | grep -qE "^${bad}:" && { echo "FAIL $name: forbidden field '${bad}' (ignored for plugin agents)"; fail=1; }
   done
