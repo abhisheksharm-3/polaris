@@ -65,11 +65,11 @@ Then show this block to fill in once:
 If the block is present but a required key is missing, stop before pulling anything and name the
 missing key.
 
-Then check for `.polaris/okr/ledger.md`. If it is absent, the OKR lens is off: run the rest of this
+Then check for `~/.claude/polaris-memory/okr/ledger.md`. If it is absent, the OKR lens is off: run the rest of this
 command exactly as written, with no OKR section, no interview, and no read or write under
-`.polaris/okr/`. If the ledger exists but `.polaris/okr/progress.json` is missing or does not parse,
+`~/.claude/polaris-memory/okr/`. If the ledger exists but `~/.claude/polaris-memory/okr/progress.json` is missing or does not parse,
 still produce the normal sweep, and add one line to the briefing: "OKR ledger found but
-`.polaris/okr/progress.json` is missing or invalid — seed it from `templates/okr-progress.json` and
+`~/.claude/polaris-memory/okr/progress.json` is missing or invalid — seed it from `templates/okr-progress.json` and
 re-run." The lens never blocks the sweep it rides on.
 
 ## Step 2 — resolve the window
@@ -160,14 +160,14 @@ the footer tagged "aged out — resolve manually if still open".
 If the prior-page fetch fails (the user deleted it), carry nothing, tag every item `new`, and note in
 the briefing that carry-forward was skipped because the prior page was not found.
 
-## Step 5b — OKR lens (only when `.polaris/okr/ledger.md` exists)
+## Step 5b — OKR lens (only when `~/.claude/polaris-memory/okr/ledger.md` exists)
 
 **Morning block only** (the block computed in step 6: morning if local time is before 12:00). Build an
 "OKR — today" section for the briefing:
 
 1. Get each KR's pace, without computing it in prose:
 
-   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/okr-pace.sh" --now "<now>" --progress .polaris/okr/progress.json`
+   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/okr-pace.sh" --now "<now>" --progress ~/.claude/polaris-memory/okr/progress.json`
 
    Parse the JSON array. Each KR is `behind`, `on-track`, `ahead`, or (for `kind: flag`) `flag` with
    `done`. For a `behind` KR, `needToCatch` is how many units bring it back on pace.
@@ -179,7 +179,7 @@ the briefing that carry-forward was skipped because the prior page was not found
    three highest-impact moves for today, each placed against a matched free block where one exists.
    Place this section in the briefing built in step 6.
 
-No calendar match, and nothing read in any source, writes to `.polaris/okr/` on the morning block.
+No calendar match, and nothing read in any source, writes to `~/.claude/polaris-memory/okr/` on the morning block.
 
 **Evening block only.** After building the briefing and before the Notion write, ask up to three
 questions and wait for the answer: what moved today, which KR id (from `progress.json`), and an
@@ -188,13 +188,13 @@ that entry, list the valid ids, and ask again; never create a KR from an answer.
 
 Apply the result only after the Notion write succeeds, alongside the state write:
 
-- Append one dated entry to `.polaris/okr/log.md`: a `## <date> evening` heading, then one line per
+- Append one dated entry to `~/.claude/polaris-memory/okr/log.md`: a `## <date> evening` heading, then one line per
   KR moved (`<id> +<n> · <what> · <link>`) or a single `no change` line.
-- Increment the matching `current` values in `.polaris/okr/progress.json` by the confirmed deltas.
+- Increment the matching `current` values in `~/.claude/polaris-memory/okr/progress.json` by the confirmed deltas.
 - Add an "OKR — progress today" section to the briefing recording what was logged.
 
 If `--dry-run`, print the questions and the would-be log entry to stdout and write neither
-`.polaris/okr/log.md` nor `.polaris/okr/progress.json`. If the Notion write fails, write neither file
+`~/.claude/polaris-memory/okr/log.md` nor `~/.claude/polaris-memory/okr/progress.json`. If the Notion write fails, write neither file
 and report it; never claim progress was recorded when it was not (Rule 12). If the Notion write
 succeeds but the `progress.json` write then fails, report it: `log.md` is the source of truth and
 `/sweep --okr-review` rebuilds `progress.json` from it.
@@ -245,12 +245,12 @@ window, and report the failure plainly. Never report success for a run that did 
 ## OKR review mode (`--okr-review`)
 
 When called with `--okr-review`, do not pull any source and do not write a sweep page. Require
-`.polaris/okr/ledger.md` and `.polaris/okr/log.md`; if `log.md` is absent, stop with "no OKR log to
+`~/.claude/polaris-memory/okr/ledger.md` and `~/.claude/polaris-memory/okr/log.md`; if `log.md` is absent, stop with "no OKR log to
 review yet" and write nothing.
 
 Read `ledger.md`, `progress.json`, and `log.md`. Rebuild each KR's `current` by summing the log's
 deltas (the log is the source of truth). Produce the review to
-`.polaris/reports/okr-review-<local-date>.md`:
+`~/.claude/polaris-memory/okr/reviews/okr-review-<local-date>.md`:
 
 - One row per KR marked ✅ / ⏳ / ❌ against its target for the period.
 - The gaps named plainly, with what each needs to reach target.
@@ -268,10 +268,10 @@ from an OKR doc:
 
 1. Get the OKR text from `[path]` if given, else from the user's message. If neither carries an OKR,
    stop and ask for it, writing nothing.
-2. If `.polaris/okr/ledger.md` or `.polaris/okr/progress.json` already exists, stop and write nothing,
+2. If `~/.claude/polaris-memory/okr/ledger.md` or `~/.claude/polaris-memory/okr/progress.json` already exists, stop and write nothing,
    reporting that the lens is already initialized and to delete or edit those files rather than
    re-init. Never clobber.
-3. Write the OKR prose to `.polaris/okr/ledger.md`, normalized to the headings in
+3. Write the OKR prose to `~/.claude/polaris-memory/okr/ledger.md`, normalized to the headings in
    `templates/okr-ledger.md`.
 4. Extract each KR (classification, Rule 5) into the shape of `templates/okr-progress.json`:
    - `id` — stable, from the objective and KR numbering (`O2-KR1`); a suffix disambiguates split KRs
@@ -291,8 +291,8 @@ from an OKR doc:
 5. Ask the user, per KR, how much is already done, as one compact list to answer in a single reply:
    "how many `<metric>` so far?" for a numeric KR (empty means 0), and "is `<metric>` done? (y/n)" for
    a flag KR (yes sets `current` to its target, no to 0). Set each `current` from the answer.
-6. Write `.polaris/okr/progress.json`, then validate it:
-   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/okr-pace.sh" --now "<now>" --progress .polaris/okr/progress.json`.
+6. Write `~/.claude/polaris-memory/okr/progress.json`, then validate it:
+   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/okr-pace.sh" --now "<now>" --progress ~/.claude/polaris-memory/okr/progress.json`.
    If it errors, report the malformed entry and stop; do not leave a broken file.
 7. Report the files written and list every KR with its target, deadline, and the `current` given, plus
    anything in the doc that could not be extracted.

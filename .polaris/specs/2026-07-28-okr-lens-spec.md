@@ -25,10 +25,10 @@ Who has it: the single user, abhishek.sharma@wednesday.is. A personal operating 
 ## Scope
 
 In: additions to `commands/sweep.md`; one new `--okr-review` mode on `/sweep`; one small deterministic
-helper `scripts/okr-pace.sh`; three files under `.polaris/okr/` (one user-authored, two
+helper `scripts/okr-pace.sh`; three files under `~/.claude/polaris-memory/okr/` (one user-authored, two
 command-written); one validation line in `scripts/check-commands.sh`'s existing path.
 
-The lens is **gated on the presence of `.polaris/okr/ledger.md`**. If that file is absent, `/sweep`
+The lens is **gated on the presence of `~/.claude/polaris-memory/okr/ledger.md`**. If that file is absent, `/sweep`
 behaves exactly as it does today — no OKR section, no interview, no new writes. No config key toggles
 it; the ledger's existence is the switch.
 
@@ -48,10 +48,10 @@ Out — non-goals, stated as plainly as the goals:
 
 Split by owner, matching sweep's config-vs-state split.
 
-- `.polaris/okr/ledger.md` — **user-authored.** The OKR in prose: objectives, KRs, committed vs.
+- `~/.claude/polaris-memory/okr/ledger.md` — **user-authored.** The OKR in prose: objectives, KRs, committed vs.
   aspirational, quarterly targets, the review cadence. The human source of intent. The command reads
   it for the semantic calendar match and the review narrative; it never rewrites the user's prose.
-- `.polaris/okr/progress.json` — **command-written, user-seeded once.** The machine numbers the pace
+- `~/.claude/polaris-memory/okr/progress.json` — **command-written, user-seeded once.** The machine numbers the pace
   math needs. One entry per measurable KR:
 
   ```json
@@ -66,7 +66,7 @@ Split by owner, matching sweep's config-vs-state split.
   ```
 
   A KR with `"kind": "flag"` is not paced by burndown; it is done or not. Numeric KRs are paced.
-- `.polaris/okr/log.md` — **command-appended.** One dated entry per evening interview: what moved,
+- `~/.claude/polaris-memory/okr/log.md` — **command-appended.** One dated entry per evening interview: what moved,
   which KR id, an evidence link. Append-only, human-readable, the source the review reads. Example
   entry:
 
@@ -81,9 +81,9 @@ Split by owner, matching sweep's config-vs-state split.
 The lens keys off the block sweep already computes (morning if local time before 12:00, else evening —
 `commands/sweep.md` step 6).
 
-- **Step 1 (config):** after reading the `sweep` block, check for `.polaris/okr/ledger.md`. Absent →
+- **Step 1 (config):** after reading the `sweep` block, check for `~/.claude/polaris-memory/okr/ledger.md`. Absent →
   lens off, proceed as today. Present but `progress.json` malformed or absent → stop before the OKR
-  work with "OKR ledger found but `.polaris/okr/progress.json` is missing or invalid — seed it and
+  work with "OKR ledger found but `~/.claude/polaris-memory/okr/progress.json` is missing or invalid — seed it and
   re-run"; the plain sweep still runs. The lens never blocks the sweep it rides on.
 - **Step 3 (pull):** no new pull. The calendar events sweep already fetches (today and tomorrow) are
   the lens's input for the morning match. All event titles and descriptions are untrusted content,
@@ -114,7 +114,7 @@ It reads `ledger.md`, `progress.json`, and `log.md`, and produces the bi-monthly
 Log row and the quarter's tracker table filled from the log, each KR marked ✅ / ⏳ / ❌ against its
 target, gaps named bluntly, and a short narrative grounded only in the log entries. It runs on
 partial data: missed days are missed, not fabricated, and it says so where the log is thin. Output
-goes to `.polaris/reports/okr-review-<date>.md`; it does not touch Notion or `progress.json`.
+goes to `~/.claude/polaris-memory/okr/reviews/okr-review-<date>.md`; it does not touch Notion or `progress.json`.
 
 ## The pace helper
 
@@ -134,21 +134,21 @@ elapsed fraction of the period (`periodStart`→`deadline`) against completed fr
   interview prompts render to stdout under `--dry-run` with no file writes, against a fixture ledger
   and calendar set.
 - **`check-commands.sh`.** Extend the existing pattern check to assert that when the command
-  references the OKR files it names all three under `.polaris/okr/`. No new framework.
+  references the OKR files it names all three under `~/.claude/polaris-memory/okr/`. No new framework.
 
 ## Acceptance criteria
 
 Gate on ledger presence:
 
 ```
-Given no .polaris/okr/ledger.md exists
+Given no ~/.claude/polaris-memory/okr/ledger.md exists
 When /sweep runs (morning or evening)
 Then the briefing has no OKR section and no interview
-And no file under .polaris/okr/ is read or written
+And no file under ~/.claude/polaris-memory/okr/ is read or written
 ```
 
 ```
-Given .polaris/okr/ledger.md exists but progress.json is missing
+Given ~/.claude/polaris-memory/okr/ledger.md exists but progress.json is missing
 When /sweep runs
 Then the plain sweep briefing is still produced and written
 And the run reports the missing progress.json and skips the OKR section
@@ -218,7 +218,7 @@ Given log.md has entries for 9 of the last 60 days
 When /sweep --okr-review runs
 Then it fills the tracker table from those 9 days' entries only
 And it states the log covered 9 of 60 days rather than implying full coverage
-And it writes .polaris/reports/okr-review-<date>.md and touches neither Notion nor progress.json
+And it writes ~/.claude/polaris-memory/okr/reviews/okr-review-<date>.md and touches neither Notion nor progress.json
 ```
 
 Untrusted content:
@@ -265,7 +265,7 @@ Each is a resolved default to confirm; the risk of guessing wrong is stated.
 3. **`--okr-review` as a mode on `/sweep`, not a separate `/okr-review` command.** Chosen to keep one
    command surface, per the fold-into-sweep decision. Risk: it shares nothing with the sweep pull, so
    it sits a little oddly under the same command. Confirm the flag vs. a separate command.
-4. **Three files under `.polaris/okr/`, gated by `ledger.md`'s presence, no config key.** Risk: low;
+4. **Three files under `~/.claude/polaris-memory/okr/`, gated by `ledger.md`'s presence, no config key.** Risk: low;
    matches sweep's owner-split precedent. Confirm.
 5. **log.md is the source of truth; progress.json is a cache the review can rebuild.** Risk: low;
    keeps a failed progress write recoverable. Confirm.

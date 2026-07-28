@@ -6,7 +6,7 @@
 
 ## Problem
 
-The OKR lens turns on when `.polaris/okr/ledger.md` exists, and it needs `progress.json` with each
+The OKR lens turns on when `~/.claude/polaris-memory/okr/ledger.md` exists, and it needs `progress.json` with each
 KR's id, target, deadline, and kind. A user creates both by hand today. Hand-mapping prose KRs to
 numeric targets and per-quarter deadlines is error-prone, and nothing tells an existing user the lens
 exists. The user's OKR already lives as a structured doc; converting it once is the "feed once" the
@@ -15,7 +15,7 @@ lens was meant to have.
 ## Scope
 
 In: one new mode on `/sweep`, `--okr-init`, added to `commands/sweep.md`. It reads an OKR doc from the
-user's message or a file path, and writes `.polaris/okr/ledger.md` and `.polaris/okr/progress.json`.
+user's message or a file path, and writes `~/.claude/polaris-memory/okr/ledger.md` and `~/.claude/polaris-memory/okr/progress.json`.
 No new script, no new test: the deadlines and quarter labels are read from the doc, so there is no
 date math to push to a helper, and the output is validated by the existing `okr-pace.sh`.
 
@@ -29,10 +29,10 @@ guessing). Prior progress is captured by a short per-KR interview, not scraped.
 
 1. **Get the OKR text.** From `[path]` if given, else from the user's message. If neither carries an
    OKR, stop and ask for it.
-2. **Overwrite guard.** If `.polaris/okr/ledger.md` or `.polaris/okr/progress.json` already exists,
+2. **Overwrite guard.** If `~/.claude/polaris-memory/okr/ledger.md` or `~/.claude/polaris-memory/okr/progress.json` already exists,
    stop and write nothing, reporting that the lens is already initialized and to delete the files (or
    edit them) rather than re-init. No silent clobber.
-3. **Write the ledger.** Save the OKR prose to `.polaris/okr/ledger.md`, lightly normalized to the
+3. **Write the ledger.** Save the OKR prose to `~/.claude/polaris-memory/okr/ledger.md`, lightly normalized to the
    template's headings. This is the human copy the morning calendar match reads.
 4. **Extract the KRs to `progress.json`.** Model extraction (Rule 5). For each KR:
    - `id` — stable, from the objective and KR numbering (`O2-KR1`); disambiguate split KRs with a
@@ -46,7 +46,7 @@ guessing). Prior progress is captured by a short per-KR interview, not scraped.
    done: "how many `<metric>` so far?" for a numeric KR (empty answer means 0), and "is `<metric>`
    done? (y/n)" for a flag KR (yes sets `current` to its target, no to 0). Present them as one
    compact list the user can answer in a single reply, not one prompt at a time.
-6. **Validate.** Run `okr-pace.sh --now <now> --progress .polaris/okr/progress.json`. If it errors,
+6. **Validate.** Run `okr-pace.sh --now <now> --progress ~/.claude/polaris-memory/okr/progress.json`. If it errors,
    report the malformed entry and stop rather than leave a broken file.
 7. **Report.** Name the file paths written and list every KR with its extracted target, deadline, and
    the `current` the user gave, plus anything that could not be extracted.
@@ -73,9 +73,9 @@ as un-extractable if it is neither countable nor a flag.
 ## Acceptance criteria
 
 ```
-Given no .polaris/okr/ files exist and the user pastes their FY 2026-27 OKR with now = 2026-07-28
+Given no ~/.claude/polaris-memory/okr/ files exist and the user pastes their FY 2026-27 OKR with now = 2026-07-28
 When /sweep --okr-init runs
-Then .polaris/okr/ledger.md holds the OKR prose
+Then ~/.claude/polaris-memory/okr/ledger.md holds the OKR prose
 And the mode asks, per KR, how much is already done
 And progress.json has O2-KR1 with target 6, deadline 2026-09-30, periodStart 2026-04-01, and the
   current the user gave (0 if the answer was empty)
@@ -89,7 +89,7 @@ Then its entry has "kind": "flag" and is not given a numeric target
 ```
 
 ```
-Given .polaris/okr/ledger.md already exists
+Given ~/.claude/polaris-memory/okr/ledger.md already exists
 When /sweep --okr-init runs
 Then it writes nothing and reports the lens is already initialized
 ```

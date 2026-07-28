@@ -1,6 +1,6 @@
 # OKR ledger
 
-<!-- Copy to .polaris/okr/ledger.md and replace with your OKRs. Its presence turns the /sweep OKR
+<!-- Copy to ~/.claude/polaris-memory/okr/ledger.md and replace with your OKRs. Its presence turns the /sweep OKR
      lens on. The numeric targets that drive pacing live in progress.json next to this file; this
      file is the prose the morning calendar match reads. -->
 
