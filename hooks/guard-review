@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# SubagentStop on the reviewer: the over-engineering pass is mandatory, so a report that never
+# mentions it is sent back once. Prose in agents/reviewer.md is skippable; this is not.
+set -uo pipefail
+
+input="$(cat)"
+msg="$(echo "$input" | jq -r '.last_assistant_message // ""')"
+[ -n "$msg" ] || exit 0
+grep -qiE 'over-?engineer|ponytail' <<<"$msg" && exit 0
+
+# Block once per subagent. A reviewer that still omits the axis on its second stop is a problem to
+# surface, not a turn to hang.
+agent="$(echo "$input" | jq -r '.agent_id // "no-agent"')"
+counter="${TMPDIR:-/tmp}/polaris-guard-review/$(printf '%s' "$agent" | cksum | tr -d ' /')"
+mkdir -p "$(dirname "$counter")" 2>/dev/null
+[ -f "$counter" ] && exit 0
+: > "$counter" 2>/dev/null
+
+jq -cn --arg c "Polaris: the over-engineering pass is mandatory and this review does not report it.
+Run it now: climb the laziness ladder backwards over the diff and report what to delete. Name the
+reinvented standard library, the abstraction with one implementation, the dependency a few lines
+would replace, the configurability nobody asked for, and the speculative flexibility. Report it as
+its own axis with file:line, then finish. See the over-engineering lens in agents/reviewer.md." \
+  '{decision:"block",reason:$c,hookSpecificOutput:{hookEventName:"SubagentStop",decision:"block",additionalContext:$c}}'
+exit 0

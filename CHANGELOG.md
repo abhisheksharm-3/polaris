@@ -2,6 +2,49 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.8.0 — 2026-07-28
+
+Code has to explain itself. The comment law is now enforced by a hook rather than requested by a
+rule, and no review finishes without an over-engineering pass.
+
+New:
+
+- **The comment law.** `rules/core.md` replaces its comments policy: doc comments only, at the top of
+  a file and directly above a declaration, in the language's multi-line doc syntax. No inline
+  comments, none inside a function body, no narration or journal or TODO or metadata. A low comment
+  count is stated as the first signal of good code, and the reader is sent to rename or extract
+  before writing a comment. The one exception, a constraint the code cannot express or a ceiling
+  marker, goes on its own line above the code, which overrides ponytail's trailing-marker style.
+- `rules/clean-code.md` — the named smells (N1-N7 names, F1-F4 functions, G1-G36 general, T1-T9
+  tests) so a finding is cited rather than argued: `F3 | src/render.ts:8 | flag argument`. Adapted
+  from Clean Code chapter 17 and the MIT-licensed clean-dry-code-skills rule set, compressed and made
+  language-agnostic. Loaded for code work, not injected every session.
+- `hooks/guard-review` on `SubagentStop` matching the reviewer. A review that never reports the
+  over-engineering axis is sent back with instructions, once per reviewer. The mandatory pass is now
+  structural instead of prose an agent can skip.
+- `hooks/inject-standard` on `SubagentStart`. Every code-writing and reviewing agent is a subagent, so
+  the session-start injection never reached them and the standard arrived only if they read it
+  themselves. The comment law and the laziness ladder now land in their context directly.
+- `agents/reviewer.md` gains the over-engineering lens: reinvented stdlib, a dependency a few lines
+  would replace, an abstraction with one implementation, configurability with no caller, speculative
+  structure, and code the diff could delete instead of add. It runs on every review, whichever lens
+  was asked for, and reports as its own axis including when clean.
+
+Changed:
+
+- `guard-edit` blocks instead of whispering. An inline comment in a written file returns
+  `decision: "block"` with the line and what to do about it, so the edit does not stand; two strikes
+  per file per session, then it degrades to advisory rather than hanging the turn. Every other
+  finding stays advisory as before.
+- `guardEdit` defaults to `true` in `templates/config.default.json`, and a config that omits the key
+  now counts as enabled. A comment law nobody's config turns on is decoration. An explicit
+  `"guardEdit": false` still disables it.
+- `check-patterns.sh` gains `inline-comment` for TypeScript, Python, Go, and Rust: a comment token
+  following code on the same line. URLs and full-line comments do not match.
+- The reviewer's maintainability lens checks names against N1-N7 and functions against F1-F4, and
+  treats a doc comment that no longer matches its code as a correctness finding, because callers act
+  on it. `/flow` phase 5 and `/review-pr` step 4 mark the over-engineering pass non-negotiable.
+
 ## 1.7.0 — 2026-07-28
 
 `/journal` now records the whole day, and every command that reads Slack reads the replies inside

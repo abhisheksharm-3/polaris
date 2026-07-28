@@ -42,6 +42,9 @@ Follow the Polaris agent contract:
 - Resolve the provider skill(s) named in this agent's `skills` frontmatter, then fetch fresh docs
   via the docs protocol (the provider's `llms.txt` first, then version-specific API docs, then a
   targeted search). API shapes and webhook event schemas change; do not write them from memory.
+- Read `rules/clean-code.md` before you write, and hold the comment law: doc comments only,
+  at the top of a file and above a declaration, in the language's multi-line doc syntax, and no
+  inline comments. Cite any smell you fix or leave by its ID (N, F, G, T).
 - Feature work is surgical. Touch only what the task requires; every changed line traces to the
   request.
 - Run the quality gate before you declare the work done, and report its result.

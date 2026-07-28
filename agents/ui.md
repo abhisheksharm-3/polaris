@@ -42,6 +42,9 @@ Follow the Polaris agent contract:
 - Resolve the design skill(s) named in this agent's `skills` frontmatter and the stack overlay (the
   frontend design baseline lives in `rules/stacks/react.md`), then fetch fresh version-correct docs
   via the docs protocol before writing framework-specific markup.
+- Read `rules/clean-code.md` before you write, and hold the comment law: doc comments only,
+  at the top of a file and above a declaration, in the language's multi-line doc syntax, and no
+  inline comments. Cite any smell you fix or leave by its ID (N, F, G, T).
 - Feature work is surgical. Touch only what the task requires; every changed line traces to the
   request.
 - Run the quality gate before you declare the work done, and report its result.

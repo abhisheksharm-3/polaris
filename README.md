@@ -258,8 +258,11 @@ carrying a model tier.
 
 ## The standard and its enforcement
 
-`rules/core.md` holds the language-agnostic engineering standard, the docs protocol (fetch
-`llms.txt` then version docs before writing), the skill-resolution order, and the ponytail ladder.
+`rules/core.md` holds the language-agnostic engineering standard, the comment law (doc comments
+only, above a declaration, in multi-line doc syntax, no inline comments, enforced by a blocking
+hook), the docs protocol (fetch `llms.txt` then version docs before writing), the skill-resolution
+order, and the ponytail ladder. `rules/clean-code.md` is the named smell catalog (N, F, G, T) that
+findings cite, loaded for code work.
 `rules/writing.md` is the anti-slop writing standard for all prose. `rules/stacks/*` add per-stack
 opinions, mapped by `rules/stack-map.json`. `rules/patterns.json` is the machine-readable data that
 drives the deterministic checker and the hooks. `rules/routing.md` classifies each task to the

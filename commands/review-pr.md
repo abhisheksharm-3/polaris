@@ -20,8 +20,11 @@ Review the pull request in `$ARGUMENTS` as the harshest fair reviewer on the tea
    source (the issue reference in the PR or commits, or a spec file under `.polaris/specs/`), check
    the diff against its acceptance criteria, and report unmet criteria as a separate axis from the
    quality findings. <!-- spec-conformance credits code-review from mattpocock/skills -->
-4. **Check for over-engineering.** Run `/ponytail-review` on the diff: is there a simpler path, a
-   reused helper, a stdlib or native feature, or a one-liner that the PR missed.
+4. **Check for over-engineering.** Always. This step is never skipped, whatever the PR's size.
+   Run `/ponytail-review` on the diff and the reviewer's over-engineering lens: the reinvented
+   stdlib or platform feature, the dependency a few lines would replace, the abstraction with one
+   implementation, the configurability nobody asked for, the speculative structure, and the code the
+   PR could delete instead of add. Report it as its own axis, including when it is clean.
 5. **Verify.** Dispatch `verifier` to confirm each finding is real and reproducible; drop the false
    positives. A finding with no reproducible trigger is labeled plausible, not confirmed.
 6. **Report.** Post or return a review: the confirmed findings ordered by severity, each with a

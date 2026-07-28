@@ -14,23 +14,27 @@
       { "id": "as-any", "pattern": "\\bas any\\b", "message": "no as any; use a proper type" },
       { "id": "ts-ignore", "pattern": "@ts-(ignore|expect-error)", "message": "no ts-ignore without a documented framework bug" },
       { "id": "console", "pattern": "console\\.(log|debug)", "message": "remove debug logging" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
+      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
     ],
     "py": [
       { "id": "bare-except", "pattern": "except\\s*:", "message": "no bare except; catch a specific exception" },
       { "id": "type-ignore", "pattern": "#\\s*type:\\s*ignore", "message": "no type: ignore without a documented reason" },
       { "id": "wildcard-import", "pattern": "from\\s+[\\w.]+\\s+import\\s+\\*", "message": "no wildcard import" },
-      { "id": "todo", "pattern": "#\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+      { "id": "todo", "pattern": "#\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
+      { "id": "inline-comment", "pattern": "\\S[ \\t]+#", "message": "no inline comment; rename or extract instead. Docstrings only, at the top of the file or the definition" }
     ],
     "go": [
       { "id": "panic", "pattern": "\\bpanic\\(", "message": "no panic in library code; return an error" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
+      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
     ],
     "rust": [
       { "id": "unwrap", "pattern": "\\.unwrap\\(\\)", "message": "no .unwrap(); handle the error or expect() with context" },
       { "id": "dbg", "pattern": "\\bdbg!\\(", "message": "remove dbg! debug macro" },
       { "id": "todo-macro", "pattern": "\\b(todo|unimplemented)!\\(", "message": "no todo!()/unimplemented!() left in code" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" }
+      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
+      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
     ]
   },
   "injection": {

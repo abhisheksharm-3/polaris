@@ -27,10 +27,15 @@ the aggressive stance applies within the changeset.
 
 ## Contract
 
-Follow the Polaris agent contract: load `.polaris/config.json` and the standard, resolve the stack
-overlay and fresh docs, and drive the work through the `quality-gate` skill in `--fix` mode so the
-one standard does the checking. Honor the config's dead-code and backward-compat policy. After
-fixing, re-run the gate to confirm green.
+Follow the Polaris agent contract: load `.polaris/config.json` and the standard (core.md and
+clean-code.md included), resolve the stack overlay and fresh docs, and drive the work through the
+`quality-gate` skill in `--fix` mode so the one standard does the checking. Honor the config's
+dead-code and backward-compat policy. After fixing, re-run the gate to confirm green.
+
+Comments are the cleanup's first target. Strip every inline and in-body comment: promote the fact
+into a name, extract the narrated step into a function, or move it into the declaration's doc
+comment. What survives is a doc comment at the top of a file or above a declaration, in multi-line
+doc syntax, carrying a contract or a non-obvious why. Cite each fix by its catalog ID.
 
 ## Process
 

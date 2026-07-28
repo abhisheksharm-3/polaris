@@ -57,9 +57,11 @@ touch overlapping files. Route each to its specialist: `ui`, `frontend-logic`, `
 
 ### Phase 5 — Review
 Run a dynamic workflow: `reviewer` across the dimensions (correctness, security, performance,
-maintainability, simplicity, accessibility), then `verifier` to confirm each finding is real. Fix
-the confirmed ones (via `bug-fixer` or the relevant implementer). Loop until a clean pass, capped
-at 3 rounds; on non-convergence, stop and escalate with the remaining findings and state.
+maintainability, simplicity, accessibility), plus the over-engineering pass, which runs on every
+review and is not negotiable: what should not exist at all, reported as its own axis. Then
+`verifier` to confirm each finding is real. Fix the confirmed ones (via `bug-fixer` or the relevant
+implementer). Loop until a clean pass, capped at 3 rounds; on non-convergence, stop and escalate
+with the remaining findings and state.
 
 ### Phase 6 — QA
 Dispatch `tester` for adversarial QA (drive the real feature: a browser for web, curl for backend),

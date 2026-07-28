@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# SubagentStart: the code-writing and reviewing agents are subagents, so the session-start
+# injection never reaches them. This puts the comment law and the laziness ladder in their context
+# without waiting for them to read rules/core.md themselves.
+set -uo pipefail
+
+input="$(cat)"
+agent="$(echo "$input" | jq -r '.agent_type // ""')"
+
+case "$agent" in
+  *backend*|*ui*|*frontend-logic*|*feature-builder*|*bug-fixer*|*integrations*|*data-engineer*|\
+  *infra*|*code-cleanup*|*reviewer*|*verifier*|*tester*|*e2e*|*perf*|*devops*|*sre*) ;;
+  *) exit 0 ;;
+esac
+
+read -r -d '' context <<'CONTEXT'
+Polaris standard, the two rules that decide whether this code is accepted:
+
+1. The comment law. Code explains itself through names, small functions, and control flow a reader
+   follows in one pass. A low comment count is the first signal of good code. Comments are allowed
+   at the top of a file and directly above a declaration, and only in the language's multi-line doc
+   syntax (/** */ for TSDoc and JSDoc, """...""" for Python, the // block above the declaration for
+   Go, /// for Rust). No inline comments, ever. No comments inside a function body: a step that
+   needs narrating is a function that needs extracting. No narration, no journal, no TODO, no
+   commented-out code, no author or date or ticket metadata. A doc comment carries the contract, the
+   units, the failure mode, or the non-obvious why; if it restates the signature, delete it. The one
+   exception, a constraint the code cannot express or a ceiling marker, goes on its own line above
+   the code, never trailing. A trailing comment blocks the edit.
+
+2. The laziness ladder. Before writing code: does it need to exist, does this repo already do it,
+   does the standard library do it, does the platform do it, does an installed dependency do it, can
+   it be one line. Only then write the minimum that works.
+
+Full text in rules/core.md. The named smells you will be reviewed against, and should cite when you
+report, are in rules/clean-code.md: names (N1-N7), functions (F1-F4), general (G1-G36), tests
+(T1-T9). Read it before you write code, along with the stack overlay in rules/stacks/.
+CONTEXT
+
+jq -cn --arg c "$context" \
+  '{hookSpecificOutput:{hookEventName:"SubagentStart",additionalContext:$c}}'
+exit 0

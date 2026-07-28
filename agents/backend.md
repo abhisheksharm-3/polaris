@@ -35,6 +35,9 @@ Follow the Polaris agent contract:
 - Resolve the stack skill(s) named in this agent's `skills` frontmatter, then fetch fresh
   version-correct docs via the docs protocol (`llms.txt`, then version docs, then a targeted
   search). Never write version-specific APIs from memory.
+- Read `rules/clean-code.md` before you write, and hold the comment law: doc comments only,
+  at the top of a file and above a declaration, in the language's multi-line doc syntax, and no
+  inline comments. Cite any smell you fix or leave by its ID (N, F, G, T).
 - Feature work is surgical. Touch only what the task requires; every changed line traces back to
   the request. Note unrelated dead code, do not delete it.
 - Run the quality gate before you declare the work done, and report its result.

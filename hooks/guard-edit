@@ -1,18 +1,44 @@
 #!/usr/bin/env bash
+# PostToolUse on Edit|Write: run the deterministic code check over the file just written.
+# An inline comment blocks the turn (the comment law in rules/core.md is not advisory); every
+# other finding is advisory context. Runs unless the project config sets guardEdit false.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
 
-# opt-in: only run when the project config enables it
 cfg="${CLAUDE_PROJECT_DIR:-$PWD}/.polaris/config.json"
 [ -f "$cfg" ] || exit 0
-jq -e '.guardEdit == true' "$cfg" >/dev/null 2>&1 || exit 0
+jq -e '.guardEdit != false' "$cfg" >/dev/null 2>&1 || exit 0
 
 input="$(cat)"
 file="$(echo "$input" | jq -r '.tool_input.file_path // ""')"
 [ -f "$file" ] || exit 0
 out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "${ROOT}/scripts/check-patterns.sh" code "$file" 2>/dev/null)"
 [ -z "$out" ] && exit 0
+
+# Two strikes per file per session, then the finding degrades to advisory. Blocking forever on a
+# file the writer cannot get clean would hang the turn instead of surfacing the problem.
+# ponytail: a counter file per file path; a session-scoped state dir if hooks ever need shared state.
+blocking="$(printf '%s\n' "$out" | grep 'inline-comment:' || true)"
+if [ -n "$blocking" ]; then
+  session="$(echo "$input" | jq -r '.session_id // "no-session"')"
+  strikes="${TMPDIR:-/tmp}/polaris-guard-edit/${session}"
+  mkdir -p "$strikes" 2>/dev/null
+  counter="${strikes}/$(printf '%s' "$file" | cksum | tr -d ' /')"
+  seen=$(( $(cat "$counter" 2>/dev/null || echo 0) + 1 ))
+  echo "$seen" > "$counter" 2>/dev/null
+  if [ "$seen" -le 2 ]; then
+    reason="Polaris comment law: no inline comments. Fix ${file} before continuing:
+${blocking}
+
+Rename the variable, extract the function, or delete the line. If the fact is one the code cannot
+carry, move it to a doc comment above the declaration. See the comments policy in rules/core.md."
+    jq -cn --arg c "$reason" \
+      '{decision:"block",reason:$c,hookSpecificOutput:{hookEventName:"PostToolUse",decision:"block",additionalContext:$c}}'
+    exit 0
+  fi
+fi
+
 jq -cn --arg c "Polaris: possible slop in ${file}:
 ${out}" '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$c}}'
 exit 0

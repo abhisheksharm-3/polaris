@@ -295,5 +295,6 @@ Rules:
 - [ ] Icon-only buttons have `aria-label`
 - [ ] No orphan files (every new file is imported somewhere)
 - [ ] No duplicate logic (searched codebase for existing implementations)
-- [ ] No process comments — only JSDoc and non-obvious WHY comments
+- [ ] No inline comments and none inside a function body; TSDoc blocks only, at the top of a file
+      and above a declaration (`rules/core.md` comments policy, `rules/clean-code.md`)
 - [ ] No inline complex types — all extracted to `types.ts`

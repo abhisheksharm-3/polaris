@@ -36,12 +36,16 @@ call this before declaring work done. It reads one standard so a rule changes ev
    "${CLAUDE_PLUGIN_ROOT}/scripts/check-patterns.sh" <scope> <files...>
    ```
    Collect its `file:line: rule: message` findings. Fast and high-confidence: banned words, em-dash
-   spray, `as any`, `@ts-ignore`, `console.log`, `TODO`.
+   spray, `as any`, `@ts-ignore`, `console.log`, `TODO`, and `inline-comment` for a comment trailing
+   code on the same line.
 
 4. **Judgment pass.** Read the diff against `core.md`, `writing.md`, and the loaded overlays and
    skill guidance. Judge what a regex cannot: root-cause versus symptom, one-file-one-
    responsibility, defensive checks in trusted paths, naming clarity, architecture leaks,
-   duplication, and slop the checker does not encode.
+   duplication, and slop the checker does not encode. Walk `rules/clean-code.md` as the checklist
+   and cite findings by catalog ID. Comments are part of this pass: a comment inside a function body,
+   a doc comment that restates the signature, and a doc comment that no longer matches its code are
+   all findings the regex cannot see.
 
 5. **Apply the config.** Adjust by `.polaris/config.json`:
    - `backwardCompat: "maintain"` — do not flag compat shims or aliases.
@@ -70,3 +74,8 @@ A clean run prints `Quality gate: PASS`.
 
 - The mechanical checker skips `rules/` and `patterns.json` (they hold the banned patterns as data).
 - Never weaken a check to make it pass. Fix the code, or report the finding.
+- `inline-comment` matches a comment token that follows code on the same line, so a URL or a full-line
+  comment is safe. A `#` or `//` inside a string literal after a space does read as a false positive;
+  confirm the line before acting on that one.
+- The `guard-edit` hook blocks an edit that lands an inline comment, twice per file per session, then
+  falls back to advisory. A third report on the same file means the writer is stuck; read the file.

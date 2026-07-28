@@ -64,9 +64,48 @@ it to a shared location if needed). Never keep two functions that do the same th
 
 ## Comments policy
 
-Only doc comments (JSDoc, docstrings, or the language's convention) and single-line comments that
-explain a non-obvious WHY. Nothing else. If removing a comment would not confuse a reader, remove
-it. Never narrate what the code does, journal what changed, or defer work in a comment.
+A low comment count is the first signal of good code. The code carries its own explanation through
+names, small functions, and control flow a reader can follow in one pass. A comment is what you
+write when that failed, so before you write one, rename the variable, extract the function, or
+delete the branch instead.
+
+Comments are allowed in exactly two places:
+
+1. **The top of a file**, stating that file's single purpose in a line or two.
+2. **Directly above a declaration**, documenting a function, class, type, or exported constant.
+
+Both use the language's doc convention in its multi-line form: `/** ... */` for TSDoc and JSDoc,
+`"""..."""` for Python, the `// ...` block immediately above the declaration for Go, `/// ...` for
+Rust. Never a bare comment block standing in for a doc comment the language already has a syntax
+for.
+
+Everything else is forbidden:
+
+- **No inline comments.** Nothing after code on the same line, ever. A trailing comment is a rename
+  waiting to happen.
+- **No comments inside a function body.** A step that needs narrating is a function that needs
+  extracting, and the extracted name is the comment.
+- **No narration** of what the code does, no journal of what changed, no `TODO`, no commented-out
+  code, no metadata (author, date, ticket number). Git holds the last four.
+
+A doc comment states what a caller needs and cannot read off the signature: the contract, the
+units, the failure mode, the non-obvious why. If it restates the signature, delete it.
+
+**The one exception.** A constraint the code genuinely cannot express, a workaround for a verified
+external bug, or a ponytail ceiling marker naming a deliberate simplification, goes on its own line
+directly above the code it explains, or inside the enclosing declaration's doc comment. Never
+trailing. It carries the reason, never a restatement. Placement follows this rule even where the
+ponytail companion shows a trailing marker; content follows ponytail.
+
+`check-patterns.sh` catches a trailing comment deterministically and blocks the edit; the rest is
+the gate's judgment pass.
+
+## The clean code catalog
+
+`rules/clean-code.md` holds the named smells (N, F, G, T) so a finding can be cited rather than
+argued: `F3 | src/render.ts:8 | flag argument, split the function`. Every code-writing agent applies
+it before reporting done, the reviewer cites from it, and the gate's judgment pass uses it as its
+checklist. Load it for code work, along with the stack overlay. It is not injected every session.
 
 ## Naming
 

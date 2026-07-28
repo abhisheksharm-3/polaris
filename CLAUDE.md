@@ -92,11 +92,11 @@ enforces on itself.
 - `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, …)
 - `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e,
   extract-design-system, merge-conflicts)
-- `hooks/` — `session-start`, `guard-commit-pr`, `guard-edit`, `guard-input`, `enhance-prompt`,
-  wired in `hooks.json`
-- `rules/` — the standard: `core.md`, `craft.md`, `writing.md`, `doc-organization.md`, `memory.md`,
-  `routing.md`, `model-routing.md`, `connectors.md`, `patterns.json`, plus per-stack overlays in
-  `stacks/` mapped by `stack-map.json`
+- `hooks/` — `session-start`, `guard-commit-pr`, `guard-edit`, `guard-input`, `guard-review`,
+  `inject-standard`, `enhance-prompt`, wired in `hooks.json`
+- `rules/` — the standard: `core.md`, `clean-code.md`, `craft.md`, `writing.md`,
+  `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`, `connectors.md`,
+  `patterns.json`, plus per-stack overlays in `stacks/` mapped by `stack-map.json`
 - `scripts/` — deterministic check runners, the companion installer, and the fact extractors for
   `/journal`, `/track`, and `/sweep`
 - `output-styles/` — the Polaris writing output style
@@ -113,5 +113,9 @@ enforces on itself.
 - The writing standard (`rules/writing.md`) applies to ALL prose, including commit messages and PR
   bodies. Banned words and structures are enforced by the commit/PR guard hook.
 - AI attribution in commits and PRs is forbidden and blocked by the guard hook.
+- The comment law (`rules/core.md`) blocks, it does not warn: an inline comment in a file you write
+  fails the `guard-edit` hook and the edit has to be fixed before the turn continues. Doc comments
+  only, at the top of a file and above a declaration, in multi-line doc syntax.
+- Every review reports the over-engineering axis. `guard-review` sends back a reviewer that omits it.
 - `.polaris/config.json` drives the gate, hooks, and every agent. Changing it changes enforcement.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

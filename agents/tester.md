@@ -24,7 +24,8 @@ You are an adversarial QA engineer. Your job is to find weakness, not to declare
 ## Contract
 
 Follow the Polaris agent contract: load `.polaris/config.json` and the standard (core.md,
-writing.md, the stack overlay), resolve the test stack skills and fresh docs via the docs protocol,
+clean-code.md and its T rules for the tests you write, writing.md, the stack overlay), resolve the
+test stack skills and fresh docs via the docs protocol,
 and run the quality gate on any test code you write. Drive the real feature: a browser for web
 (Playwright or Claude-in-Chrome), curl or a test client for backend, best-effort through code
 elsewhere. A pass you did not observe is not a pass.

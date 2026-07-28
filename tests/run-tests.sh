@@ -24,6 +24,13 @@ expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad.go"
 expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.go"
 expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad.rs"
 expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean.rs"
+# the comment law: a comment trailing code is flagged, a multi-line doc block above a declaration is
+# not. The clean fixtures carry real doc comments, so their exit 0 above proves the second half.
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/inline-comment.ts"
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/inline-comment.py"
+ic_out="$("$CHECK" code "${DIR}/fixtures/inline-comment.ts" || true)"
+echo "$ic_out" | grep -q 'inline-comment' \
+  && echo "ok: inline comment flagged by rule id" || { echo "FAIL: inline-comment rule id missing"; fail=1; }
 
 # injection: bad flagged, clean passes, paraphrase (no literal denylist match) still flagged
 expect_exit 1 "$CHECK" injection "${DIR}/fixtures/injection-bad.txt"
@@ -68,7 +75,36 @@ ge_off="$(mktemp -d)"; mkdir -p "${ge_off}/.polaris"; echo '{"guardEdit":false}'
 ge_payload="$(jq -n --arg f "${DIR}/fixtures/bad-ts.ts" '{tool_input:{file_path:$f}}')"
 if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_on"  "$GEDIT" | grep -q 'additionalContext'; then echo "ok: guard-edit warns when enabled"; else echo "FAIL: guard-edit did not warn when enabled"; fail=1; fi
 if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_off" "$GEDIT" | grep -q 'additionalContext'; then echo "FAIL: guard-edit warned when disabled"; fail=1; else echo "ok: guard-edit silent when disabled"; fi
-rm -rf "$ge_on" "$ge_off"
+
+# guard-edit: the comment law blocks the turn, other slop stays advisory, and the block gives up
+# after two strikes on the same file so a writer that cannot get it clean does not hang the session.
+ge_tmp="$(mktemp -d)"
+ge_comment="$(jq -n --arg f "${DIR}/fixtures/inline-comment.ts" --arg s comment-session '{session_id:$s,tool_input:{file_path:$f}}')"
+ge_slop="$(jq -n --arg f "${DIR}/fixtures/slop-no-comment.ts" --arg s slop-session '{session_id:$s,tool_input:{file_path:$f}}')"
+ge_run() { echo "$1" | TMPDIR="$ge_tmp" CLAUDE_PROJECT_DIR="$ge_on" "$GEDIT"; }
+ge_run "$ge_comment" | grep -q '"decision":"block"' && echo "ok: guard-edit blocks an inline comment" || { echo "FAIL: guard-edit did not block an inline comment"; fail=1; }
+if ge_run "$ge_slop" | grep -q '"decision":"block"'; then echo "FAIL: guard-edit blocked on non-comment slop"; fail=1; else echo "ok: guard-edit keeps other slop advisory"; fi
+ge_run "$ge_slop" | grep -q 'additionalContext' && echo "ok: non-comment slop still reported" || { echo "FAIL: non-comment slop not reported"; fail=1; }
+ge_run "$ge_comment" >/dev/null
+if ge_run "$ge_comment" | grep -q '"decision":"block"'; then echo "FAIL: guard-edit blocked past two strikes"; fail=1; else echo "ok: guard-edit degrades to advisory after two strikes"; fi
+rm -rf "$ge_on" "$ge_off" "$ge_tmp"
+
+# guard-review: a review with no over-engineering axis is sent back once, one that has it passes
+GREVIEW="${DIR}/../hooks/guard-review"
+gr_tmp="$(mktemp -d)"
+gr_missing="$(jq -n '{agent_id:"rev-1",last_assistant_message:"high | src/x.ts:4 | missing authz check | add one"}')"
+gr_present="$(jq -n '{agent_id:"rev-2",last_assistant_message:"Over-engineering: src/y.ts:10 factory with one product, inline it"}')"
+gr_run() { echo "$1" | TMPDIR="$gr_tmp" "$GREVIEW"; }
+gr_run "$gr_missing" | grep -q '"decision":"block"' && echo "ok: guard-review blocks a review missing the axis" || { echo "FAIL: guard-review did not block"; fail=1; }
+if gr_run "$gr_missing" | grep -q '"decision":"block"'; then echo "FAIL: guard-review blocked the same reviewer twice"; fail=1; else echo "ok: guard-review blocks once per reviewer"; fi
+if gr_run "$gr_present" | grep -q 'decision'; then echo "FAIL: guard-review blocked a complete review"; fail=1; else echo "ok: guard-review passes a review with the axis"; fi
+rm -rf "$gr_tmp"
+
+# inject-standard: the comment law reaches a writer subagent, and non-code agents are left alone
+INJECT="${DIR}/../hooks/inject-standard"
+echo '{"agent_type":"backend"}' | "$INJECT" | grep -q 'No inline comments' \
+  && echo "ok: inject-standard carries the comment law to a writer" || { echo "FAIL: inject-standard missed the writer"; fail=1; }
+if echo '{"agent_type":"product"}' | "$INJECT" | grep -q 'additionalContext'; then echo "FAIL: inject-standard fired for a non-code agent"; fail=1; else echo "ok: inject-standard skips non-code agents"; fi
 
 # journal-facts: buckets a day's activity by project, excludes other days
 JF="${DIR}/../scripts/journal-facts.sh"
