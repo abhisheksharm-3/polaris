@@ -26,7 +26,7 @@ Who has it: the single user, abhishek.sharma@wednesday.is. A personal operating 
 
 In: additions to `commands/sweep.md`; one new `--okr-review` mode on `/sweep`; one small deterministic
 helper `scripts/okr-pace.sh`; three files under `~/.claude/polaris-memory/okr/` (one user-authored, two
-command-written); one validation line in `scripts/check-commands.sh`'s existing path.
+command-written).
 
 The lens is **gated on the presence of `~/.claude/polaris-memory/okr/ledger.md`**. If that file is absent, `/sweep`
 behaves exactly as it does today — no OKR section, no interview, no new writes. No config key toggles
@@ -59,7 +59,7 @@ Split by owner, matching sweep's config-vs-state split.
     "periodStart": "2026-04-01",
     "krs": [
       { "id": "O2-KR1", "metric": "problem statements written", "current": 3, "target": 6, "deadline": "2026-09-30", "committed": true },
-      { "id": "O4-KR2-writeups", "metric": "writeups (1 eng + 1 BFSI/quarter)", "current": 1, "target": 2, "deadline": "2026-09-30", "committed": true },
+      { "id": "O4-KR2-writeups", "metric": "writeups (1 eng + 1 BFSI/quarter, 8/year)", "current": 2, "target": 8, "deadline": "2027-03-31", "committed": true },
       { "id": "O1-KR1", "metric": "clean prod launch, metric instrumented", "current": 0, "target": 1, "deadline": "2026-09-30", "committed": true, "kind": "flag" }
     ]
   }
@@ -133,8 +133,9 @@ elapsed fraction of the period (`periodStart`→`deadline`) against completed fr
 - **`--dry-run` for the rendered sections.** The morning "OKR — today" section and the evening
   interview prompts render to stdout under `--dry-run` with no file writes, against a fixture ledger
   and calendar set.
-- **`check-commands.sh`.** Extend the existing pattern check to assert that when the command
-  references the OKR files it names all three under `~/.claude/polaris-memory/okr/`. No new framework.
+A `check-commands.sh` OKR-file-naming check was considered and dropped: it would bolt a bespoke grep
+onto a single-purpose script for little gain. The helper's tests and the writing gate are the real
+guarantees.
 
 ## Acceptance criteria
 
