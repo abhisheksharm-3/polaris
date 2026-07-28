@@ -266,9 +266,9 @@ drives the deterministic checker and the hooks. `rules/routing.md` classifies ea
 agent, command, ponytail intensity, and model tier to use, and `rules/model-routing.md` holds the
 tier table it routes to. Three more rules are injected every session: `rules/craft.md` (the craft
 principles behind the standard), `rules/memory.md` (how the global memory is written and pruned),
-and `rules/doc-organization.md` (where a generated document belongs). `rules/connectors.md` is the shared
-protocol for reading a window of work out of the connectors, including the Slack sequence that finds
-thread replies and DMs.
+and `rules/doc-organization.md` (where a generated document belongs). `rules/connectors.md` is the
+shared protocol for reading a window of work out of the connectors, including the Slack sequence
+that finds thread replies and DMs.
 
 The gate lives in `skills/quality-gate/`. The hooks are `guard-commit-pr` (blocks bad commit and PR
 text), `guard-edit` (surfaces slop on edit, opt-in), `guard-input` (flags injection in tool
