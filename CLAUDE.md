@@ -103,8 +103,9 @@ enforces on itself.
 - `templates/` — config and doc templates (e.g. `config.default.json`)
 - `docs/` — `plans/` and `specs/` for in-progress work
 - `.polaris/` — per-project config (`config.json`), plus the directories the commands write:
-  `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`, and `okr/` (ledger,
-  progress, log for the `/sweep` OKR lens)
+  `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`
+- `~/.claude/polaris-memory/` — user-level, cross-project state: `sweep/` (config, state) and `okr/`
+  (ledger, progress, log, reviews) for the `/sweep` OKR lens, plus `journal/` and the memory index
 
 ## Gotchas
 
