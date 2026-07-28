@@ -198,4 +198,31 @@ echo "$sw5" | jq -e '.firstRun==true' >/dev/null \
   && echo "ok: sweep-window malformed lastRunAt falls back to first-run" || { echo "FAIL: sweep-window malformed lastRunAt ($sw5)"; fail=1; }
 rm -f "$sw_state"
 
+# okr-pace: behind, ahead, on-track, flag, and near-zero-elapsed
+OP="${DIR}/../scripts/okr-pace.sh"
+op_prog="$(mktemp)"
+cat > "$op_prog" <<'JSON'
+{ "periodStart": "2026-04-01",
+  "krs": [
+    { "id": "O2-KR1", "metric": "problem statements", "current": 3, "target": 6, "deadline": "2026-09-30", "committed": true },
+    { "id": "O1-KR1", "metric": "clean prod launch", "current": 0, "target": 1, "deadline": "2026-09-30", "committed": true, "kind": "flag" },
+    { "id": "O3-KR1", "metric": "reusable things", "current": 4, "target": 5, "deadline": "2026-09-30", "committed": true },
+    { "id": "O4-KR1", "metric": "ownership areas", "current": 0, "target": 4, "deadline": "2026-09-30", "committed": true }
+  ] }
+JSON
+op1="$(bash "$OP" --now 2026-07-28 --progress "$op_prog")"
+echo "$op1" | jq -e '.[] | select(.id=="O2-KR1") | .status=="behind" and .needToCatch==1' >/dev/null \
+  && echo "ok: okr-pace behind names catch-up" || { echo "FAIL: okr-pace behind ($op1)"; fail=1; }
+echo "$op1" | jq -e '.[] | select(.id=="O1-KR1") | .status=="flag" and .done==false' >/dev/null \
+  && echo "ok: okr-pace flag KR not paced" || { echo "FAIL: okr-pace flag ($op1)"; fail=1; }
+echo "$op1" | jq -e '.[] | select(.id=="O3-KR1") | .status=="ahead"' >/dev/null \
+  && echo "ok: okr-pace ahead" || { echo "FAIL: okr-pace ahead ($op1)"; fail=1; }
+op2="$(bash "$OP" --now 2026-04-02 --progress "$op_prog")"
+echo "$op2" | jq -e '.[] | select(.id=="O4-KR1") | .status=="on-track"' >/dev/null \
+  && echo "ok: okr-pace near-zero elapsed is on-track" || { echo "FAIL: okr-pace near-zero ($op2)"; fail=1; }
+op_bad=$(bash "$OP" --now 2026-07-28 --progress /nonexistent 2>/dev/null; echo "exit:$?")
+echo "$op_bad" | grep -q 'exit:2' \
+  && echo "ok: okr-pace missing progress exits 2" || { echo "FAIL: okr-pace missing progress ($op_bad)"; fail=1; }
+rm -f "$op_prog"
+
 exit $fail

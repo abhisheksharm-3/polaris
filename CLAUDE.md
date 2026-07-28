@@ -84,6 +84,7 @@ enforces on itself.
 | `bash scripts/journal-facts.sh <YYYY-MM-DD> [source]` | One day's activity as factual markdown, bucketed by project. Needs `jq`; skips the GitHub calls when the source is `hook` |
 | `bash scripts/worktracker-snapshot.sh <project-dir> <since-utc>` | What changed in one project since a timestamp, for the tracker to classify |
 | `bash scripts/sweep-window.sh --now <iso> [--state <file>]` | The `/sweep` pull window as JSON (since-last-run, 24h first-run fallback, 7-day cap) |
+| `bash scripts/okr-pace.sh --now <iso> --progress <file>` | Per-KR OKR pace (behind/on-track/ahead) as JSON, for the `/sweep` OKR lens |
 
 ## Architecture
 
