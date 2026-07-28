@@ -30,4 +30,4 @@ commands themselves as the record.
 
 ## Change history
 
-- [../CHANGELOG.md](../CHANGELOG.md) — releases from the original plugin through 1.6.0.
+- [../CHANGELOG.md](../CHANGELOG.md) — releases from the original plugin through 1.7.0.

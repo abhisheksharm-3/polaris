@@ -2,6 +2,48 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.7.0 — 2026-07-28
+
+`/journal` now records the whole day, and every command that reads Slack reads the replies inside
+threads, which none of them did before.
+
+New:
+
+- `/journal` pulls every source the day touched, not only the terminal: sessions and asks, commits and
+  changed files, PRs authored and reviewed and issues involved in, Jira, Slack threads and DMs, Gmail,
+  Calendar, Fathom, Polaris artifacts written that day, the day's `/sweep` briefing, and memory entries
+  written that day. A day spent in meetings and Slack with no session here now produces an entry
+  instead of nothing.
+- `rules/connectors.md` — the shared protocol for reading a bounded window of work out of the
+  connectors, cited by `/journal`, `/sweep`, and `/catchup` so the sequence cannot drift between them.
+  Holds the Slack order, the per-source recipes, and the rule that an unavailable source is named
+  rather than dropped.
+- `scripts/journal-facts.sh` gained four deterministic fact types: cross-repo GitHub activity via `gh`,
+  `.polaris/` artifacts dated that day, the day's sweep briefing url from `sweep-state.json`, and
+  memory files written that day. `gh` runs for `/journal` and is skipped on the session-start hook
+  path, so startup keeps its budget.
+
+Fixed:
+
+- Slack thread replies were never read. `slack_read_channel` returns channel-level messages only, so a
+  reply inside a thread was invisible, and a reply under a parent older than the window was invisible
+  twice over. Reproduced on live data: a reply posted at 12:37 under a parent from the previous evening
+  did not appear in a channel read scoped to that day. The fix searches the user's own messages first,
+  since search indexes replies, then expands every thread by its parent ts, reads each DM that moved in
+  the window in full, and dedupes. This silently affected `/journal`, `/sweep`, and `/catchup`.
+- `/sweep` could never resolve a Slack mention. Its resolution rule asks whether the user replied in
+  the thread, and without a thread read the answer was always no, so mentions carried forever. That row
+  now names `slack_read_thread` as the only admissible evidence.
+- `/notes` built commit links from a hardcoded host, printed empty sections, and pre-approved the
+  publish tools. Links now come from the git remote, empty sections are cut, the git facts are injected
+  rather than re-derived, and publishing keeps its permission prompt as the last gate.
+
+Docs:
+
+- `README.md` and `CLAUDE.md` now match the code: `/journal` appears in the command table, all seven
+  scripts are listed, and the architecture section names what `skills/`, `hooks/`, `rules/`, and
+  `.polaris/` actually hold.
+
 ## 1.6.0 — 2026-07-27
 
 Add `/notes`, which writes the release notes a person would be proud to send, for two audiences at
