@@ -2,6 +2,7 @@
 description: Write or regenerate the daily journal for a day, across all projects
 argument-hint: "[date, default today]"
 allowed-tools: Read, Write, Bash, Grep, Glob, Task
+model: sonnet
 ---
 
 # Journal
@@ -26,17 +27,18 @@ actually had.
    meetings and Slack is still a day, and only an empty local *and* connected record means there was
    no activity to record.
 3. Read the connectors over the day, `<date> 00:00` to `<date> 23:59:59` in the user's timezone
-   (`sweep.timezone` in `.polaris/config.json` when set), following
+   (`timezone` from the sweep config, resolved as in `/sweep` step 1: the plugin's `timezone` user
+   option when set, else `~/.claude/polaris-memory/sweep/config.json`), following
    `${CLAUDE_PLUGIN_ROOT}/rules/connectors.md` exactly. Two parts of that rule carry the day:
    Slack thread replies are only found by searching the user's own messages and then expanding every
-   thread, and DMs are read in full for every conversation that moved. When
-   `sweep.sources` is configured, use its queries and channels; otherwise use the user's assigned Jira
-   work, their Slack mentions and DMs, and their inbox and calendar. Name every source that could not
-   be read.
-4. Read the day's sweep briefings when there are any. The facts output prints
-   `- Sweep briefing: <url>` for a project whose `.polaris/work/sweep-state.json` last ran that day;
+   thread, and DMs are read in full for every conversation that moved. When `sources` is configured in
+   `~/.claude/polaris-memory/sweep/config.json`, use its queries and channels; otherwise use the
+   user's assigned Jira work, their Slack mentions and DMs, and their inbox and calendar. Name every
+   source that could not be read.
+4. Read the day's sweep briefings when there are any. The facts output prints a `## Sweep` section
+   with `- Sweep briefing: <url>` when `~/.claude/polaris-memory/sweep/state.json` last ran that day;
    fetch each with `notion-fetch`. The state file holds only the most recent page, so when two sweeps
-   ran that day, the morning one is found under `sweep.notionParentPageId` by its
+   ran that day, the morning one is found under the resolved `notionParentPageId` by its
    `Sweep — <date> morning` title. A sweep briefing already tiered the day's items, so use it as
    evidence rather than re-deriving it, and record which of its action items closed.
 5. Write `~/.claude/polaris-memory/journal/<date>.md`: keep the per-project facts sections as the

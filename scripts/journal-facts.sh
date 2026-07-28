@@ -53,8 +53,12 @@ mem="$(find "$HOME/.claude/polaris-memory/entries" "$PROJECTS"/*/memory -type f 
         -newermt "$date 00:00" ! -newermt "$date 23:59:59" 2>/dev/null \
         | sed "s|^$HOME/|~/|" | sort | paste -sd, - | sed 's/,/, /g')"
 
-# Nothing anywhere: no transcripts, no GitHub activity, no memory. That is a day with no record.
-[ -s "$tmp/rows.tsv" ] || [ -n "$gh_lines" ] || [ -n "$mem" ] || exit 0
+sweep_page="$(jq -r --arg d "$date" 'select((.lastRunAt // "") | startswith($d)) | .lastPageUrl // empty' \
+  "${HOME}/.claude/polaris-memory/sweep/state.json" 2>/dev/null)"
+
+# Nothing anywhere: no transcripts, no GitHub activity, no memory, no sweep briefing. That is a day
+# with no record.
+[ -s "$tmp/rows.tsv" ] || [ -n "$gh_lines" ] || [ -n "$mem" ] || [ -n "$sweep_page" ] || exit 0
 
 : > "$tmp/cwds"
 [ -s "$tmp/rows.tsv" ] && cut -f1 "$tmp/rows.tsv" | sort -u > "$tmp/cwds"
@@ -86,11 +90,14 @@ while read -r cwd; do
   fi
   artifacts="$(ls "$cwd"/.polaris/*/"$date"-*.md 2>/dev/null | sed "s|^$cwd/||" | paste -sd, - | sed 's/,/, /g')"
   [ -n "$artifacts" ] && printf -- '- Polaris artifacts: %s\n' "$artifacts"
-  sweep_page="$(jq -r --arg d "$date" 'select((.lastRunAt // "") | startswith($d)) | .lastPageUrl // empty' \
-    "$cwd/.polaris/work/sweep-state.json" 2>/dev/null)"
-  [ -n "$sweep_page" ] && printf -- '- Sweep briefing: %s\n' "$sweep_page"
   printf '\n'
 done < "$tmp/cwds"
+
+if [ -n "$sweep_page" ]; then
+  printf '## Sweep\n'
+  printf -- '- Sweep briefing: %s\n' "$sweep_page"
+  printf '\n'
+fi
 
 if [ -n "$gh_lines" ]; then
   printf '## GitHub\n'
