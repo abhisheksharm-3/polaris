@@ -30,4 +30,4 @@
 
 ## Outcome
 
-Stopped at phase 8, push pending an account switch. Three commits on local main, 1.9.0, suite 92 ok. Report: .polaris/reports/2026-07-28-cc-infra-memory-global-config.md. Spend: four subagents, ~626k subagent tokens, telemetry off.
+Shipped. Four commits on main, pushed as bb50dde..546eada, 1.9.0, suite 92 ok, CI green in 12s. Report: .polaris/reports/2026-07-28-cc-infra-memory-global-config.md. Spend: four subagents, ~626k subagent tokens, telemetry off.

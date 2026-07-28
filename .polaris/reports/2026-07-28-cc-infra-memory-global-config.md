@@ -4,7 +4,7 @@
 - Spec: `.polaris/specs/2026-07-28-cc-infra-memory-global-config-spec.md`
 - Plan: `.polaris/plans/2026-07-28-cc-infra-memory-global-config.md`
 - Run log: `.polaris/runs/2026-07-28-flow-cc-infra-and-global-config.md`
-- Version: 1.9.0, committed on `main` as `bf131a8`, `d0a1315`, `68bbb05`. Not pushed: see Residual risk.
+- Version: 1.9.0, on `main` as `bf131a8`, `d0a1315`, `68bbb05`, `546eada`. Pushed, CI green in 12s (run 30383270921).
 
 ## What was asked
 
@@ -101,10 +101,10 @@ twelve QA findings, including three of mine that would have shipped:
 
 ## Residual risk
 
-- **Not pushed.** `git push` returned 403: the active `gh` account is `abhishekwednesday` and the repo
-  is `abhisheksharm-3/polaris`. Both are authenticated. Fix with
-  `gh auth switch --user abhisheksharm-3`, then push. Three commits sit on local `main`, and another
-  session has been committing to the same branch in parallel.
+- **The push needed an account switch.** `git push` first returned 403: the active `gh` account was
+  `abhishekwednesday` and the repo is `abhisheksharm-3/polaris`. Resolved by switching to
+  `abhisheksharm-3`, pushing, and switching back, so global `gh` state is as it was. Worth knowing
+  next time, since the wrong account is the default.
 - **The plugin runs from an installed cache**, so none of this is live until the plugin is updated.
 - **Memory capture quality is unproven.** Nothing here shows a forced pass produces one good entry
   rather than three mediocre ones. The bar is stated in the block reason; a real week of use will say
