@@ -5,10 +5,23 @@ All notable changes to Polaris. Dates are release dates; the format follows sema
 ## 1.8.0 — 2026-07-28
 
 Code has to explain itself. The comment law is now enforced by a hook rather than requested by a
-rule, and no review finishes without an over-engineering pass.
+rule, and no review finishes without an over-engineering pass. `/sweep` also gained an OKR lens, so
+the daily briefing says whether the day's work moved a key result.
 
 New:
 
+- **The OKR lens in `/sweep`.** When `~/.claude/polaris-memory/okr/ledger.md` exists, the morning
+  briefing gains an "OKR — today" section: each key result with its pace (behind, on track, ahead)
+  from `scripts/okr-pace.sh`, and which of the day's items map to which KR. The evening block asks
+  what moved, then appends a dated entry to `okr/log.md` and increments `okr/progress.json` by the
+  confirmed deltas. Without the ledger the lens is off and `/sweep` behaves exactly as before,
+  reading and writing nothing under `okr/`.
+- `/sweep --okr-init [path]` seeds the lens from an OKR doc: it writes `okr/ledger.md` from the prose,
+  extracts each KR into `okr/progress.json`, and validates the result by running `okr-pace.sh` against
+  it. It refuses to overwrite an existing ledger or progress file. `/sweep --okr-review` rebuilds
+  `progress.json` from the log and writes a bi-monthly review under `okr/reviews/`.
+- `scripts/okr-pace.sh` — per-KR pace as JSON, computed in shell rather than judged by the model.
+  `templates/okr-ledger.md` and `templates/okr-progress.json` fix the shapes both modes read.
 - **The comment law.** `rules/core.md` replaces its comments policy: doc comments only, at the top of
   a file and directly above a declaration, in the language's multi-line doc syntax. No inline
   comments, none inside a function body, no narration or journal or TODO or metadata. A low comment
@@ -32,6 +45,10 @@ New:
 
 Changed:
 
+- `/sweep` config and state moved out of the project repo to `~/.claude/polaris-memory/sweep/`, and the
+  OKR files to `~/.claude/polaris-memory/okr/`. `/sweep` spans every project, so its state never
+  belonged in one of them, and OKR progress does not belong in a repo you push. An existing project-level
+  file is migrated on the next run.
 - `guard-edit` blocks instead of whispering. An inline comment in a written file returns
   `decision: "block"` with the line and what to do about it, so the edit does not stand; two strikes
   per file per session, then it degrades to advisory rather than hanging the turn. Every other
