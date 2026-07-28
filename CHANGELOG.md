@@ -13,8 +13,9 @@ New:
 
 - **`hooks/stop-capture`, wired on `Stop`.** When a journal day is still `status: facts` or the work
   tracker has an unreconciled window, the hook blocks once and asks for the narrative, the reconcile,
-  and a memory pass. It stays silent when nothing is outstanding, honors `stop_hook_active`, and
-  blocks at most once per session, and only asks about journal days inside the last 14 days.
+  and a memory pass. It stays silent when nothing is outstanding, honors `stop_hook_active`, blocks at
+  most once per session, and asks only about journal days inside the last 14 days. An older day is
+  left to `/journal <date>`, so a day that cannot be enriched stops blocking sessions.
 - **`/sweep`'s scalars are plugin options.** `notionParentPageId`, `timezone`, and `maxLookbackHours`
   are `userConfig` options that Claude Code prompts for at install and stores in user settings, so
   sweep no longer needs a hand-written JSON file to run. `sources` keeps its file.
@@ -22,6 +23,15 @@ New:
   read-only. `check-agents.sh` now rejects an unknown tool name, which previously dropped a
   restriction silently.
 - **A model tier on all 29 commands**, matching the classes in `rules/model-routing.md`.
+
+Changed:
+
+- **`rules/memory.md` documents hook-driven capture** and drops the "you maintain it as you work"
+  framing, which two weeks of one memory entry showed did not hold. It also states plainly where the
+  memory pass does not fire, since it rides on journal or tracker work rather than having a trigger of
+  its own.
+- **The sweep briefing is its own section in the journal facts**, not a line repeated under every
+  project, now that one state file serves them all.
 
 Fixed:
 
@@ -41,6 +51,8 @@ Fixed:
   hook no longer advances it at all: the reconcile stamps it on completion, so an interrupted or
   half-done pass costs a repeated ask instead of a lost window.
 - **`commands/gate.md` had no `allowed-tools`**, the only command missing it.
+- **A day whose only record was a sweep briefing produced no journal file.** The emptiness check
+  counted transcripts, GitHub activity, and memory, but not the briefing.
 - **Hardening found by QA on the new hook**, all before release: the once-per-session marker is an
   atomic `mkdir` rather than a check-then-write, so eight parallel stops now block once instead of
   eight times, an unwritable temp dir makes the hook silent instead of blocking every turn, and a
