@@ -63,23 +63,51 @@ Running the sequence against this repo caught it; it is now `--skip=50`, confirm
   resolved, 50 commits in range, 107 files, span 2026-07-15 to 2026-07-21, and the empty-tree fallback
   returns 164 files.
 
+## The first real run
+
+Run on `a3f41bd..HEAD` (the 1.5.0 bump to now, 2 commits, 11 files, 2026-07-21 to 2026-07-27), which
+produced `.polaris/releases/2026-07-27-1.6.0-dev.md` and `-users.md`. Two defects surfaced that the
+review had not:
+
+1. **Commit links resolved to nothing.** `tech-writer` wrote `../../commits/<sha>`, a relative path that
+   breaks the moment the file is read outside the repository, which is the whole point of release notes.
+   The command now says to build the URL from `git remote get-url origin` and why.
+2. **Empty dev sections were padded** with "None this release." for Changed, Fixed, and Deprecated. The
+   cut-an-empty-section rule was written into the product-document half only. It now covers both, with
+   **Before you deploy** as the deliberate exception: a reader scanning for a migration needs to see
+   that there is none.
+
+Both are fixed in `commands/notes.md` and in the two generated documents. What held: the range
+confirmation stopped before reading, the internal-only commit stayed out of the product document,
+**Written for** carried its evidence and its inference caveat, and the product document cut its empty
+sections rather than filling them.
+
+That closes acceptance criteria 2, 3, and 4. Criterion 8 holds by inspection: `commands/release.md` is
+untouched.
+
 ## Residual risk
 
-The command has never run end to end. Its checks pass and its git commands are proven against this
-repo, which is one repository with no tags and no `dev` branch: rows 1 and 2 of the detection table are
-reasoned, not executed. The `researcher` ICP pass is unproven in practice, and its output quality is
-the whole product document, so the first real run is where that gets judged. Both audience documents
-depend on `tech-writer` following section-by-section instructions, which is judgment, not a check.
+Detection rows 1 and 2 are still reasoned, not executed: this repository has no tags and no `dev`
+branch, so the run exercised the fallback row with an explicit range. A project that ships from a `dev`
+branch or a tag pair is where those two rows get their first test.
 
-Acceptance criteria 1, 5, 6, 7, 9, and 10 are verified by inspection and by running the checks.
-Criteria 2, 3, 4, and 8 need one real run to confirm.
+The step-5 publish path is unexercised. Nothing was posted to GitHub, Notion, or Slack, and the
+`gh release edit` option cannot run here at all until a tag exists.
+
+The ICP pass cited two external figures (a 38% AI-review-effort statistic and an arXiv paper) that were
+not independently checked. They shape the profile's framing rather than any claim in the notes, and the
+**Written for** header exists so the sender catches a wrong profile before sending.
+
+Both documents still depend on `tech-writer` following section-by-section instructions, which is
+judgment, not a check. The two defects the first run surfaced were both of that kind.
 
 ## Ship state
 
-Committed on `main`, not pushed. No PR: this project keeps work on `main`. Polaris runs from an
+Committed on `main` and pushed. No PR: this project keeps work on `main`. Polaris runs from an
 installed plugin cache, so `/notes` goes live after a plugin update, not at commit.
 
 ## Spend
 
-Telemetry is not enabled in this project's config, so there is no figure to report. One `reviewer`
-dispatch of about 61k subagent tokens is the only delegated cost.
+Telemetry is not enabled in this project's config, so there is no figure to report. Four delegated
+dispatches: `reviewer` at about 61k subagent tokens, `researcher` at 56k, and `tech-writer` twice at
+59k and 56k.

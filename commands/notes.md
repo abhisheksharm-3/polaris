@@ -141,7 +141,18 @@ summary of the summary, not "this release includes several improvements".
 6. **Deprecated** — what still works, when it stops, what replaces it.
 7. **Internal** — the internal-only set, one line each, so the dev team sees the whole release.
 
-Every entry links its commit or PR.
+An empty section is cut from this document too, not filled with "none this release". The exception is
+**Before you deploy**: when it is empty, say so in one line, because a reader scanning for a migration
+needs to see that there is none rather than wonder whether the section was forgotten.
+
+Every entry links its commit or PR as a full URL, built from the remote:
+
+```bash
+git remote get-url origin
+```
+
+Turn that into `<repo-url>/commit/<sha>` (or the PR url). A relative link like `../../commits/<sha>`
+resolves to nothing once the file is read outside the repository, which is where release notes go.
 
 **The product-audience document** — `.polaris/releases/<date>-<version-or-slug>-users.md`:
 
