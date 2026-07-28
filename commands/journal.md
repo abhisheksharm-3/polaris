@@ -19,8 +19,9 @@ actually had.
 1. Resolve the date: use `$ARGUMENTS` if it is a `YYYY-MM-DD` date, else today (`date +%F`).
 2. Build the local facts:
    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/journal-facts.sh" <date> /journal`
-   This covers sessions, asks, commits, changed files, PRs, Polaris artifacts, cross-repo GitHub
-   activity, and memory written that day. It takes around ten seconds because it calls `gh`. When it
+   This covers sessions, asks, commits, changed files, Polaris artifacts, the day's sweep briefing
+   url, cross-repo GitHub activity (PRs authored and reviewed, issues involved in), and memory written
+   that day. It takes around eight seconds because it calls `gh`. When it
    prints nothing, continue to step 3 anyway and write the frontmatter by hand: a day spent in
    meetings and Slack is still a day, and only an empty local *and* connected record means there was
    no activity to record.

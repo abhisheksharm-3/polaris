@@ -36,9 +36,28 @@ find "$PROJECTS" -type f -name '*.jsonl' -newermt "$date 00:00" -print0 2>/dev/n
             else "" end ) ] | @tsv
     ' 2>/dev/null > "$tmp/rows.tsv"
 
-[ -s "$tmp/rows.tsv" ] || exit 0   # no activity that day
+# Cross-repo GitHub activity (PRs authored or reviewed, issues involving the user) and memory written
+# that day. Both are collected before the empty check, because a day can be spent reviewing PRs and
+# recording decisions without opening a session here, and that day still has facts to report.
+gh_lines=""
+if [ "$gh_ok" = 1 ]; then
+  gh_lines="$( { $timeout gh search prs --author=@me --updated="$date" --limit 30 \
+                   --json repository,number,title --template '{{range .}}authored {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
+                 $timeout gh search prs --reviewed-by=@me --updated="$date" --limit 30 \
+                   --json repository,number,title --template '{{range .}}reviewed {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
+                 $timeout gh search issues --involves=@me --updated="$date" --limit 30 \
+                   --json repository,number,title --template '{{range .}}issue {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
+               } | awk 'NF' | awk '!seen[$0]++')"
+fi
+mem="$(find "$HOME/.claude/polaris-memory/entries" "$PROJECTS"/*/memory -type f -name '*.md' \
+        -newermt "$date 00:00" ! -newermt "$date 23:59:59" 2>/dev/null \
+        | sed "s|^$HOME/|~/|" | sort | paste -sd, - | sed 's/,/, /g')"
 
-cut -f1 "$tmp/rows.tsv" | sort -u > "$tmp/cwds"
+# Nothing anywhere: no transcripts, no GitHub activity, no memory. That is a day with no record.
+[ -s "$tmp/rows.tsv" ] || [ -n "$gh_lines" ] || [ -n "$mem" ] || exit 0
+
+: > "$tmp/cwds"
+[ -s "$tmp/rows.tsv" ] && cut -f1 "$tmp/rows.tsv" | sort -u > "$tmp/cwds"
 projects_list="$(while read -r c; do basename "$c"; done < "$tmp/cwds" | sort -u | paste -sd, - | sed 's/,/, /g')"
 
 printf -- '---\n'
@@ -64,12 +83,6 @@ while read -r cwd; do
     [ -n "$commits" ] && printf -- '- Commits: %s\n' "$commits"
     files="$(git -C "$cwd" log --since="$date 00:00" --until="$date 23:59:59" --name-only --pretty=format: 2>/dev/null | awk 'NF' | sort -u | paste -sd, - | sed 's/,/, /g')"
     [ -n "$files" ] && printf -- '- Files: %s\n' "$files"
-    if [ "$gh_ok" = 1 ]; then
-      prs="$(cd "$cwd" && $timeout gh pr list --state all --search "updated:$date" \
-        --json number,title,state --template '{{range .}}#{{.number}} {{.state}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null \
-        | awk 'NF' | paste -sd';' - | sed 's/;/; /g')"
-      [ -n "$prs" ] && printf -- '- PRs: %s\n' "$prs"
-    fi
   fi
   artifacts="$(ls "$cwd"/.polaris/*/"$date"-*.md 2>/dev/null | sed "s|^$cwd/||" | paste -sd, - | sed 's/,/, /g')"
   [ -n "$artifacts" ] && printf -- '- Polaris artifacts: %s\n' "$artifacts"
@@ -79,26 +92,12 @@ while read -r cwd; do
   printf '\n'
 done < "$tmp/cwds"
 
-# Cross-repo GitHub activity: PRs authored or reviewed and issues involving the user that day.
-if [ "$gh_ok" = 1 ]; then
-  gh_lines="$( { $timeout gh search prs --author=@me --updated="$date" --limit 30 \
-                   --json repository,number,title --template '{{range .}}authored {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
-                 $timeout gh search prs --reviewed-by=@me --updated="$date" --limit 30 \
-                   --json repository,number,title --template '{{range .}}reviewed {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
-                 $timeout gh search issues --involves=@me --updated="$date" --limit 30 \
-                   --json repository,number,title --template '{{range .}}issue {{.repository.nameWithOwner}}#{{.number}} {{.title}}{{"\n"}}{{end}}' 2>/dev/null
-               } | awk 'NF' | awk '!seen[$0]++')"
-  if [ -n "$gh_lines" ]; then
-    printf '## GitHub\n'
-    printf '%s\n' "$gh_lines" | sed 's/^/- /'
-    printf '\n'
-  fi
+if [ -n "$gh_lines" ]; then
+  printf '## GitHub\n'
+  printf '%s\n' "$gh_lines" | sed 's/^/- /'
+  printf '\n'
 fi
 
-# Memory written that day: global Polaris entries and per-project auto-memory.
-mem="$(find "$HOME/.claude/polaris-memory/entries" "$PROJECTS"/*/memory -type f -name '*.md' \
-        -newermt "$date 00:00" ! -newermt "$date 23:59:59" 2>/dev/null \
-        | sed "s|^$HOME/|~/|" | sort | paste -sd, - | sed 's/,/, /g')"
 if [ -n "$mem" ]; then
   printf '## Memory\n'
   printf -- '- Written: %s\n' "$mem"

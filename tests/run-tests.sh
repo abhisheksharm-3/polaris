@@ -88,7 +88,19 @@ echo "$jf_out2" | grep -q 'fixture-note.md' && echo "ok: journal reports memory 
 touch -t 202607201200 "$jf_mem"
 jf_out3="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
 if echo "$jf_out3" | grep -q 'fixture-note.md'; then echo "FAIL: journal reported memory from another day"; fail=1; else echo "ok: journal memory is date-scoped"; fi
+
+# journal-facts: a day with no session but a memory write is still a day with a record. Guards the
+# early exit, which used to gate the whole file on transcripts and drop every other source. 2026-07-10
+# has no fixture transcript, so only the memory write can produce output.
+touch -t 202607101200 "$jf_mem"
+jf_out4="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-10)"
+echo "$jf_out4" | grep -q 'fixture-note.md' && echo "ok: journal reports a session-less day" || { echo "FAIL: journal dropped a day with no session"; fail=1; }
+echo "$jf_out4" | grep -q 'projects: \[\]' && echo "ok: journal frontmatter empty project list" || { echo "FAIL: journal frontmatter wrong for a session-less day"; fail=1; }
 touch -t 202607141200 "$jf_mem"
+
+# journal-facts: a day with nothing anywhere stays silent, so no empty journal file is written.
+jf_out5="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" HOME="$(mktemp -d)" bash "$JF" 2026-07-09)"
+if [ -n "$jf_out5" ]; then echo "FAIL: journal emitted for a day with no activity"; fail=1; else echo "ok: journal silent on an empty day"; fi
 
 # journal-facts: the session-start hook must not pay for GitHub network calls; /journal may.
 jf_bin="$(mktemp -d)"; jf_calls="${jf_bin}/calls"
