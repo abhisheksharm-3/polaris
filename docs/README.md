@@ -24,8 +24,9 @@ plan (the bite-sized build).
 
 ## Plans (the build for each slice)
 
-Each spec above has a matching plan in [plans/](plans/) with the same name, except the diagnostic
-modes, which shipped straight from the spec.
+Each spec above has a matching plan in [plans/](plans/) with the same name. The diagnostic-modes
+spec has no plan file; `/debug`, `/incident`, `/modernize`, and `/harden` all shipped, so read the
+commands themselves as the record.
 
 ## Change history
 

@@ -86,14 +86,20 @@ enforces on itself.
 
 - `agents/` — the SDLC agent fleet (product, architect, backend, reviewer, tester, shipper, …)
 - `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, …)
-- `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e)
-- `hooks/` — session-start, commit/PR guard, tool-result injection guard
-- `rules/` — the standard: `core.md`, `writing.md`, `patterns.json`, plus per-stack overlays in `stacks/`
-- `scripts/` — deterministic check runners and the companion installer
+- `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e,
+  extract-design-system, merge-conflicts)
+- `hooks/` — `session-start`, `guard-commit-pr`, `guard-edit`, `guard-input`, `enhance-prompt`,
+  wired in `hooks.json`
+- `rules/` — the standard: `core.md`, `craft.md`, `writing.md`, `doc-organization.md`, `memory.md`,
+  `routing.md`, `model-routing.md`, `connectors.md`, `patterns.json`, plus per-stack overlays in
+  `stacks/` mapped by `stack-map.json`
+- `scripts/` — deterministic check runners, the companion installer, and the fact extractors for
+  `/journal`, `/track`, and `/sweep`
 - `output-styles/` — the Polaris writing output style
 - `templates/` — config and doc templates (e.g. `config.default.json`)
 - `docs/` — `plans/` and `specs/` for in-progress work
-- `.polaris/` — per-project config (`config.json`), `work/`, `handoffs/`
+- `.polaris/` — per-project config (`config.json`), plus the directories the commands write:
+  `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`
 
 ## Gotchas
 
