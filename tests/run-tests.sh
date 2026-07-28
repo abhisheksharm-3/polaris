@@ -79,6 +79,34 @@ echo "$jf_out" | grep -q 'add the login form'   && echo "ok: journal ask capture
 echo "$jf_out" | grep -q 'fix the checkout bug' && echo "ok: journal second ask"        || { echo "FAIL: journal second ask"; fail=1; }
 if echo "$jf_out" | grep -q 'OTHER DAY'; then echo "FAIL: journal leaked another day"; fail=1; else echo "ok: journal excludes other days"; fi
 
+# journal-facts: memory written that day is reported, so the journal covers what was learned, not
+# only what was committed. mtime is set here because git does not preserve it.
+jf_mem="${DIR}/fixtures/journal/projects/-Users-test-Projects-demo/memory/fixture-note.md"
+touch -t 202607141200 "$jf_mem"
+jf_out2="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+echo "$jf_out2" | grep -q 'fixture-note.md' && echo "ok: journal reports memory written that day" || { echo "FAIL: journal missed memory writes"; fail=1; }
+touch -t 202607201200 "$jf_mem"
+jf_out3="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+if echo "$jf_out3" | grep -q 'fixture-note.md'; then echo "FAIL: journal reported memory from another day"; fail=1; else echo "ok: journal memory is date-scoped"; fi
+touch -t 202607141200 "$jf_mem"
+
+# journal-facts: the session-start hook must not pay for GitHub network calls; /journal may.
+jf_bin="$(mktemp -d)"; jf_calls="${jf_bin}/calls"
+printf '#!/bin/sh\necho "$@" >> "%s"\n[ "$1" = auth ] && exit 0\nexit 0\n' "$jf_calls" > "$jf_bin/gh"; chmod +x "$jf_bin/gh"
+POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" PATH="$jf_bin:$PATH" bash "$JF" 2026-07-14 hook >/dev/null 2>&1
+if [ -s "$jf_calls" ]; then echo "FAIL: journal-facts called gh on the hook path"; fail=1; else echo "ok: journal-facts skips gh for the hook"; fi
+POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" PATH="$jf_bin:$PATH" bash "$JF" 2026-07-14 /journal >/dev/null 2>&1
+grep -q 'search prs' "$jf_calls" && echo "ok: journal-facts queries GitHub for /journal" || { echo "FAIL: journal-facts skipped GitHub for /journal"; fail=1; }
+rm -rf "$jf_bin"
+
+# every command that reads connectors follows the shared rule, so the Slack thread fix cannot drift
+for c in journal sweep catchup; do
+  grep -q 'rules/connectors.md' "${DIR}/../commands/${c}.md" \
+    && echo "ok: ${c} cites the connectors rule" || { echo "FAIL: ${c} does not cite rules/connectors.md"; fail=1; }
+done
+grep -q 'slack_read_thread' "${DIR}/../rules/connectors.md" \
+  && echo "ok: connectors rule expands Slack threads" || { echo "FAIL: connectors rule lost the thread step"; fail=1; }
+
 # worktracker-snapshot: commits after the marker are captured, a future marker yields nothing
 WTS="${DIR}/../scripts/worktracker-snapshot.sh"
 wt_repo="$(mktemp -d)"

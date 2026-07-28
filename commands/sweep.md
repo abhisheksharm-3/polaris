@@ -82,11 +82,15 @@ it; never proceed without a window.
 
 ## Step 3 — pull each configured source in full over the window
 
-For each source in `sweep.sources`, use its claude.ai MCP read tools bounded to `start`–`now`:
+For each source in `sweep.sources`, use its claude.ai MCP read tools bounded to `start`–`now`, and
+follow `${CLAUDE_PLUGIN_ROOT}/rules/connectors.md` for how to read each one without losing items:
 
 - **Gmail** — search threads matching `sources.gmail.query` active in the window; read each.
 - **Slack** — read the configured `channels` (and DMs if `includeDMs`) for messages in the window,
-  including threads the user was mentioned in.
+  then run the full Slack sequence in the connectors rule. A channel read alone misses every thread
+  reply, the user's own included, and misses replies whose parent message predates the window. Search
+  the user's own messages, expand every thread with `slack_read_thread`, and read each DM that moved
+  since the last run in full.
 - **Jira / Atlassian** — run `sources.jira.jql`; read each issue.
 - **Fathom** — list meetings in the window for the configured team; read each summary and transcript.
 - **Calendar** — list events in the window, plus today and tomorrow, for preparation items.
@@ -120,7 +124,7 @@ live source state read this run — never from the key alone, never guessed:
 |---|---|---|
 | Jira | its status is Done, or it no longer matches the configured JQL | carry |
 | Gmail | the latest message in the thread is from the user, or the thread left the inbox | carry |
-| Slack | the user posted in that thread after the mention | carry |
+| Slack | a `slack_read_thread` call this run shows the user posted in that thread after the mention | carry |
 | Calendar | the event's end time has passed | carry |
 | Fathom | a live Jira query this run finds a matching issue, or the user replied on the commitment | carry in "worth a glance" |
 

@@ -19,11 +19,14 @@ plan (the bite-sized build).
 - [Slice F — prompt enhancing](specs/2026-07-15-slice-f-prompt-enhance.md)
 - [Slice E — memory and catch-up](specs/2026-07-15-slice-e-memory.md)
 - [Slice H — dynamic synthesis](specs/2026-07-15-slice-h-dynamic-synthesis.md)
+- [Diagnostic modes](specs/2026-07-15-slice-diagnostic-modes.md)
+- [Daily journal](specs/2026-07-15-daily-journal.md)
 
 ## Plans (the build for each slice)
 
-Each spec above has a matching plan in [plans/](plans/) with the same name.
+Each spec above has a matching plan in [plans/](plans/) with the same name, except the diagnostic
+modes, which shipped straight from the spec.
 
 ## Change history
 
-- [../CHANGELOG.md](../CHANGELOG.md) — releases from the original plugin through 1.0.0.
+- [../CHANGELOG.md](../CHANGELOG.md) — releases from the original plugin through 1.6.0.

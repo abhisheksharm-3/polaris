@@ -75,6 +75,7 @@ project.
 | `/track` | Reconcile this session into the cross-session work tracker |
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |
 | `/sweep` | Deep start-of-day/end-of-day sweep of every source into a dated Notion briefing |
+| `/journal [date]` | Write or regenerate one day's journal from every source: sessions, git, GitHub, Jira, Slack threads and DMs, mail, meetings, memory |
 | `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
 | `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
@@ -217,8 +218,8 @@ Use them well:
 
 **Use `/catchup`** at the start of a session for a briefing across your memory, the work tracker, and
 connectors. **Use `/track`** to fold the current session into the cross-session work tracker so no
-thread is lost. **Use `/remember`** and **`/recall`** to write and read durable facts in global
-memory.
+thread is lost. **Use `/journal [date]`** to write the record of a day. **Use `/remember`** and
+**`/recall`** to write and read durable facts in global memory.
 
 Use them well:
 
@@ -228,6 +229,10 @@ Use them well:
   dated Notion page so nothing is dropped. `/catchup` is the fast skim; `/sweep` is the deep, durable
   sweep.
 - Run `/track` when you switch threads or end a session, so the tracker stays current on its own.
+- `/journal` writes one dated file per day to `~/.claude/polaris-memory/journal/`, covering every
+  project you touched plus the connected record (Jira, Slack, GitHub, Gmail, Calendar, Fathom). The
+  first session of a new day journals the previous one on its own, so run it by hand only to
+  regenerate a day or to write today's before you stop.
 - Use `/remember` for decisions and constraints that outlive one session, not for things the code
   already records.
 
@@ -258,7 +263,12 @@ carrying a model tier.
 `rules/writing.md` is the anti-slop writing standard for all prose. `rules/stacks/*` add per-stack
 opinions, mapped by `rules/stack-map.json`. `rules/patterns.json` is the machine-readable data that
 drives the deterministic checker and the hooks. `rules/routing.md` classifies each task to the
-agent, command, ponytail intensity, and model tier to use.
+agent, command, ponytail intensity, and model tier to use, and `rules/model-routing.md` holds the
+tier table it routes to. Three more rules are injected every session: `rules/craft.md` (the craft
+principles behind the standard), `rules/memory.md` (how the global memory is written and pruned),
+and `rules/doc-organization.md` (where a generated document belongs). `rules/connectors.md` is the shared
+protocol for reading a window of work out of the connectors, including the Slack sequence that finds
+thread replies and DMs.
 
 The gate lives in `skills/quality-gate/`. The hooks are `guard-commit-pr` (blocks bad commit and PR
 text), `guard-edit` (surfaces slop on edit, opt-in), `guard-input` (flags injection in tool
@@ -290,8 +300,12 @@ authorizes it.
 
 ## Testing
 
-The deterministic checker, the commit guard, the injection guard, the enhance hook, and the agent
-and command validators have shell fixtures. Run `bash tests/run-tests.sh`.
+Run `bash tests/run-tests.sh`. It covers every deterministic piece against shell fixtures: the
+pattern checker for prose and for TypeScript, Python, Go, and Rust; the injection screen, including a
+paraphrase that no literal denylist would catch; the commit, edit, and input guards; the enhance
+hook; the agent and command validators; the `journal-facts`, `worktracker-snapshot`, and
+`sweep-window` helpers; and two recorded regressions in `session-start` and `ensure-companions` that
+once cost a 30-second startup.
 
 ## Docs
 
