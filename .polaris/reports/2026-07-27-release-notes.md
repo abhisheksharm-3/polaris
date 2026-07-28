@@ -111,3 +111,6 @@ installed plugin cache, so `/notes` goes live after a plugin update, not at comm
 Telemetry is not enabled in this project's config, so there is no figure to report. Four delegated
 dispatches: `reviewer` at about 61k subagent tokens, `researcher` at 56k, and `tech-writer` twice at
 59k and 56k.
+
+**Push note:** the first `git push` failed 403 — the active `gh` account was `abhishekwednesday`, which
+has no write access. Switched to `abhisheksharm-3`, pushed `0f2b41d`, and restored the active account.
