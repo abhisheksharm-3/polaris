@@ -1,0 +1,8 @@
+{
+  "periodStart": "2026-04-01",
+  "krs": [
+    { "id": "O2-KR1", "metric": "problem statements written", "current": 0, "target": 6, "deadline": "2026-09-30", "committed": true },
+    { "id": "O4-KR2-writeups", "metric": "writeups (1 eng + 1 BFSI per quarter)", "current": 0, "target": 2, "deadline": "2026-09-30", "committed": true },
+    { "id": "O1-KR1", "metric": "clean prod launch, metric instrumented", "current": 0, "target": 1, "deadline": "2026-09-30", "committed": true, "kind": "flag" }
+  ]
+}
