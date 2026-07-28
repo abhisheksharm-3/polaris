@@ -3,7 +3,8 @@
 <!-- Injected every session. How to maintain the global memory at ~/.claude/polaris-memory/. -->
 
 Polaris keeps a global, file-based memory across all projects so context is not re-explained every
-session. You maintain it as you work; the user should not have to.
+session. The `Stop` hook asks for capture at the end of a working session, so the store fills without
+the user having to think about it; `/remember` is the manual override for a fact worth saving now.
 
 ## Store
 
@@ -39,6 +40,27 @@ session. You maintain it as you work; the user should not have to.
 
 A missing `freshness` reads as `timeless`.
 
+## Capture
+
+The `hooks/stop-capture` hook runs on `Stop`. When a session has a journal day still at
+`status: facts` or an unreconciled work-tracker window, it blocks once and asks for three things:
+the journal narrative, the tracker reconcile, and this memory pass.
+
+Memory rides along with those two rather than having a trigger of its own, because a shell hook has
+no signal for "something memorable happened". Two consequences worth knowing: the pass does not fire
+in a project with no `.polaris/work/` and a clean journal, however substantive the session was, and
+it fires on a session whose only outstanding item is an old journal day. When it does not fire and
+something is worth keeping, use `/remember`.
+
+The bar for saving is high. Save a durable fact about the user, their projects, or how they want work
+done, that is not already recorded and not derivable from the code or git history. When nothing
+clears the bar, save nothing and say so in one line. An empty pass is a correct pass; padding the
+store with near-duplicates is what makes recall untrustworthy.
+
+An earlier design injected this request at `SessionStart` instead. `SessionStart` accepts only
+`command` and `mcp_tool` handlers, so it could only ask, never require, and the request was ignored
+on twelve of thirteen days. `Stop` honors `decision: block`, which is why capture lives there.
+
 ## Write
 
 - Before saving, check for an entry that already covers it — scan `INDEX.md` and `grep` the entry
@@ -65,7 +87,8 @@ a file, function, or flag, verify it still exists.
 ## Journal
 
 The journal is the dated history: what happened on which day, across all projects. The
-session-start hook writes a factual skeleton for each un-journaled day, then a background agent
-enriches it into a prose narrative. `/journal <date>` backfills or regenerates a day. Read it to
-answer "what did I do on <date>"; it complements memory (durable facts) and the work tracker
-(current threads).
+session-start hook writes a factual skeleton for each un-journaled day, and the `Stop` hook asks for
+the narrative before the session ends, for any day inside the last 14 days. An older day is left
+to `/journal <date>`, so a day that cannot be enriched stops blocking sessions.
+`/journal <date>` backfills or regenerates a day. Read it to answer "what did I do on <date>"; it
+complements memory (durable facts) and the work tracker (current threads).

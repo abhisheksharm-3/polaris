@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deterministic work-tracker snapshot: what happened in one project since a timestamp.
-# Emits factual markdown that the SessionStart reconcile directive hands to a background
-# agent. The agent classifies it into work streams, the part a shell hook cannot do (spec
+# Emits factual markdown that the Stop hook (hooks/stop-capture) hands to the agent inline. The
+# agent classifies it into work streams, the part a shell hook cannot do (spec
 # docs/specs/2026-07-15-slice-worktracker-mvp.md, "Honest scope").
 set -uo pipefail
 
