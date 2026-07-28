@@ -38,9 +38,29 @@ The `reviewer` pass returned 6 should-fix findings and 7 nits, no blocker. Six w
 5. The `researcher` dispatch ran before the check that would make it worthless. Step 3 now exits first
    when every change is internal-only.
 6. `allowed-tools` did not cover the Notion, Slack, and Atlassian tools the command offers to use.
+   **This one was wrong and is reverted** — see below.
 
 Verification then found one defect the review missed: `--skip=49` puts 49 commits in the range, not 50.
 Running the sequence against this repo caught it; it is now `--skip=50`, confirmed at 50.
+
+## Reverted after reading the docs
+
+The reviewer's finding 6 rested on a false premise, and so did my fix. `allowed-tools` pre-approves
+tools for the turn that invokes the command; it does not restrict what is callable
+([slash-commands docs](https://code.claude.com/docs/en/slash-commands)). The connector tools were
+always available, so nothing was broken. Listing them made it worse: it pre-approves an outward-facing
+write, removing the permission prompt that is the last gate after the user's own confirmation. The
+field is back to the house shape, and step 5 now records why those tools stay off it.
+
+Two features from the same docs are now in use or considered:
+
+- **`!`command`` context injection** is adopted. Step 1's six read-only git facts (inside-a-repo, local
+  branches, remote branches, `origin/HEAD`, latest tag, remote url) run before the command content
+  reaches the model, so the range is judged from real data instead of a command the model has to
+  remember to run. It is also the deterministic half of step 1, which is where it belongs.
+- **`disable-model-invocation: true`** is not adopted. It fits `/notes`, which writes files and offers
+  to publish, and the docs name exactly this case. No Polaris command sets it, so adding it to one
+  forks the convention. It belongs in a pass over every side-effecting command, not here.
 
 ## Accepted, with rationale
 

@@ -1,7 +1,7 @@
 ---
 description: Write detailed release notes for two audiences — the dev team and client, and the people who use the product
 argument-hint: "[version or release name]"
-allowed-tools: Task, Read, Bash, Grep, Glob, Write, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Slack__slack_send_message, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
+allowed-tools: Task, Read, Bash, Grep, Glob, Write
 ---
 
 # Notes
@@ -29,16 +29,17 @@ the release is named by date.
 
 ## Step 1 — confirm the change source
 
-Stop if this is not a git repository. Say so and stop; do not assemble a change list from anything
-else.
+Stop if the first fact below is not `true`: say this is not a git repository and stop. Do not assemble
+a change list from anything else.
 
-```bash
-git rev-parse --is-inside-work-tree
-git branch --format='%(refname:short)'                 # local branches
-git branch -r --format='%(refname:short)'              # remote-tracking, for a remote-only dev branch
-git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null   # the default branch
-git describe --tags --abbrev=0 2>/dev/null
-```
+These facts were gathered before this ran, so use them rather than re-running the commands:
+
+- inside a git repository: !`git rev-parse --is-inside-work-tree 2>&1`
+- local branches: !`git branch --format='%(refname:short)' 2>/dev/null | tr '\n' ' '`
+- remote-tracking branches: !`git branch -r --format='%(refname:short)' 2>/dev/null | tr '\n' ' '`
+- default branch: !`git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || echo '(unset)'`
+- latest tag: !`git describe --tags --abbrev=0 2>/dev/null || echo '(none)'`
+- remote url: !`git remote get-url origin 2>/dev/null || echo '(none)'`
 
 The base branch is whatever `origin/HEAD` points at, with `main` then `master` as the fallback. Never
 assume `main`: a project defaulting to `master` makes every range below a bad revision.
@@ -182,7 +183,9 @@ After both files exist, offer the destinations and stop:
 - a Slack post of the product document
 
 Notion and Slack need their connector tools. When a connector is unavailable, say so and print the
-document instead of reporting a publish.
+document instead of reporting a publish. Those tools are deliberately absent from this command's
+`allowed-tools`: that field pre-approves tools for the invoking turn, and an outward-facing write is
+the one place the permission prompt is wanted, as a last gate after the user's confirmation.
 
 Publish only the destination the user names, only after they confirm, and only in a later turn. Report
 what was published and where. Never report a publish that did not happen.
