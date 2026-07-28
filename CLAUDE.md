@@ -103,7 +103,8 @@ enforces on itself.
 - `templates/` — config and doc templates (e.g. `config.default.json`)
 - `docs/` — `plans/` and `specs/` for in-progress work
 - `.polaris/` — per-project config (`config.json`), plus the directories the commands write:
-  `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`
+  `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`, and `okr/` (ledger,
+  progress, log for the `/sweep` OKR lens)
 
 ## Gotchas
 
