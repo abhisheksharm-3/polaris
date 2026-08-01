@@ -1,40 +1,152 @@
 {
   "prose": {
-    "banned_words": ["delve", "tapestry", "pivotal", "underscore", "testament", "vibrant", "showcase", "seamless", "leverage", "intricate", "robust", "nestled", "boasts", "groundbreaking", "fostering", "cultivating", "holistic", "synergy", "cutting-edge"],
+    "banned_words": [
+      "delve",
+      "tapestry",
+      "pivotal",
+      "underscore",
+      "testament",
+      "vibrant",
+      "showcase",
+      "seamless",
+      "leverage",
+      "intricate",
+      "robust",
+      "nestled",
+      "boasts",
+      "groundbreaking",
+      "fostering",
+      "cultivating",
+      "holistic",
+      "synergy",
+      "cutting-edge"
+    ],
     "banned_regex": [
-      { "id": "not-only-but", "pattern": "not only .* but( also)?", "message": "banned structure: not only X but Y" },
-      { "id": "em-dash-spray", "pattern": " — .* — ", "message": "em-dash spray; use commas or periods" },
-      { "id": "importance-preamble", "pattern": "it is (important|worth) (to note|noting)", "message": "importance preamble; state the fact directly" },
-      { "id": "ai-coauthor", "pattern": "co-authored-by:.*(claude|gpt|copilot|anthropic|openai)", "message": "no AI co-author trailer in commits or PRs" },
-      { "id": "ai-attribution", "pattern": "(generated with|written by|authored by|created by).*(claude|chatgpt|copilot|anthropic|openai|an ai)", "message": "no AI attribution in commits, PRs, or code" }
+      {
+        "id": "not-only-but",
+        "pattern": "not only .* but( also)?",
+        "message": "banned structure: not only X but Y"
+      },
+      {
+        "id": "em-dash-spray",
+        "pattern": " — .* — ",
+        "message": "em-dash spray; use commas or periods"
+      },
+      {
+        "id": "importance-preamble",
+        "pattern": "it is (important|worth) (to note|noting)",
+        "message": "importance preamble; state the fact directly"
+      },
+      {
+        "id": "ai-coauthor",
+        "pattern": "co-authored-by:.*(claude|gpt|copilot|anthropic|openai)",
+        "message": "no AI co-author trailer in commits or PRs"
+      },
+      {
+        "id": "ai-attribution",
+        "pattern": "(generated with|written by|authored by|created by).*(claude|chatgpt|copilot|anthropic|openai|an ai)",
+        "message": "no AI attribution in commits, PRs, or code"
+      }
     ]
   },
   "code": {
     "ts": [
-      { "id": "as-any", "pattern": "\\bas any\\b", "message": "no as any; use a proper type" },
-      { "id": "ts-ignore", "pattern": "@ts-(ignore|expect-error)", "message": "no ts-ignore without a documented framework bug" },
-      { "id": "console", "pattern": "console\\.(log|debug)", "message": "remove debug logging" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
-      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
+      {
+        "id": "as-any",
+        "pattern": "\\bas any\\b",
+        "message": "no as any; use a proper type"
+      },
+      {
+        "id": "ts-ignore",
+        "pattern": "@ts-(ignore|expect-error)",
+        "message": "no ts-ignore without a documented framework bug"
+      },
+      {
+        "id": "console",
+        "pattern": "console\\.(log|debug)",
+        "message": "remove debug logging"
+      },
+      {
+        "id": "todo",
+        "pattern": "//\\s*(TODO|FIXME)",
+        "message": "no deferred TODO/FIXME"
+      },
+      {
+        "id": "inline-comment",
+        "pattern": "\\S[ \\t]+//",
+        "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration"
+      }
     ],
     "py": [
-      { "id": "bare-except", "pattern": "except\\s*:", "message": "no bare except; catch a specific exception" },
-      { "id": "type-ignore", "pattern": "#\\s*type:\\s*ignore", "message": "no type: ignore without a documented reason" },
-      { "id": "wildcard-import", "pattern": "from\\s+[\\w.]+\\s+import\\s+\\*", "message": "no wildcard import" },
-      { "id": "todo", "pattern": "#\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
-      { "id": "inline-comment", "pattern": "\\S[ \\t]+#", "message": "no inline comment; rename or extract instead. Docstrings only, at the top of the file or the definition" }
+      {
+        "id": "bare-except",
+        "pattern": "except\\s*:",
+        "message": "no bare except; catch a specific exception"
+      },
+      {
+        "id": "type-ignore",
+        "pattern": "#\\s*type:\\s*ignore",
+        "message": "no type: ignore without a documented reason"
+      },
+      {
+        "id": "wildcard-import",
+        "pattern": "from\\s+[\\w.]+\\s+import\\s+\\*",
+        "message": "no wildcard import"
+      },
+      {
+        "id": "todo",
+        "pattern": "#\\s*(TODO|FIXME)",
+        "message": "no deferred TODO/FIXME"
+      },
+      {
+        "id": "inline-comment",
+        "pattern": "\\S[ \\t]+#",
+        "message": "no inline comment; rename or extract instead. Docstrings only, at the top of the file or the definition"
+      }
     ],
     "go": [
-      { "id": "panic", "pattern": "\\bpanic\\(", "message": "no panic in library code; return an error" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
-      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
+      {
+        "id": "panic",
+        "pattern": "\\bpanic\\(",
+        "message": "no panic in library code; return an error"
+      },
+      {
+        "id": "todo",
+        "pattern": "//\\s*(TODO|FIXME)",
+        "message": "no deferred TODO/FIXME"
+      },
+      {
+        "id": "inline-comment",
+        "pattern": "\\S[ \\t]+//",
+        "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration"
+      }
     ],
     "rust": [
-      { "id": "unwrap", "pattern": "\\.unwrap\\(\\)", "message": "no .unwrap(); handle the error or expect() with context" },
-      { "id": "dbg", "pattern": "\\bdbg!\\(", "message": "remove dbg! debug macro" },
-      { "id": "todo-macro", "pattern": "\\b(todo|unimplemented)!\\(", "message": "no todo!()/unimplemented!() left in code" },
-      { "id": "todo", "pattern": "//\\s*(TODO|FIXME)", "message": "no deferred TODO/FIXME" },
-      { "id": "inline-comment", "pattern": "\\S[ \\t]+//", "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration" }
+      {
+        "id": "unwrap",
+        "pattern": "\\.unwrap\\(\\)",
+        "message": "no .unwrap(); handle the error or expect() with context"
+      },
+      {
+        "id": "dbg",
+        "pattern": "\\bdbg!\\(",
+        "message": "remove dbg! debug macro"
+      },
+      {
+        "id": "todo-macro",
+        "pattern": "\\b(todo|unimplemented)!\\(",
+        "message": "no todo!()/unimplemented!() left in code"
+      },
+      {
+        "id": "todo",
+        "pattern": "//\\s*(TODO|FIXME)",
+        "message": "no deferred TODO/FIXME"
+      },
+      {
+        "id": "inline-comment",
+        "pattern": "\\S[ \\t]+//",
+        "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration"
+      }
     ]
   },
   "injection": {
@@ -48,5 +160,194 @@
       "exfiltrat",
       "act as (a |an )?(dan|jailbreak|unrestricted|unfiltered)"
     ]
-  }
+  },
+  "routing": [
+    {
+      "class": "context",
+      "patterns": [
+        "where was i",
+        "where did i leave",
+        "catch me up",
+        "what was i (doing|working on)",
+        "pick up where"
+      ]
+    },
+    {
+      "class": "incident",
+      "patterns": [
+        "\\bincident\\b",
+        "\\boutage\\b",
+        "(prod|production|the site|the api) is (down|broken)",
+        "users (can'?t|cannot)",
+        "\\bsev-?[0-9]"
+      ]
+    },
+    {
+      "class": "release",
+      "patterns": [
+        "cut (a|the) release",
+        "\\brelease\\b.*(version|tag|notes)",
+        "tag (a|the) version",
+        "bump the version",
+        "ship (a|the) release"
+      ]
+    },
+    {
+      "class": "audit",
+      "patterns": [
+        "\\baudit\\b",
+        "(whole|entire) (code ?base|repo|project)",
+        "(find|look for) problems across",
+        "how healthy is"
+      ]
+    },
+    {
+      "class": "security",
+      "patterns": [
+        "threat ?model",
+        "\\bharden\\b",
+        "security (pass|review|audit)",
+        "vulnerab",
+        "\\bpentest\\b",
+        "attack surface"
+      ]
+    },
+    {
+      "class": "spike",
+      "patterns": [
+        "\\bspike\\b",
+        "proof of concept",
+        "\\bpoc\\b",
+        "feasib",
+        "throwaway",
+        "can we even"
+      ]
+    },
+    {
+      "class": "research",
+      "patterns": [
+        "\\bresearch\\b",
+        "\\bcompetitors?\\b",
+        "prior art",
+        "compare (three|our|the) ",
+        "what do other (teams|products|companies)"
+      ]
+    },
+    {
+      "class": "modernize",
+      "patterns": [
+        "\\bupgrade\\b",
+        "bump (the )?(deps|dependencies|.* to v?[0-9])",
+        "migrate (to|from) ",
+        "out ?of ?date (deps|dependencies|packages)"
+      ]
+    },
+    {
+      "class": "docs",
+      "patterns": [
+        "(the )?docs? (are|is|have) (out of date|stale|wrong|drift)",
+        "update the (docs|documentation|readme)",
+        "document the "
+      ]
+    },
+    {
+      "class": "cleanup",
+      "patterns": [
+        "clean ?up",
+        "remove (the )?(ai )?slop",
+        "\\btidy\\b",
+        "bring .* up to standard"
+      ]
+    },
+    {
+      "class": "review",
+      "patterns": [
+        "review (this|the|my) (pr|diff|change|branch|code)",
+        "\\bpr #?[0-9]+",
+        "look over (this|my) (pr|diff)"
+      ]
+    },
+    {
+      "class": "qa",
+      "patterns": [
+        "\\bqa\\b",
+        "try to break",
+        "pressure.?test",
+        "break (this|the) (feature|flow)",
+        "test it hard"
+      ]
+    },
+    {
+      "class": "bug",
+      "patterns": [
+        "\\bbug\\b",
+        "\\bbroken\\b",
+        "(is|are|keeps) failing",
+        "does ?n'?t work",
+        "not working",
+        "\\bcrash",
+        "\\bregression\\b",
+        "throws? an error",
+        "returns? the wrong",
+        "accepts? duplicates",
+        "comes? out wrong",
+        "should ?n'?t (be|happen)"
+      ]
+    },
+    {
+      "class": "conversation",
+      "patterns": [
+        "^(what|how|why|where|which|who|when) (does|do|is|are|did|the|this|that)",
+        "^explain\\b",
+        "walk me through",
+        "^tell me (about|how|what)",
+        "how (does|do) (it|this|that|the) work"
+      ]
+    },
+    {
+      "class": "trivial",
+      "patterns": [
+        "\\btypo\\b",
+        "\\brename\\b",
+        "one.?liner",
+        "fix the spelling",
+        "wrong (word|label|copy) "
+      ]
+    },
+    {
+      "class": "foggy",
+      "patterns": [
+        "not sure (how|where|what)",
+        "no idea (how|where)",
+        "figure out how we",
+        "\\brethink\\b",
+        "\\boverhaul\\b",
+        "from scratch",
+        "big (effort|project|change)"
+      ]
+    },
+    {
+      "class": "feature",
+      "patterns": [
+        "\\badd (a|an|the) ",
+        "\\bbuild (a|an|the) ",
+        "\\bimplement\\b",
+        "\\bcreate (a|an|the) ",
+        "new (feature|page|endpoint|component|screen)",
+        "support for ",
+        "users should be able to"
+      ]
+    },
+    {
+      "class": "fix",
+      "patterns": [
+        "\\bfix (the|this|that) ",
+        "\\bchange (the|this) ",
+        "\\bupdate (the|this) ",
+        "\\badjust\\b",
+        "\\btweak\\b",
+        "make (it|the) .* (instead|rather)"
+      ]
+    }
+  ]
 }

@@ -1,0 +1,44 @@
+context	where was i yesterday on the billing work
+context	catch me up on this repo
+incident	production is down and users cannot log in
+incident	we have a sev-1 incident on the payments api
+release	cut a release with the changelog and version bump
+release	tag a version for what is on main
+audit	audit the whole codebase for security and performance
+audit	do a full audit of this project
+security	threat model the new public proposal endpoint
+security	harden the auth surface before we launch
+spike	spike whether we can stream these results
+spike	build a proof of concept for the websocket transport
+research	research how three competitors handle rate limiting
+research	what do other teams use for feature flags
+modernize	upgrade next to version 16
+modernize	migrate to the new stripe api
+docs	the docs are out of date with the code
+docs	update the readme for the new setup flow
+cleanup	clean up the code i just wrote for the dashboard
+cleanup	remove the ai slop from this branch
+review	review this pr for correctness
+review	review my diff before i push
+qa	try to break the new checkout flow
+qa	qa this feature hard before we ship
+bug	the referral code field accepts duplicates
+bug	the export keeps failing on large files
+bug	there is a bug in the date parser
+conversation	what does the stop-capture hook do
+conversation	how does the run ledger work
+conversation	explain the routing table
+conversation	where is the config read from
+conversation	walk me through the gate
+trivial	fix the typo in the login copy
+trivial	rename the handler to something clearer
+foggy	we need to rethink how notifications work end to end
+foggy	not sure how any of the tenancy model should go
+feature	add a referrals page with a share link
+feature	implement the create order endpoint
+feature	build a settings screen for notifications
+fix	fix the padding on the sidebar
+fix	change the default timeout to thirty seconds
+unknown	make it better
+unknown	handle this
+unknown	the thing with the stuff on that page

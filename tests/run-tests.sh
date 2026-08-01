@@ -477,4 +477,22 @@ expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed conversation nope
 expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed no-such-flow nope
 rm -rf "$rs_tmp"
 
+# route-prompt: every fixture prompt lands in its expected flow, conversation routes nowhere
+ROUTE="${DIR}/../scripts/route-prompt.sh"
+rp_bad=0
+while IFS=$'\t' read -r want prompt; do
+  [ -n "$want" ] || continue
+  got="$(printf '%s' "$prompt" | bash "$ROUTE" 2>/dev/null || echo ERROR)"
+  [ "$got" = "$want" ] || { echo "FAIL: route '$prompt' want $want got $got"; rp_bad=$((rp_bad+1)); fail=1; }
+done < "${DIR}/fixtures/routing-cases.txt"
+[ "$rp_bad" = 0 ] && echo "ok: every routing fixture lands in its flow" \
+  || echo "FAIL: $rp_bad routing fixtures misrouted"
+# every class the classifier can print is a real flow, or the seed would fail at run time
+while read -r c; do
+  [ "$c" = "unknown" ] && continue
+  jq -e --arg c "$c" 'has($c)' "${DIR}/../rules/flows.json" >/dev/null \
+    || { echo "FAIL: routing class '$c' has no flow"; fail=1; }
+done < <(jq -r '.routing[].class' "${DIR}/../rules/patterns.json")
+echo "ok: every routing class names a flow in the catalog"
+
 exit $fail
