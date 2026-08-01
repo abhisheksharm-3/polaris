@@ -414,4 +414,67 @@ jq '.bug.phases[0].run = "banana:thing"' "${DIR}/../rules/flows.json" > "$fc_tmp
 expect_exit 1 bash "$FLOWCHECK" "$fc_tmp/kind.json"
 rm -rf "$fc_tmp"
 
+# run-state: the ledger refuses a phase that has not been earned
+RS="${DIR}/../scripts/run-state.sh"
+rs_tmp="$(mktemp -d)"
+rs() { CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" "$@"; }
+echo "a failing case at test/x.spec.ts:41" > "$rs_tmp/repro.md"
+
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed bug demo
+[ "$(rs get | jq -r .current)" = "reproduce" ] \
+  && echo "ok: run-state seeds at the first phase" \
+  || { echo "FAIL: run-state seeded at the wrong phase"; fail=1; }
+
+# A later phase is refused, and the refusal names the phase actually owed.
+rs_out="$(rs assert fix 2>&1 || true)"
+grep -q 'reproduce' <<<"$rs_out" \
+  && echo "ok: run-state names the phase still owed" \
+  || { echo "FAIL: run-state did not name the owed phase ($rs_out)"; fail=1; }
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert fix
+
+# Evidence is not optional: a phase whose flow declares evidence cannot be recorded without it.
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" record reproduce "$rs_tmp/absent.md" "nope"
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" record reproduce "$rs_tmp/repro.md" "test/x.spec.ts:41 fails"
+[ "$(rs get | jq -r .record.reproduce.sha256 | wc -c)" -gt 32 ] \
+  && echo "ok: run-state hashes the artifact it recorded" \
+  || { echo "FAIL: run-state stored no hash"; fail=1; }
+[ "$(rs get | jq -r .current)" = "rootcause" ] \
+  && echo "ok: run-state advances a phase that needs no approval" \
+  || { echo "FAIL: run-state did not advance"; fail=1; }
+
+# An artifact edited after the fact invalidates the phase that claimed it.
+echo "rewritten" > "$rs_tmp/repro.md"
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert rootcause
+rs_out="$(rs assert rootcause 2>&1 || true)"
+grep -qi 'changed' <<<"$rs_out" \
+  && echo "ok: run-state catches an artifact edited after recording" \
+  || { echo "FAIL: run-state missed a changed artifact ($rs_out)"; fail=1; }
+echo "a failing case at test/x.spec.ts:41" > "$rs_tmp/repro.md"
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert rootcause
+
+# An approval phase stops the run until a human stamps it.
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" record rootcause "$rs_tmp/repro.md" "the cause"
+[ "$(rs get | jq -r .current)" = "rootcause" ] \
+  && echo "ok: run-state holds at a phase awaiting approval" \
+  || { echo "FAIL: run-state advanced past an unapproved phase"; fail=1; }
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert fix
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" approve rootcause
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert fix
+
+# One open run per project, and clear ends it.
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed feature other
+rs_out="$(rs seed feature other 2>&1 || true)"
+grep -q 'demo' <<<"$rs_out" \
+  && echo "ok: run-state names the run already open" \
+  || { echo "FAIL: run-state did not name the open run ($rs_out)"; fail=1; }
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" clear
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" get
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed feature other
+
+# A flow with no phases is not a run.
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" clear
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed conversation nope
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed no-such-flow nope
+rm -rf "$rs_tmp"
+
 exit $fail
