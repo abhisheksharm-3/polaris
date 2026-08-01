@@ -1,0 +1,143 @@
+{
+  "conversation": {
+    "description": "A question about the code, not a change to it.",
+    "phases": []
+  },
+  "trivial": {
+    "description": "A rename, a typo, a one-liner.",
+    "phases": [
+      { "name": "edit", "run": "inline" },
+      { "name": "gate", "run": "command:gate", "evidence": "gate output" }
+    ]
+  },
+  "fix": {
+    "description": "A single-file change with a known shape.",
+    "phases": [
+      { "name": "implement", "run": "specialist" },
+      { "name": "gate", "run": "command:gate", "evidence": "gate output" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "commit or PR url" }
+    ]
+  },
+  "bug": {
+    "description": "Something behaves wrong and the cause is not yet known.",
+    "phases": [
+      { "name": "reproduce", "run": "agent:bug-fixer", "evidence": "a failing case" },
+      { "name": "rootcause", "run": "command:debug", "approve": true, "evidence": "the cause, in the code" },
+      { "name": "fix", "run": "agent:bug-fixer", "evidence": "the failing case now passes" },
+      { "name": "verify", "run": "workflow:verify", "evidence": "verifier verdicts" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "commit or PR url" }
+    ]
+  },
+  "feature": {
+    "description": "New behavior a user will see. The flow commands/flow.md describes.",
+    "phases": [
+      { "name": "spec", "run": "agent:product", "approve": true, "evidence": "spec with acceptance criteria" },
+      { "name": "design", "run": "agent:architect", "approve": true, "evidence": "design docs and ADRs" },
+      { "name": "build", "run": "workflow:build", "evidence": "implementation, review, and QA clean" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "PR url and CI green" }
+    ]
+  },
+  "foggy": {
+    "description": "A large effort with more open questions than answers.",
+    "phases": [
+      { "name": "recon", "run": "command:recon", "approve": true, "evidence": "the decision map" },
+      { "name": "spec", "run": "agent:product", "approve": true, "evidence": "spec with acceptance criteria" },
+      { "name": "design", "run": "agent:architect", "approve": true, "evidence": "design docs and ADRs" },
+      { "name": "build", "run": "workflow:build", "evidence": "implementation, review, and QA clean" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "PR url and CI green" }
+    ]
+  },
+  "spike": {
+    "description": "A feasibility question no amount of reading answers.",
+    "phases": [
+      { "name": "spike", "run": "command:spike", "evidence": "what the throwaway proved" },
+      { "name": "decide", "run": "inline", "approve": true, "evidence": "keep, discard, or hand to a feature flow" }
+    ]
+  },
+  "review": {
+    "description": "An existing changeset or pull request to hold to the standard.",
+    "phases": [
+      { "name": "review", "run": "workflow:review", "evidence": "findings with file and line" },
+      { "name": "verify", "run": "agent:verifier", "evidence": "confirmed or refuted per finding" }
+    ]
+  },
+  "audit": {
+    "description": "A whole codebase to examine before changing anything.",
+    "phases": [
+      { "name": "audit", "run": "command:audit", "approve": true, "evidence": "findings by severity" },
+      { "name": "triage", "run": "command:triage", "evidence": "the ordered fix list" },
+      { "name": "fix", "run": "specialist" },
+      { "name": "verify", "run": "workflow:verify", "evidence": "verifier verdicts" }
+    ]
+  },
+  "qa": {
+    "description": "A built feature to break before a user does.",
+    "phases": [
+      { "name": "break", "run": "agent:tester", "evidence": "the cases that broke it" },
+      { "name": "fix", "run": "agent:bug-fixer", "evidence": "each break now passes" },
+      { "name": "verify", "run": "workflow:verify", "evidence": "verifier verdicts" }
+    ]
+  },
+  "cleanup": {
+    "description": "Recent or generated code to bring to the standard.",
+    "phases": [
+      { "name": "cleanup", "run": "agent:code-cleanup", "evidence": "gate output in fix mode" },
+      { "name": "gate", "run": "command:gate", "evidence": "gate output" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "commit or PR url" }
+    ]
+  },
+  "security": {
+    "description": "A surface to threat-model and harden.",
+    "phases": [
+      { "name": "threat-model", "run": "agent:security-architect", "approve": true, "evidence": "surface, boundaries, required mitigations" },
+      { "name": "harden", "run": "command:harden", "evidence": "each mitigation, in the code" },
+      { "name": "verify", "run": "workflow:verify", "evidence": "verifier verdicts" }
+    ]
+  },
+  "incident": {
+    "description": "A production incident happening now. Mitigation precedes understanding.",
+    "phases": [
+      { "name": "mitigate", "run": "command:incident", "evidence": "the bleeding stopped" },
+      { "name": "rootcause", "run": "command:debug", "evidence": "the cause, in the code" },
+      { "name": "prevent", "run": "specialist", "evidence": "the class cannot recur" },
+      { "name": "notes", "run": "command:notes", "evidence": "the writeup" }
+    ]
+  },
+  "release": {
+    "description": "A shippable state to cut and announce.",
+    "phases": [
+      { "name": "gate", "run": "command:gate", "evidence": "gate output" },
+      { "name": "notes", "run": "command:notes", "approve": true, "evidence": "release notes for both audiences" },
+      { "name": "release", "run": "command:release", "evidence": "the tag" }
+    ]
+  },
+  "modernize": {
+    "description": "A dependency or framework upgrade to do safely.",
+    "phases": [
+      { "name": "survey", "run": "command:modernize", "approve": true, "evidence": "what moves and what breaks" },
+      { "name": "upgrade", "run": "specialist" },
+      { "name": "qa", "run": "agent:tester", "evidence": "the suite and the real feature" },
+      { "name": "ship", "run": "agent:shipper", "evidence": "PR url and CI green" }
+    ]
+  },
+  "docs": {
+    "description": "Docs that no longer match the code.",
+    "phases": [
+      { "name": "drift", "run": "command:docs-drift", "evidence": "what drifted" },
+      { "name": "write", "run": "agent:tech-writer", "evidence": "the corrected docs" },
+      { "name": "gate", "run": "command:gate", "evidence": "gate output" }
+    ]
+  },
+  "research": {
+    "description": "A question to answer before deciding anything.",
+    "phases": [
+      { "name": "research", "run": "command:research", "evidence": "a cited report and a recommendation" }
+    ]
+  },
+  "context": {
+    "description": "Where the work was left.",
+    "phases": [
+      { "name": "catchup", "run": "command:catchup" }
+    ]
+  }
+}

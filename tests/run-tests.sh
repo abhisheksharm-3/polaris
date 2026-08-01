@@ -400,4 +400,18 @@ ls "$sc_tmp"/polaris-stop-snap.* >/dev/null 2>&1 \
 
 rm -rf "$sc_home" "$sc_tmp"
 
+# flows: every phase names a target that resolves, and a broken target is caught
+FLOWCHECK="${DIR}/../scripts/check-flows.sh"
+expect_exit 0 bash "$FLOWCHECK"
+fc_tmp="$(mktemp -d)"
+jq '.bug.phases[0].run = "agent:no-such-agent"' "${DIR}/../rules/flows.json" > "$fc_tmp/flows.json"
+expect_exit 1 bash "$FLOWCHECK" "$fc_tmp/flows.json"
+fc_out="$(bash "$FLOWCHECK" "$fc_tmp/flows.json" 2>&1 || true)"
+grep -q 'no-such-agent' <<<"$fc_out" \
+  && echo "ok: check-flows names the unresolved target" \
+  || { echo "FAIL: check-flows did not name the unresolved target"; fail=1; }
+jq '.bug.phases[0].run = "banana:thing"' "${DIR}/../rules/flows.json" > "$fc_tmp/kind.json"
+expect_exit 1 bash "$FLOWCHECK" "$fc_tmp/kind.json"
+rm -rf "$fc_tmp"
+
 exit $fail
