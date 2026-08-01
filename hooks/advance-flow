@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Stop: drive the open run to its next phase, or to the human it is waiting on.
+#
+# This is the flow engine. A workflow cannot take input mid-run, so sign-off cannot happen inside a
+# phase; it happens between phases, at the end of a turn, here. The hook reads the ledger and
+# decides one of three things: the current phase was never recorded, so ask for it; the current
+# phase stops for a human, so ask for the approval; the flow is finished, so say nothing.
+#
+# It blocks at most once per phase transition, keyed by session, slug, and phase. A gate with no
+# exit gets switched off within a week, and a gate that is off enforces nothing. The marker is a
+# directory because mkdir is atomic and does not follow symlinks; when it cannot be created, for
+# any reason, this hook stays silent rather than risk blocking every turn.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+
+command -v jq >/dev/null 2>&1 || exit 0
+[ -f "${PROJECT_DIR}/.polaris/config.json" ] || exit 0
+jq -e '.routing != false' "${PROJECT_DIR}/.polaris/config.json" >/dev/null 2>&1 || exit 0
+
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+case "$(printf '%s' "$payload" | jq -r '.stop_hook_active // false')" in
+    true|True|TRUE|1) exit 0 ;;
+esac
+
+session="$(printf '%s' "$payload" | jq -r 'if (.session_id|type)=="string" then .session_id else "" end')"
+case "$session" in
+    ""|.|..) exit 0 ;;
+    *[!A-Za-z0-9._-]*) exit 0 ;;
+esac
+[ "${#session}" -le 128 ] || exit 0
+
+state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
+[ -n "$state" ] || exit 0
+
+slug="$(printf '%s' "$state" | jq -r .slug)"
+flow="$(printf '%s' "$state" | jq -r .flow)"
+phase="$(printf '%s' "$state" | jq -r .current)"
+
+# An empty current phase means the last phase advanced past the end: the flow is done and there is
+# nothing to drive. Saying so every turn from here on would be noise.
+[ -n "$phase" ] && [ "$phase" != "null" ] || exit 0
+
+target="$(jq -r --arg f "$flow" --arg p "$phase" '.[$f].phases[] | select(.name==$p) | .run // ""' "${ROOT}/rules/flows.json" 2>/dev/null)"
+status="$(printf '%s' "$state" | jq -r --arg p "$phase" '.record[$p].status // ""')"
+
+if [ "$status" = "done" ]; then
+    instructions="Polaris run '${slug}' (${flow} flow): phase '${phase}' is recorded and stops for a human. Present its artifact and its evidence, then stop and wait. When the human approves, run: scripts/run-state.sh approve ${phase}"
+else
+    instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Run it, then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+fi
+
+# Claim the transition before emitting. A second stop on the same phase loses the race and stays
+# silent, so the user can always end the turn by ending it twice.
+marker="${TMPDIR:-/tmp}/polaris-advance-flow"
+mkdir -p -m 700 "$marker" 2>/dev/null
+mkdir -m 700 "${marker}/${session}-${slug}-${phase}-${status:-open}" 2>/dev/null || exit 0
+
+jq -cn --arg r "$instructions" '{decision:"block",reason:$r}'
+exit 0

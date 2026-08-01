@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# PreToolUse on Task: refuse a dispatch the open run's current phase does not name.
+#
+# This is where a seeded flow stops being a suggestion. The ledger says the run is on 'spec'; a
+# dispatch to a builder is then not a judgment call the session gets to make, it is denied.
+#
+# It gates only a phase whose catalog target is a specific agent. A phase that runs a command or a
+# workflow legitimately fans out to many agents, and a phase marked inline or specialist names no
+# agent at all, so gating those would refuse work the flow asked for. Enforce where the catalog is
+# specific; stay out of the way where it is not.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+
+command -v jq >/dev/null 2>&1 || exit 0
+[ -f "${PROJECT_DIR}/.polaris/config.json" ] || exit 0
+jq -e '.routing != false' "${PROJECT_DIR}/.polaris/config.json" >/dev/null 2>&1 || exit 0
+
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+requested="$(printf '%s' "$payload" | jq -r '.tool_input.subagent_type // ""' 2>/dev/null)"
+[ -n "$requested" ] || exit 0
+
+state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
+[ -n "$state" ] || exit 0
+
+flow="$(printf '%s' "$state" | jq -r .flow)"
+phase="$(printf '%s' "$state" | jq -r .current)"
+[ -n "$phase" ] && [ "$phase" != "null" ] || exit 0
+
+target="$(jq -r --arg f "$flow" --arg p "$phase" \
+    '.[$f].phases[] | select(.name==$p) | .run // ""' "${ROOT}/rules/flows.json" 2>/dev/null)"
+case "$target" in agent:*) ;; *) exit 0 ;; esac
+
+# A plugin agent answers to both its bare name and its namespaced one, and the catalog stores the
+# bare one. Compare against both rather than making every flow row carry the prefix.
+want="${target#agent:}"
+case "$requested" in
+    "$want"|*":${want}") exit 0 ;;
+esac
+
+reason="Polaris: run '$(printf '%s' "$state" | jq -r .slug)' is on phase '${phase}' of the ${flow} flow, which runs ${target}. A dispatch to '${requested}' skips it.
+Run ${target} and record the phase with scripts/run-state.sh record ${phase} <artifact> <evidence>, or run /polaris:pause if this flow is wrong."
+jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+exit 0

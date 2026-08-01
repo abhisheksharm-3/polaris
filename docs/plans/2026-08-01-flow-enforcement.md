@@ -285,6 +285,31 @@ Answer the `SubagentStart` question before writing the second script.
 
 ---
 
+### Task 11: enforce the model policy at dispatch
+
+**Files:** Modify `hooks/guard-phase`, `rules/model-routing.md`; modify `tests/run-tests.sh`.
+
+`rules/model-routing.md` is in the state `rules/routing.md` was before Task 4: a policy injected
+every session that nothing checks. An agent carries a `model` field, and a dispatch can override
+it, so the policy is advisory exactly where it decides cost and quality.
+
+`guard-phase` already reads every `Task` dispatch, so this is a second check in a hook that exists
+rather than a new one.
+
+- [ ] **Step 1:** Add a `floor` table to `rules/model-routing.md` in machine form: per agent role,
+      the minimum tier. Opus is the floor for adversarial QA, intake, planning, spec, architecture,
+      threat model, review, and root cause, which the prose already says.
+- [ ] **Step 2:** Add to `tests/run-tests.sh`: a `Task` payload dispatching `reviewer` with
+      `model: haiku` is denied naming the floor; the same with no `model` is allowed, since the
+      agent's own frontmatter then applies; a dispatch above the floor is allowed.
+- [ ] **Step 3:** Extend `guard-phase` to deny a dispatch whose explicit `model` sits below the
+      floor for that agent. Say the floor and the reason in the denial, never just the rule id.
+- [ ] **Step 4:** Leave a dispatch with no explicit model alone. The frontmatter is already the
+      policy there, and denying it would break every existing call site.
+- [ ] **Step 5:** Run the suite; green. Commit: `feat: refuse a dispatch below the model floor`
+
+---
+
 ## Out of scope
 
 Agent teams, checkpointing, `PostToolBatch`, the sweep family, and rewriting any of the 29

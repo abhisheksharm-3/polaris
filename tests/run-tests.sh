@@ -552,4 +552,79 @@ ep_out="$(ep_run "$ep_bare" 'the referral code field accepts duplicates')"
   || { echo "FAIL: enhance-prompt created .polaris in a bare project"; fail=1; }
 rm -rf "$ep_bug" "$ep_q" "$ep_u" "$ep_off" "$ep_bare"
 
+# guard-phase: a dispatch the current phase does not name is refused
+GPHASE="${DIR}/../hooks/guard-phase"
+gp_proj="$(mktemp -d)"; mkdir -p "$gp_proj/.polaris"; echo '{}' > "$gp_proj/.polaris/config.json"
+gp_task() { jq -n --arg a "$1" '{tool_name:"Task",tool_input:{subagent_type:$a}}'; }
+gp_run() { echo "$1" | CLAUDE_PROJECT_DIR="$gp_proj" "$GPHASE"; }
+
+# No run open: the gate has no opinion.
+gp_run "$(gp_task backend)" | grep -q 'deny' \
+  && { echo "FAIL: guard-phase denied with no run open"; fail=1; } \
+  || echo "ok: guard-phase allows any dispatch with no run open"
+
+CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" seed feature demo >/dev/null
+gp_out="$(gp_run "$(gp_task backend)")"
+grep -q '"permissionDecision":"deny"' <<<"$gp_out" \
+  && echo "ok: guard-phase refuses a builder during spec" \
+  || { echo "FAIL: guard-phase let a builder run during spec"; fail=1; }
+grep -q 'spec' <<<"$gp_out" \
+  && echo "ok: guard-phase names the phase it refused against" \
+  || { echo "FAIL: guard-phase refused without naming the phase ($gp_out)"; fail=1; }
+gp_run "$(gp_task product)" | grep -q 'deny' \
+  && { echo "FAIL: guard-phase denied the agent its own phase names"; fail=1; } \
+  || echo "ok: guard-phase allows the agent the phase names"
+gp_run "$(gp_task polaris:product)" | grep -q 'deny' \
+  && { echo "FAIL: guard-phase denied a namespaced agent name"; fail=1; } \
+  || echo "ok: guard-phase accepts a namespaced agent name"
+
+# A phase that names a command or a workflow is not an agent gate; those phases dispatch freely.
+CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" clear >/dev/null
+CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" seed audit demo2 >/dev/null
+gp_run "$(gp_task reviewer)" | grep -q 'deny' \
+  && { echo "FAIL: guard-phase gated a phase that names a command"; fail=1; } \
+  || echo "ok: guard-phase leaves a command phase ungated"
+rm -rf "$gp_proj"
+
+# advance-flow: the Stop hook drives the run and blocks once per transition
+ADV="${DIR}/../hooks/advance-flow"
+av_proj="$(mktemp -d)"; mkdir -p "$av_proj/.polaris"; echo '{}' > "$av_proj/.polaris/config.json"
+av_tmp="$(mktemp -d)"
+av_run() { jq -n --arg s "${2:-s1}" '{stop_hook_active:false,session_id:$s}' \
+  | TMPDIR="$av_tmp" CLAUDE_PROJECT_DIR="$av_proj" "$ADV"; }
+av_state() { CLAUDE_PROJECT_DIR="$av_proj" bash "$EP_RS" "$@"; }
+
+[ -z "$(av_run)" ] && echo "ok: advance-flow is silent with no run open" \
+  || { echo "FAIL: advance-flow blocked with no run open"; fail=1; }
+
+av_state seed bug demo >/dev/null
+av_out="$(av_run '' s1)"
+grep -q '"decision":"block"' <<<"$av_out" \
+  && echo "ok: advance-flow blocks a turn ending mid-phase" \
+  || { echo "FAIL: advance-flow let a turn end mid-phase"; fail=1; }
+grep -q 'reproduce' <<<"$av_out" \
+  && echo "ok: advance-flow names the phase still owed" \
+  || { echo "FAIL: advance-flow did not name the owed phase"; fail=1; }
+[ -z "$(av_run '' s1)" ] && echo "ok: advance-flow blocks once per transition" \
+  || { echo "FAIL: advance-flow blocked twice for the same phase"; fail=1; }
+
+# A recorded phase that stops for a human asks for the approval, not the next phase.
+echo "repro" > "$av_proj/repro.md"
+av_state record reproduce "$av_proj/repro.md" "a failing case" >/dev/null
+av_out="$(av_run '' s1)"
+grep -q 'rootcause' <<<"$av_out" \
+  && echo "ok: advance-flow asks for the next phase once one is recorded" \
+  || { echo "FAIL: advance-flow did not name the next phase ($av_out)"; fail=1; }
+av_state record rootcause "$av_proj/repro.md" "the cause" >/dev/null
+av_out="$(av_run '' s1)"
+grep -qi 'approv' <<<"$av_out" \
+  && echo "ok: advance-flow asks for the approval a phase stops on" \
+  || { echo "FAIL: advance-flow skipped an approval ($av_out)"; fail=1; }
+
+# The documented loop-breaker, and a finished flow.
+[ -z "$(jq -n '{stop_hook_active:true,session_id:"s1"}' | TMPDIR="$av_tmp" CLAUDE_PROJECT_DIR="$av_proj" "$ADV")" ] \
+  && echo "ok: advance-flow honors stop_hook_active" \
+  || { echo "FAIL: advance-flow ignored stop_hook_active"; fail=1; }
+rm -rf "$av_proj" "$av_tmp"
+
 exit $fail
