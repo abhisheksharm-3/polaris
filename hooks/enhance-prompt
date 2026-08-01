@@ -44,7 +44,7 @@ if jq -e '.routing != false' "$cfg" >/dev/null 2>&1 && [ -n "$prompt" ]; then
         case "$class" in
             conversation) : ;;
             unknown)
-                table="$(jq -r 'to_entries[] | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
+                table="$(jq -r 'to_entries[] | select(.value.phases | length > 0) | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
                 context="Polaris did not recognize a flow for this prompt. Pick the smallest one that fits and open it with scripts/run-state.sh seed <flow> <slug>, or answer directly if it is a question. The catalog:
 ${table}"
                 ;;

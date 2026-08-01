@@ -555,7 +555,7 @@ rm -rf "$ep_bug" "$ep_q" "$ep_u" "$ep_off" "$ep_bare"
 # guard-phase: a dispatch the current phase does not name is refused
 GPHASE="${DIR}/../hooks/guard-phase"
 gp_proj="$(mktemp -d)"; mkdir -p "$gp_proj/.polaris"; echo '{}' > "$gp_proj/.polaris/config.json"
-gp_task() { jq -n --arg a "$1" '{tool_name:"Task",tool_input:{subagent_type:$a}}'; }
+gp_task() { jq -n --arg t "${2:-Task}" --arg a "$1" '{tool_name:$t,tool_input:{subagent_type:$a}}'; }
 gp_run() { echo "$1" | CLAUDE_PROJECT_DIR="$gp_proj" "$GPHASE"; }
 
 # No run open: the gate has no opinion.
@@ -584,6 +584,20 @@ CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" seed audit demo2 >/dev/null
 gp_run "$(gp_task reviewer)" | grep -q 'deny' \
   && { echo "FAIL: guard-phase gated a phase that names a command"; fail=1; } \
   || echo "ok: guard-phase leaves a command phase ungated"
+# The dispatch tool is named Agent in current versions and Task in older ones, and the field
+# naming the agent has moved with it. A gate reading the wrong name allows everything in silence.
+CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" clear >/dev/null
+CLAUDE_PROJECT_DIR="$gp_proj" bash "$EP_RS" seed feature demo3 >/dev/null
+gp_run "$(gp_task backend Agent)" | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: guard-phase gates a dispatch named Agent" \
+  || { echo "FAIL: guard-phase ignored the Agent tool name"; fail=1; }
+echo '{"tool_name":"Agent","tool_input":{"agent_type":"backend"}}' | CLAUDE_PROJECT_DIR="$gp_proj" "$GPHASE" \
+  | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: guard-phase reads agent_type as well as subagent_type" \
+  || { echo "FAIL: guard-phase missed the agent_type field"; fail=1; }
+jq -r '.hooks.PreToolUse[].matcher' "${DIR}/../hooks/hooks.json" | grep -q 'Agent' \
+  && echo "ok: the PreToolUse matcher admits the Agent tool" \
+  || { echo "FAIL: the PreToolUse matcher does not admit Agent"; fail=1; }
 rm -rf "$gp_proj"
 
 # advance-flow: the Stop hook drives the run and blocks once per transition

@@ -18,7 +18,13 @@ command -v jq >/dev/null 2>&1 || exit 0
 jq -e '.routing != false' "${PROJECT_DIR}/.polaris/config.json" >/dev/null 2>&1 || exit 0
 
 payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
-requested="$(printf '%s' "$payload" | jq -r '.tool_input.subagent_type // ""' 2>/dev/null)"
+
+# The dispatch tool has been named both Task and Agent across versions, and the field naming the
+# agent has moved with it. A gate that reads one name and the session uses the other never fires
+# and never says so, which is the worst failure a gate has: it looks installed and allows
+# everything. Read every name, and let the matcher in hooks.json admit both tools.
+requested="$(printf '%s' "$payload" | jq -r \
+    '.tool_input.subagent_type // .tool_input.agent_type // .tool_input.subagentType // ""' 2>/dev/null)"
 [ -n "$requested" ] || exit 0
 
 state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"

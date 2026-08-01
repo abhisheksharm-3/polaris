@@ -43,6 +43,30 @@ passes here and the gate silently allows everything in a real session.
 
 That is the whole point of the live pass, and it needs a session started after the sync.
 
+## The live pass
+
+Four of five steps passed in a session started after the restore. Routing classified the prompt as
+`bug` and opened the run; the Stop hook blocked naming the phase and how to record it;
+`/polaris:pause` cleared; a question routed nowhere.
+
+The fifth step, an out-of-phase dispatch, never ran. The session declined to fake a fix for a bug
+that does not exist in this repo, so nothing was dispatched and `guard-phase` was never reached.
+
+## The gate was listening on the wrong name
+
+Chasing that gap found the defect the live pass was for. The `PreToolUse` matcher read `Task`. In
+current Claude Code the dispatch tool is named `Agent`, and `Task` now names the task tracker, so
+the matcher matched nothing. The gate was installed, silent, and allowing everything.
+
+This is the failure mode a gate must not have, because it is indistinguishable from a gate with
+nothing to refuse. Both look like a passing session.
+
+The matcher now reads `Task|Agent`, and `guard-phase` reads `subagent_type`, `agent_type`, and
+`subagentType` rather than one of them. Three assertions cover it, including one that fails if the
+matcher ever stops admitting `Agent`.
+
 ## Open
 
-The live pass itself. Until it runs, treat the enforcement as tested, not proven.
+An observed deny. Every assertion for `guard-phase` is still built from a hand-made payload; the
+field names come from the hooks reference, not from a payload a session produced. The next real
+out-of-phase dispatch closes it.
