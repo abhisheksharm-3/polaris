@@ -62,7 +62,7 @@ expect_exit 0 bash "${DIR}/../scripts/check-commands.sh"
 # enhance-prompt: injects when enabled, silent when disabled
 ENH="${DIR}/../hooks/enhance-prompt"
 tmp_on="$(mktemp -d)"; mkdir -p "${tmp_on}/.polaris"; echo '{"promptEnhance":true}' > "${tmp_on}/.polaris/config.json"
-tmp_off="$(mktemp -d)"; mkdir -p "${tmp_off}/.polaris"; echo '{"promptEnhance":false}' > "${tmp_off}/.polaris/config.json"
+tmp_off="$(mktemp -d)"; mkdir -p "${tmp_off}/.polaris"; echo '{"promptEnhance":false,"routing":false}' > "${tmp_off}/.polaris/config.json"
 payload='{"prompt":"make the thing better"}'
 if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on"  "$ENH" | grep -q 'additionalContext'; then echo "ok: enhance injects when enabled"; else echo "FAIL: enhance did not inject when enabled"; fail=1; fi
 if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_off" "$ENH" | grep -q 'additionalContext'; then echo "FAIL: enhance injected when disabled"; fail=1; else echo "ok: enhance silent when disabled"; fi
@@ -494,5 +494,62 @@ while read -r c; do
     || { echo "FAIL: routing class '$c' has no flow"; fail=1; }
 done < <(jq -r '.routing[].class' "${DIR}/../rules/patterns.json")
 echo "ok: every routing class names a flow in the catalog"
+
+# enhance-prompt: a described task opens its run, a question opens nothing
+EP_RS="${DIR}/../scripts/run-state.sh"
+ep_proj() { local d; d="$(mktemp -d)"; mkdir -p "$d/.polaris"; echo "${1:-\{\}}" > "$d/.polaris/config.json"; echo "$d"; }
+ep_run() { printf '%s' "$2" | jq -Rs '{prompt:.}' | CLAUDE_PROJECT_DIR="$1" "$ENH"; }
+ep_state() { CLAUDE_PROJECT_DIR="$1" bash "$EP_RS" get 2>/dev/null; }
+
+ep_bug="$(ep_proj '{}')"
+ep_out="$(ep_run "$ep_bug" 'the referral code field accepts duplicates')"
+grep -q 'additionalContext' <<<"$ep_out" && grep -q 'bug' <<<"$ep_out" \
+  && echo "ok: enhance-prompt announces the flow it routed to" \
+  || { echo "FAIL: enhance-prompt did not announce a flow ($ep_out)"; fail=1; }
+[ "$(ep_state "$ep_bug" | jq -r .flow)" = "bug" ] \
+  && echo "ok: enhance-prompt opens the run it announced" \
+  || { echo "FAIL: enhance-prompt announced without opening a run"; fail=1; }
+[ "$(ep_state "$ep_bug" | jq -r .current)" = "reproduce" ] \
+  && echo "ok: enhance-prompt opens at the first phase" \
+  || { echo "FAIL: enhance-prompt opened at the wrong phase"; fail=1; }
+
+# A second prompt is input to the open run, never a second run.
+ep_slug="$(ep_state "$ep_bug" | jq -r .slug)"
+ep_out="$(ep_run "$ep_bug" 'add a referrals page with a share link')"
+[ "$(ep_state "$ep_bug" | jq -r .slug)" = "$ep_slug" ] \
+  && echo "ok: enhance-prompt leaves an open run alone" \
+  || { echo "FAIL: enhance-prompt reseeded over an open run"; fail=1; }
+grep -q 'reproduce' <<<"$ep_out" \
+  && echo "ok: enhance-prompt names the phase the open run is on" \
+  || { echo "FAIL: enhance-prompt did not name the open phase ($ep_out)"; fail=1; }
+
+# A question is not work.
+ep_q="$(ep_proj '{}')"
+ep_out="$(ep_run "$ep_q" 'what does the stop-capture hook do')"
+[ -z "$ep_out" ] && echo "ok: enhance-prompt stays silent on a question" \
+  || { echo "FAIL: enhance-prompt routed a question ($ep_out)"; fail=1; }
+[ -z "$(ep_state "$ep_q")" ] && echo "ok: enhance-prompt opens no run for a question" \
+  || { echo "FAIL: enhance-prompt opened a run for a question"; fail=1; }
+
+# Nothing matched: hand over the table, open nothing.
+ep_u="$(ep_proj '{}')"
+ep_out="$(ep_run "$ep_u" 'make it better')"
+grep -q 'additionalContext' <<<"$ep_out" \
+  && echo "ok: enhance-prompt hands over the table when nothing matched" \
+  || { echo "FAIL: enhance-prompt said nothing on an unknown prompt"; fail=1; }
+[ -z "$(ep_state "$ep_u")" ] && echo "ok: enhance-prompt opens no run it cannot name" \
+  || { echo "FAIL: enhance-prompt opened a run for an unknown class"; fail=1; }
+
+# Turned off, and on a project that never ran setup.
+ep_off="$(ep_proj '{"routing":false}')"
+ep_out="$(ep_run "$ep_off" 'the referral code field accepts duplicates')"
+[ -z "$(ep_state "$ep_off")" ] && echo "ok: enhance-prompt opens no run when routing is off" \
+  || { echo "FAIL: enhance-prompt routed with routing off"; fail=1; }
+ep_bare="$(mktemp -d)"
+ep_out="$(ep_run "$ep_bare" 'the referral code field accepts duplicates')"
+[ ! -d "$ep_bare/.polaris" ] \
+  && echo "ok: enhance-prompt writes nothing into a project that never ran setup" \
+  || { echo "FAIL: enhance-prompt created .polaris in a bare project"; fail=1; }
+rm -rf "$ep_bug" "$ep_q" "$ep_u" "$ep_off" "$ep_bare"
 
 exit $fail

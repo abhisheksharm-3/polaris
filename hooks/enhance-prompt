@@ -1,15 +1,79 @@
 #!/usr/bin/env bash
+# UserPromptSubmit: classify what was described and open the run for it.
+#
+# This is the hook that ends hand invocation. Every Polaris path used to start with a typed
+# command, so the work followed a Polaris path only on the days the user remembered a path existed
+# and picked the right one.
+#
+# It announces the flow and it seeds the ledger, and the second half is the one that matters.
+# additionalContext is text the model may ignore; a seeded ledger is state the phase gates read and
+# refuse against. A version of this hook that only described the route would suggest better and
+# enforce nothing.
+#
+# Fail open throughout. A misroute costs a sentence; a hook that errors on every prompt costs the
+# session. Nothing here writes into a project that has no .polaris/config.json, because a project
+# that never ran setup did not ask for a ledger.
 set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+cfg="${PROJECT_DIR}/.polaris/config.json"
 
-cfg="${CLAUDE_PROJECT_DIR:-$PWD}/.polaris/config.json"
 [ -f "$cfg" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
-jq -e '.promptEnhance == true' "$cfg" >/dev/null 2>&1 || exit 0
 
-# Read and discard the payload; this hook adds context, it does not inspect the prompt text.
-cat >/dev/null
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+[ -n "$payload" ] || exit 0
+prompt="$(printf '%s' "$payload" | jq -r '.prompt // ""' 2>/dev/null)"
 
-directive="Before acting: judge whether this request is clear and specific. If it is, proceed as written. If it is vague, ambiguous, or underspecified, first restate it precisely using the project config, the Polaris standard, and the codebase, name the assumptions you are making, then act on the restated version."
+emit() { jq -cn --arg c "$1" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$c}}'; }
 
-jq -cn --arg c "$directive" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$c}}'
+context=""
+
+if jq -e '.routing != false' "$cfg" >/dev/null 2>&1 && [ -n "$prompt" ]; then
+    open="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
+    if [ -n "$open" ]; then
+        # A prompt arriving mid-run is input to that run. Opening a second ledger would give the
+        # phase gate two answers to what phase this is, and it would take the more permissive one.
+        slug="$(printf '%s' "$open" | jq -r .slug)"
+        flow="$(printf '%s' "$open" | jq -r .flow)"
+        phase="$(printf '%s' "$open" | jq -r .current)"
+        context="Polaris run '${slug}' is open: the ${flow} flow, currently on phase '${phase}'. Treat this prompt as input to that run. Do not start another. Use /polaris:pause to abandon it."
+    else
+        class="$(printf '%s' "$prompt" | bash "${ROOT}/scripts/route-prompt.sh" 2>/dev/null || echo unknown)"
+        case "$class" in
+            conversation) : ;;
+            unknown)
+                table="$(jq -r 'to_entries[] | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
+                context="Polaris did not recognize a flow for this prompt. Pick the smallest one that fits and open it with scripts/run-state.sh seed <flow> <slug>, or answer directly if it is a question. The catalog:
+${table}"
+                ;;
+            *)
+                slug="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]' \
+                    | tr -c '[:alnum:]' ' ' | awk '{for(i=1;i<=4&&i<=NF;i++)printf "%s%s",$i,(i<4&&i<NF?"-":"")}' | cut -c1-40)"
+                [ -n "$slug" ] || slug="run"
+                if CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" seed "$class" "$slug" >/dev/null 2>&1; then
+                    phases="$(jq -r --arg f "$class" '[.[$f].phases[] | .name + (if .approve then " (stop for approval)" else "" end)] | join(" -> ")' "${ROOT}/rules/flows.json")"
+                    first="$(jq -r --arg f "$class" '.[$f].phases[0] | "\(.name) via \(.run)"' "${ROOT}/rules/flows.json")"
+                    context="Polaris routed this to the ${class} flow and opened run '${slug}'.
+Phases: ${phases}
+Start with: ${first}
+Record each phase with scripts/run-state.sh record <phase> <artifact> <evidence>. If this is the wrong flow, say so and run /polaris:pause."
+                fi
+                ;;
+        esac
+    fi
+fi
+
+# The clarity directive predates routing and is gated separately. It asks the session model to judge
+# its own prompt, which is the wrong model for the job; the prompt-type hook that replaces it lands
+# with the veto.
+if jq -e '.promptEnhance == true' "$cfg" >/dev/null 2>&1; then
+    directive="Before acting: judge whether this request is clear and specific. If it is, proceed as written. If it is vague, ambiguous, or underspecified, first restate it precisely using the project config, the Polaris standard, and the codebase, name the assumptions you are making, then act on the restated version."
+    context="${context:+${context}
+
+}${directive}"
+fi
+
+[ -n "$context" ] && emit "$context"
 exit 0

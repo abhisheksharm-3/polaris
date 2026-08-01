@@ -6,5 +6,6 @@
   "naming": { "source": "polaris", "rules": {} },
   "pr": { "source": "polaris", "standards": "" },
   "guardEdit": true,
-  "promptEnhance": false
+  "promptEnhance": false,
+  "routing": true
 }
