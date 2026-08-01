@@ -19,8 +19,9 @@ Polaris enforces at the leaf and nowhere else.
 - Nothing records which phase a task is in, that a phase finished, or what it produced. So a
   session that starts at phase 4 looks identical to one that passed phases 0 through 3.
 - The verify loops cap at 3 rounds by asking the model to count.
-- `/route` maps a situation to a command and stops, so stitching a multi-command path is manual
-  every time.
+- Every path starts with a typed command. `/route` maps a situation to a command and then stops,
+  so the work only follows a Polaris path on the days the user remembers a path exists and picks
+  the right one.
 
 The missing primitive is run state. Without it no gate can know what to allow.
 
@@ -39,8 +40,9 @@ pauses at the human gates.
 - Review and QA exit on convergence (two consecutive rounds finding nothing new), with a round
   ceiling as a runaway guard rather than the exit condition.
 - Every finding is confirmed by three verifiers with different lenses, surviving on a majority.
-- `/polaris:go <task>` classifies the task, seeds the phase list, and the chain runs to the next
-  human gate without the user naming another command.
+- A described task routes and runs without the user naming a command. "The referral code field
+  accepts duplicates" reaches `bug-fixer` with a reproduction first; "add a referrals page" seeds
+  the four phases; "what does this hook do" routes nowhere and stays a question.
 - A single command clears a run, and no hook blocks twice for the same phase transition.
 
 ## Architecture
@@ -143,13 +145,44 @@ It blocks at most once per phase transition, using the atomic-mkdir marker `stop
 proves out, and `/polaris:pause` clears the run. A gate with no exit gets switched off within a
 week, and a gate that is off enforces nothing.
 
-`/polaris:go <task>` is the single entry point. Its first agent classifies the task shape and
-returns the phase list; the script seeds the ledger and runs phase one. A one-line fix seeds
-`["build", "ship"]`; a feature seeds all four. From there the Stop hook drives it.
-
 Two supporting pieces: a `statusLine` reading `polaris: <slug> · design 2/4 · awaiting approval`,
 so run state is visible rather than inferred, and `disable-model-invocation: true` on the phase
 commands, so the model cannot fire a phase out of order on its own.
+
+### Layer 5: routing without invocation
+
+The entry point is not a command. Requiring the user to type `/flow`, `/debug`, or `/audit` means
+the day's work only follows a Polaris path when the user remembers a path exists, and picks the
+right one. Most days that does not happen.
+
+Two pieces are already in place and wired wrong. `rules/routing.md` holds a 12-row table mapping a
+task class to the tools that serve it, injected every session as advice nothing checks.
+`hooks/enhance-prompt` fires on every prompt and reads the payload only to discard it, adding a
+fixed directive regardless of what was asked. Joining them turns the table into behavior.
+
+`enhance-prompt` becomes a router, in two passes:
+
+1. **Deterministic.** `rules/patterns.json` gains a `routing` section: per task class, the trigger
+   patterns that identify it, plus the phase list it seeds. A prompt matching one class and no
+   other is routed in shell, at no token cost. This covers the common shapes, including a bug
+   report, a named endpoint or component, a review or audit request, and a where-was-I question.
+2. **Judgment.** When nothing matches, or two classes match, a `type: "prompt"` hook on the small
+   fast model classifies the prompt against the table and returns the class with a confidence.
+   Code routes what code can decide; the model decides only the genuinely ambiguous, which is
+   Rule 5 applied to Polaris itself.
+
+The result reaches the session as `additionalContext` naming the class, the route, and the seeded
+phases. A high-confidence route runs; anything less states the route and asks. There is a
+`conversation` class that emits nothing, so a question about how a function works stays a question.
+
+Routing to the smallest thing that fits is the point, and the existing table already encodes it: a
+typo routes to a direct edit and `/gate`, a single-file fix routes to one specialist, a bug routes
+to `bug-fixer` after a reproduction, and only a real feature seeds all four phases. Escalation
+stays as `routing.md` describes it, and a class that proves larger mid-run re-seeds the ledger and
+says so.
+
+Aborting is one line: `/polaris:route off` for the session, and a misroute is visible before it
+acts because the route is announced, not silent.
 
 ## Not in scope
 
@@ -182,11 +215,18 @@ commands, so the model cannot fire a phase out of order on its own.
   spec, and allows it against an approved one.
 - A live test that a Stop-hook block fires once and not twice for the same transition.
 - A live workflow run confirming whether `SubagentStart` fires for its agents.
+- A fixture set of prompts, one per routing class plus five that must route nowhere, asserting the
+  deterministic pass classifies each correctly and stays silent on conversation.
 
 ## Build order
 
-1. `scripts/run-state.sh` and its tests. Everything else reads it.
-2. The `UserPromptExpansion` gate and the Stop engine, against hand-seeded ledgers.
-3. `/polaris:build` as one workflow, run on a real task, measured against the current `/flow`.
-4. The remaining five workflows.
-5. `/polaris:go`, the classifier, and the statusLine.
+Layer 5 ships first. It is the layer that changes daily use, it depends on nothing else, and
+routing to today's hand-run commands is useful before a single workflow exists.
+
+1. The routing table in `patterns.json`, the deterministic pass in `enhance-prompt`, and the
+   fixture test. Routes to the existing commands, changing nothing about how they run.
+2. The judgment pass, for prompts the patterns cannot place.
+3. `scripts/run-state.sh` and its tests. Every gate reads it.
+4. The `UserPromptExpansion` gate and the Stop engine, against hand-seeded ledgers.
+5. `/polaris:build` as one workflow, run on a real task, measured against the current `/flow`.
+6. The remaining five workflows, and the statusLine.
