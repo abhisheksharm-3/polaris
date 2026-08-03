@@ -19,6 +19,11 @@
   `advance-flow` drives the run at `Stop`, and the small-model veto refuses an unactionable prompt.
   Three workflows under `workflows/` hold the fan-out. `/polaris:pause` clears a run and
   `scripts/statusline.sh` shows it.
+  The docs now match that shape: a 2026-08-03 drift pass rewrote `commands/flow.md` from eleven
+  prose phases down to 44 lines that defer to the `feature` row, documented the `runs/<slug>/`
+  layout in `rules/doc-organization.md`, added the six missing rows to `commands/route.md`, and
+  brought `CLAUDE.md` up to the shipped architecture. 1.10.0 is dated in `CHANGELOG.md` with
+  release notes in `.polaris/releases/2026-08-03-v1.10.0.md`.
 - next: two gaps, both needing a live session rather than the suite. An observed deny: every
   `guard-phase` and `guard-command` assertion is a hand-built payload, and the `Task` versus `Agent`
   matcher bug is exactly what that gap produces. And whether `SubagentStart` fires for
@@ -36,6 +41,52 @@
   .polaris/runs/2026-08-01-flow-enforcement-preflight.md
 - touched: 2026-08-01 (the composer, the clarity veto, three workflows, the command gate, the model
   floor, and the 1.10.0 changelog)
+- open question, for a human: `docs/POLARIS_MASTER_PLAN.md` still calls `/flow` the full
+  orchestration cycle at line 822 and describes that cycle at line 794. Left as written on the
+  argument that a plan records intent and rewriting it erases the history. Decide addendum or
+  leave.
+
+## sweep-briefing-format — restructure what /sweep emits
+
+- domain: feature
+- status: blocked, on a human approval
+- state: The spec is written and was recorded: `.polaris/specs/sweep-briefing-format.md`, 503 lines,
+  `check-patterns.sh prose` exit 0. The run then reached its approval stop and was cleared with
+  `scripts/run-state.sh clear` to free the one-open-run slot for `review-levels`, so the ledger no
+  longer holds it. The spec file is untracked but on disk. The request is structure and information
+  density, not which sources are read. The evidence is one real briefing: 40 bullets under a single
+  `Act on this` heading with no priority order, four preamble blockquotes and three closing essays
+  that restate the bullets, deadlines stated in prose with nothing collecting them by date, and
+  `day N` ages that nothing escalates on.
+- next: re-seed the run with `scripts/run-state.sh seed feature sweep-briefing-format`, re-record
+  the spec against the same artifact, and read it for approval. `design` also stops for approval
+  before any edit to `commands/sweep.md`.
+- files: commands/sweep.md, scripts/sweep-window.sh, scripts/okr-pace.sh,
+  .polaris/specs/sweep-briefing-format.md
+- touched: 2026-08-03 (spec written and recorded, then the run was cleared unapproved)
+
+## review-levels — make /polaris:review cost what the job is worth
+
+- domain: feature
+- status: active
+- state: The `feature` run under `.polaris/runs/review-levels/` has spec and design done and
+  approved; the ledger's `current` is `build`. `workflows/review.js` now carries the `LEVELS` table,
+  the coerced-string level resolution, the batched per-dimension Confirm stage, and the trimmed
+  `meta` block (Plan Steps 1-7); `CHANGELOG.md` carries the `1.11.0` entry (Step 8); the README needed
+  no edit since it documents only `/review-pr` and no workflow name (Step 9). Steps 10 (the
+  four-level acceptance run) and 11 (commit) are still outstanding, and nothing here is committed
+  yet.
+- next: run Step 10's four acceptance passes against a real changeset, then commit per Step 11 and
+  record the `build` phase in the ledger with `scripts/run-state.sh record build ...`.
+- files: workflows/review.js, hooks/guard-review, rules/flows.json, CHANGELOG.md
+- touched: 2026-08-03 (spec and design approved; Steps 1-9 implemented, uncommitted)
+- open question, for a human: `.polaris/plans/review-levels.md` uses `- [ ]` checkboxes as its
+  resume ledger, but the plan artifact's sha256 is locked in as the design phase's evidence in
+  `.polaris/runs/review-levels/state.json`; ticking a box after design is recorded invalidates that
+  phase under the run-ledger rule ("an artifact edited after the fact invalidates the phase that
+  claimed it"). Progress after design is recorded is tracked here and in the run ledger, not by
+  editing the checkboxes. Decide whether the plan template should stop carrying checkboxes once a
+  plan is hash-locked, or whether the ledger should hash phases instead of whole files.
 
 ## Done
 

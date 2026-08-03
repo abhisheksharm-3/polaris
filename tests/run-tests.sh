@@ -740,6 +740,31 @@ for f in "${DIR}"/../workflows/review.js "${DIR}"/../workflows/verify.js; do
   grep -q 'over-engineering' "$f" || { echo "FAIL: $(basename "$f") omits the over-engineering axis"; fail=1; }
 done
 echo "ok: the review workflows carry the over-engineering axis"
+
+# The grep above passes on a file that merely mentions the axis. review.js selects dimensions per
+# level, so a key dropped or misspelled in one level's list shrinks that level silently and
+# deadlocks the reviewer against guard-review. Assert each list against DIMENSIONS instead.
+lv_out="$(node -e '
+const fs = require("fs")
+const s = fs.readFileSync(process.argv[1], "utf8")
+const q = "\x27"
+const dims = [...s.matchAll(new RegExp("\\{ key: " + q + "([a-z-]+)" + q, "g"))].map(m => m[1])
+const block = s.slice(s.indexOf("const LEVELS"))
+const levels = [...block.slice(0, block.indexOf("\n}")).matchAll(/^  ([a-z]+): \{(.*)$/gm)]
+const bad = []
+if (dims.length !== 7) bad.push("DIMENSIONS holds " + dims.length + " keys, expected 7")
+if (levels.length !== 4) bad.push("LEVELS holds " + levels.length + " rows, expected 4")
+for (const [, name, body] of levels) {
+  const m = body.match(/keys: \[([^\]]*)\]/)
+  const keys = m ? [...m[1].matchAll(new RegExp(q + "([a-z-]+)" + q, "g"))].map(x => x[1]) : dims
+  for (const k of keys) if (!dims.includes(k)) bad.push(name + " names " + k + ", which is not a dimension")
+  if (!keys.includes("over-engineering")) bad.push(name + " omits over-engineering")
+}
+process.stdout.write(bad.join("; "))
+' "${DIR}/../workflows/review.js")"
+[ -z "$lv_out" ] && echo "ok: every review level resolves against DIMENSIONS and keeps over-engineering" \
+  || { echo "FAIL: ${lv_out}"; fail=1; }
+
 expect_exit 0 bash "${DIR}/../scripts/check-flows.sh"
 
 # guard-command: typing a later phase's command skips every phase before it

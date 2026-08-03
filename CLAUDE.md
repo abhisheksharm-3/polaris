@@ -101,7 +101,9 @@ enforces on itself.
   `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
   `guard-command`, and `advance-flow`, all wired in `hooks.json`
 - `workflows/` — the three phases that fan out: `verify`, `review`, `build`. Shipped as
-  `/polaris:<name>` via the `workflows` field in `plugin.json`
+  `/polaris:<name>` via the `workflows` field in `plugin.json`. `review` takes a `level` of `low`,
+  `mid`, `high`, or `critical`, which picks the dimensions, the reviewer effort, and the severities
+  worth confirming. `high` is the default and the ceiling is 2, 8, 14, or 28 agents
 - `rules/` — the standard: `core.md`, `clean-code.md`, `craft.md`, `writing.md`,
   `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`, `connectors.md`,
   `patterns.json` (prose, code, injection, and `routing` classes), `flows.json` (the flow catalog),

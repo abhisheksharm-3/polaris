@@ -2,6 +2,20 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.11.0 — 2026-08-03
+
+A review that no longer runs unbounded.
+
+Changed:
+
+- `workflow:review` now runs at one of four levels: `low`, `mid`, `high`, or `critical`. Each level
+  picks how many dimensions run, how hard the reviewers look, and which severities get confirmed.
+  `high` is the default, so an existing dispatch keeps today's seven dimensions and effort.
+- Verifying findings no longer scales with how many were raised: one verifier per dimension, and
+  three at `critical`, one per refutation lens. A worst-case run is now capped at 2, 8, 14, or 28
+  agents, down from unbounded.
+- A finding below the level's confirm threshold reaches the report marked unconfirmed.
+
 ## 1.10.0 — 2026-08-03
 
 Flows that pick themselves and gates that hold them. Polaris had 29 commands and one flow, the flow
