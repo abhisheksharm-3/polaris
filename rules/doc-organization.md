@@ -14,6 +14,9 @@ repo. The layout:
   plans/               YYYY-MM-DD-<topic>-plan.md
   reports/             YYYY-MM-DD-<topic>-report.md
   runs/                YYYY-MM-DD-<command>-<topic>.md   run history: agents, models, outcomes
+    <slug>/state.json  the run ledger: which flow, which phase, what each phase produced
+    .open              the slug of the one open run, or absent
+    .composed-log      the shape of each composed flow that finished, for promotion counting
   work/                streams.md   the work tracker, auto-maintained across sessions
 ```
 
@@ -24,3 +27,6 @@ Rules:
 - Before adding a doc, check whether an existing one covers the topic and update it instead of
   making a near-duplicate.
 - A doc's prose passes the writing standard (`rules/writing.md`).
+- The three machine files under `runs/` are state, not docs. `scripts/run-state.sh` owns them; do
+  not hand-edit one, because the ledger stores an artifact hash and an edit it did not make reads
+  as a phase claiming something it no longer produced.

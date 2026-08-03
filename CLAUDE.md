@@ -79,6 +79,11 @@ enforces on itself.
 | `bash tests/run-tests.sh` | Full test suite: pattern checks, commit/PR guard, injection guard against fixtures |
 | `bash scripts/check-patterns.sh <prose\|code\|injection> <file>` | Run one deterministic pattern check (exit 1 = flagged) |
 | `bash scripts/check-agents.sh` | Validate agent definitions in `agents/` |
+| `bash scripts/check-flows.sh [catalog]` | Prove every phase in a flow catalog names a target that resolves. Defaults to `rules/flows.json`; takes a path so a composed flow is checked before it is seeded |
+| `bash scripts/run-state.sh seed\|get\|target\|record\|approve\|assert\|clear` | The run ledger under `.polaris/runs/<slug>/state.json`. Every gate reads it |
+| `bash scripts/route-prompt.sh` | A prompt on stdin, its flow on stdout, or `unknown` |
+| `bash scripts/inventory.sh` | Every dispatchable target with its description, for the composer |
+| `bash scripts/statusline.sh` | The open run, for a `statusLine` setting |
 | `bash scripts/check-commands.sh` | Validate command definitions in `commands/` |
 | `bash scripts/ensure-companions.sh` | Idempotent companion-plugin installer (no-op after first run) |
 | `bash scripts/journal-facts.sh <YYYY-MM-DD> [source]` | One day's activity as factual markdown, bucketed by project. Needs `jq`; skips the GitHub calls when the source is `hook` |
@@ -89,20 +94,25 @@ enforces on itself.
 ## Architecture
 
 - `agents/` — the SDLC agent fleet (product, architect, backend, reviewer, tester, shipper, …)
-- `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, …)
+- `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, `/compose`, …)
 - `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e,
   extract-design-system, merge-conflicts)
 - `hooks/` — `session-start`, `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
-  `guard-review`, `inject-standard`, `enhance-prompt`, wired in `hooks.json`
+  `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
+  `guard-command`, and `advance-flow`, all wired in `hooks.json`
+- `workflows/` — the three phases that fan out: `verify`, `review`, `build`. Shipped as
+  `/polaris:<name>` via the `workflows` field in `plugin.json`
 - `rules/` — the standard: `core.md`, `clean-code.md`, `craft.md`, `writing.md`,
   `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`, `connectors.md`,
-  `patterns.json`, plus per-stack overlays in `stacks/` mapped by `stack-map.json`
+  `patterns.json` (prose, code, injection, and `routing` classes), `flows.json` (the flow catalog),
+  `model-floor.json` (the minimum tier per agent, enforced at dispatch), plus per-stack overlays in
+  `stacks/` mapped by `stack-map.json`
 - `scripts/` — deterministic check runners, the companion installer, and the fact extractors for
   `/journal`, `/track`, and `/sweep`
 - `output-styles/` — the Polaris writing output style
 - `templates/` — config and doc templates (e.g. `config.default.json`)
 - `docs/` — `plans/` and `specs/` for in-progress work
-- `.polaris/` — per-project config (`config.json`), plus the directories the commands write:
+- `.polaris/` — per-project config (`config.json`), the run ledger in `runs/<slug>/state.json`, plus the directories the commands write:
   `work/`, `handoffs/`, `specs/`, `plans/`, `runs/`, `reports/`, `releases/`
 - `~/.claude/polaris-memory/` — user-level, cross-project state: `sweep/` (config, state) and `okr/`
   (ledger, progress, log, reviews) for the `/sweep` OKR lens, plus `journal/` and the memory index
@@ -124,4 +134,13 @@ enforces on itself.
   options in `plugin.json`, prompted at install and stored in user settings. `sources` has no scalar
   form and stays in `~/.claude/polaris-memory/sweep/config.json`.
 - `.polaris/config.json` drives the gate, hooks, and every agent. Changing it changes enforcement.
+  `"routing": false` turns off classification, seeding, and all three flow gates; absent means on.
+- A flow is data, not prose. `rules/flows.json` is the source of truth for what a flow runs, and any
+  command describing a flow defers to it. `commands/flow.md` is the `feature` row, not a second
+  definition of it.
+- The dispatch tool is named `Agent` in current Claude Code and `Task` in older versions, and the
+  field naming the agent moved with it. A hook matching one name fires for nobody and says nothing,
+  which is why `guard-phase` reads all three field spellings and the matcher admits both tools.
+- The clarity veto is a `type: "prompt"` hook, so it cannot read `.polaris/config.json` the way the
+  other hooks do. Removing its entry from `hooks.json` is its only off switch.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

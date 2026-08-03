@@ -1,99 +1,44 @@
 ---
-description: Run the full Polaris cycle on a task, from idea to a reviewed, tested, shipped change
+description: Open the feature flow on a task and run its first phase
 argument-hint: "<task, PRD, or idea>"
-allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch
-model: opus
+allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
 ---
 
-# Polaris orchestration cycle
+# Flow
 
-Take the task in `$ARGUMENTS` from idea to a reviewed, tested, CI-green change. Run the phases
-below, dispatching the fleet agent named for each phase and using the primitive named for it.
-Scale the path to the task: a one-line fix skips discovery and architecture and runs a short path;
-a real feature runs the whole thing. Read `.polaris/config.json` first and honor it.
+Open the `feature` run for the task in `$ARGUMENTS` and start it.
 
-## How to run each phase
+This command used to hold the cycle itself: eleven phases of prose a model was free to abridge and
+nothing checked. The cycle is now the `feature` row in `rules/flows.json`, and the ledger and the
+gates enforce it. Two descriptions of one flow is one too many, so this is the shorter one.
 
-- **Single delegated work** goes to a subagent (the `Task` tool with the named agent type).
-- **Fan-out and verify-until-green loops** (review across dimensions, QA across cases) run as a
-  dynamic workflow.
-- **Genuinely adversarial phases** may run as an agent team when that experimental mode is enabled;
-  otherwise use a workflow.
-- Write every artifact to `.polaris/` per the doc-organization rule.
+You do not need to type this. `hooks/enhance-prompt` classifies a described feature and opens the
+same run. This is the explicit door to the same room.
 
-## Run log (write as you go)
+## Steps
 
-Keep a durable trace of the run so it can be audited later. At the start, create
-`.polaris/runs/<date>-flow-<slug>.md` (the date from `date +%F`, the slug from the task) holding the
-task, the date, and a `## Timeline` heading. As each phase completes, append one line naming the
-phase, the agent dispatched, its model tier, and the result in a few words: the findings, the fixes,
-or the approval outcome. Append as you go; do not reconstruct it from memory at the end. This is the
-machine-oriented history that complements the human report in phase 10, not a substitute for it, so
-keep it terse.
+1. Read `.polaris/config.json`.
+2. Open the run: `${CLAUDE_PLUGIN_ROOT}/scripts/run-state.sh seed feature <slug>`, with a slug drawn
+   from the task. It refuses when a run is already open; `/polaris:pause` clears that one.
+3. Say which phases the run holds and which stop for approval:
+   `jq -r '.feature.phases[] | "\(.name) -> \(.run)"' "${CLAUDE_PLUGIN_ROOT}/rules/flows.json"`.
+4. Run the first phase. Dispatch `product` to write the spec, with explicit acceptance criteria,
+   into `.polaris/specs/`.
+5. Record it: `scripts/run-state.sh record spec <path> "<what the check said>"`. The ledger refuses
+   a phase whose artifact is not on disk, and stores the hash, so an artifact edited afterwards
+   invalidates the phase that claimed it.
+6. Present the spec and stop. `spec` carries an approval, so the run holds here until a human says
+   go and `scripts/run-state.sh approve spec` runs.
 
-## The phases
-
-### Phase 0 — Intake and discovery
-Dispatch `product` to intake the PRD or run the interview, clearing every assumption. When the task
-warrants it, dispatch `researcher` for feasibility and prior art. Do not proceed on a guess.
-
-### Phase 1 — Spec
-Dispatch `product` to write the spec with explicit acceptance criteria to `.polaris/specs/`.
-**Stop. Present the spec and get the human's approval before continuing.**
-
-### Phase 2 — Architecture and design
-For a feature, dispatch in parallel: `architect` (structure and ADRs), `api-designer` (contracts),
-`data-modeler` (schema and migrations), `security-architect` (threat model), and `ux` (flows and
-copy). Collect the design docs. **Stop. Present the design and get approval.**
-
-### Phase 3 — Plan
-Use the writing-plans skill to turn the approved spec and design into an implementation plan, then
-verify it adversarially (does any step handwave, is anything unproven). **Stop. Present the plan and
-get approval. Loop until finalized.**
-
-### Phase 4 — Implement
-Decompose the plan into isolated sub-plans that can run in parallel; use git worktrees when they
-touch overlapping files. Route each to its specialist: `ui`, `frontend-logic`, `backend`,
-`integrations`, `infra`, or `data-engineer`. Each runs the quality gate before it reports done.
-
-### Phase 5 — Review
-Run a dynamic workflow: `reviewer` across the dimensions (correctness, security, performance,
-maintainability, simplicity, accessibility), plus the over-engineering pass, which runs on every
-review and is not negotiable: what should not exist at all, reported as its own axis. Then
-`verifier` to confirm each finding is real. Fix the confirmed ones (via `bug-fixer` or the relevant
-implementer). Loop until a clean pass, capped at 3 rounds; on non-convergence, stop and escalate
-with the remaining findings and state.
-
-### Phase 6 — QA
-Dispatch `tester` for adversarial QA (drive the real feature: a browser for web, curl for backend),
-plus `e2e` and `perf` as the task warrants. Hand every break to `bug-fixer` for a root-cause fix,
-then `verifier` confirms, then QA runs again. Loop until QA passes clean, capped at 3 rounds; on
-non-convergence, stop and escalate. Confirm the spec's acceptance criteria are met.
-
-### Phase 7 — Docs
-Dispatch `tech-writer` to update API docs, README, changelog, and migration notes to match the
-shipped code.
-
-### Phase 8 — Ship
-Dispatch `shipper`: commit to the project's standards, review the diff adversarially first (fix via
-`bug-fixer`, loop until clean), open the PR with release notes, then track CI and iterate until
-green, capped at 3 rounds; on non-convergence, stop and escalate.
-
-### Phase 9 — Operate (as applicable)
-Dispatch `devops` to deploy and `sre` to ensure logging, metrics, tracing, and alerts exist for the
-change.
-
-### Phase 10 — Report
-Write a final report to `.polaris/reports/`: what was built, what was found and fixed, what is
-accepted with rationale, the residual risk, the PR link, and the spend (from telemetry when
-enabled). Close the run log with an `## Outcome` line: shipped or stopped-at-phase-N, the PR link,
-and the spend.
+From there the hooks drive it. At the end of each turn `advance-flow` names the next phase.
+`guard-phase` refuses an agent the current phase does not name, and `guard-command` refuses a phase
+command whose predecessor has not been earned.
 
 ## Rules
 
-- Approval gates at spec, design, and plan are hard stops. Never pass a gate without the human.
-- No verify loop runs unbounded. Every one caps at 3 rounds, then stops and escalates with state.
-- Nothing outward-facing (push, PR, deploy, connector write) happens without confirmation unless
-  the config authorizes it.
-- Every emitted line, code and prose, passes the quality gate and the writing standard.
-- Evidence before claims: run the command, show the output; never assert passing or done unproven.
+- The flow is the data in `rules/flows.json`. If this file and that file disagree, that file is
+  right and this one is the bug.
+- Approval phases are hard stops. Never stamp an approval on the human's behalf.
+- Nothing outward-facing happens without confirmation unless the config authorizes it.
+- Evidence before claims: run the command, show the output, and record it in the ledger.

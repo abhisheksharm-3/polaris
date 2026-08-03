@@ -13,6 +13,10 @@ Given the situation in `$ARGUMENTS`, name the one Polaris command or agent that 
 why, and stop. This routes; it does not run anything. Read `.polaris/config.json` first if the choice
 depends on how the project is set up.
 
+Most routing no longer needs this command. `hooks/enhance-prompt` classifies every prompt against
+`rules/patterns.json`, opens the run for it, and says which flow it chose; `/polaris:compose` builds
+one when no catalog row fits. Reach for `/route` when you want the answer without the run.
+
 Match the situation to the closest row, then hand the user that command.
 
 ## Building something
@@ -55,6 +59,8 @@ Match the situation to the closest row, then hand the user that command.
 | Reconcile this session's work into the tracker | `/track` |
 | Write a handoff for someone picking this up | `/handoff` |
 | Cut a release | `/release` |
+| Write up a day, or a release, for people | `/journal`, `/notes` |
+| Set Polaris up in a project, or learn one | `/init`, `/onboard` |
 | A fact worth keeping across sessions | `/remember` (save), `/recall` (retrieve) |
 
 ## When nothing fits
@@ -62,4 +68,6 @@ Match the situation to the closest row, then hand the user that command.
 | Situation | Use |
 |---|---|
 | A command probably fits but you cannot tell which | `/route` (this) |
-| No Polaris command fits the task at all | `/synthesize` |
+| No flow fits the shape of the work | `/compose` (builds one from what is installed) |
+| No fleet agent has the capability the work needs | `/synthesize` (builds one) |
+| A run is open on the wrong flow | `/pause` |
