@@ -70,15 +70,9 @@ Record each phase with scripts/run-state.sh record <phase> <artifact> <evidence>
     fi
 fi
 
-# The clarity directive predates routing and is gated separately. It asks the session model to judge
-# its own prompt, which is the wrong model for the job; the prompt-type hook that replaces it lands
-# with the veto.
-if jq -e '.promptEnhance == true' "$cfg" >/dev/null 2>&1; then
-    directive="Before acting: judge whether this request is clear and specific. If it is, proceed as written. If it is vague, ambiguous, or underspecified, first restate it precisely using the project config, the Polaris standard, and the codebase, name the assumptions you are making, then act on the restated version."
-    context="${context:+${context}
-
-}${directive}"
-fi
+# The clarity directive used to live here: a paragraph asking the session model to judge its own
+# prompt. Judging a prompt is a cheap model's job, and a model cannot audit the prompt it is already
+# reading. It is now a type: "prompt" hook on the small model, registered beside this one.
 
 [ -n "$context" ] && emit "$context"
 exit 0

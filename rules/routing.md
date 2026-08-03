@@ -52,6 +52,14 @@ it. Nothing is typed, and the table above is the policy the patterns encode.
   phase list from the installed agents and commands. A composed flow is validated, seeded, and
   gated exactly as a catalog row is, so nothing downstream knows which it got.
 
+A second `UserPromptSubmit` hook runs the small fast model as a veto. It returns `ok: false` only
+when a prompt names neither a target nor an action, and the reason it returns is the sharpened
+prompt, because that reason is the only text the user sees before the turn ends. It is told to
+allow when unsure: a false stop costs a real turn.
+
+A `type: "prompt"` hook cannot read `.polaris/config.json`, so unlike routing the veto has no
+per-project switch. Removing its entry from `hooks/hooks.json` is the off switch.
+
 The catalog in `rules/flows.json` is the fast path, not the boundary. A composed shape that runs
 three times prints a suggestion to add it as a row; writing the row stays a human's edit.
 

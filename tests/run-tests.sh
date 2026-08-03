@@ -64,9 +64,24 @@ ENH="${DIR}/../hooks/enhance-prompt"
 tmp_on="$(mktemp -d)"; mkdir -p "${tmp_on}/.polaris"; echo '{"promptEnhance":true}' > "${tmp_on}/.polaris/config.json"
 tmp_off="$(mktemp -d)"; mkdir -p "${tmp_off}/.polaris"; echo '{"promptEnhance":false,"routing":false}' > "${tmp_off}/.polaris/config.json"
 payload='{"prompt":"make the thing better"}'
-if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on"  "$ENH" | grep -q 'additionalContext'; then echo "ok: enhance injects when enabled"; else echo "FAIL: enhance did not inject when enabled"; fail=1; fi
-if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_off" "$ENH" | grep -q 'additionalContext'; then echo "FAIL: enhance injected when disabled"; fail=1; else echo "ok: enhance silent when disabled"; fi
+if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on"  "$ENH" | grep -q 'additionalContext'; then echo "ok: enhance injects when routing is on"; else echo "FAIL: enhance did not inject when routing is on"; fail=1; fi
+if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_off" "$ENH" | grep -q 'additionalContext'; then echo "FAIL: enhance injected when routing is off"; fail=1; else echo "ok: enhance silent when routing is off"; fi
+# The clarity judgment moved to the small model. Nothing in this hook should ask the session model
+# to audit the prompt it is already holding.
+if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on" "$ENH" | grep -qi 'judge whether this request'; then
+  echo "FAIL: the clarity directive is still in enhance-prompt"; fail=1
+else echo "ok: enhance-prompt no longer judges its own prompt"; fi
 rm -rf "$tmp_on" "$tmp_off"
+
+# the clarity veto: registered on the small model, beside the router, not instead of it
+vetos="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt")] | length' "${DIR}/../hooks/hooks.json")"
+[ "$vetos" = 1 ] && echo "ok: one prompt-type veto is registered"   || { echo "FAIL: expected one prompt-type UserPromptSubmit hook, found $vetos"; fail=1; }
+cmds="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="command")] | length' "${DIR}/../hooks/hooks.json")"
+[ "$cmds" = 1 ] && echo "ok: the router survives beside the veto"   || { echo "FAIL: the router command hook is missing"; fail=1; }
+# No model field, so it takes the configured small fast model rather than pinning one that ages out.
+[ "$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt") | has("model")] | any' "${DIR}/../hooks/hooks.json")" = "false" ]   && echo "ok: the veto takes the configured small model"   || { echo "FAIL: the veto pins a model"; fail=1; }
+# It must bias to letting work through: a false stop costs a real turn.
+jq -r '.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt") | .prompt' "${DIR}/../hooks/hooks.json"   | grep -q 'When in doubt, return ok: true'   && echo "ok: the veto is told to let work through when unsure"   || { echo "FAIL: the veto has no bias toward allowing"; fail=1; }
 
 # guard-edit: warns on slop in an edited file when enabled, silent when disabled
 GEDIT="${DIR}/../hooks/guard-edit"
