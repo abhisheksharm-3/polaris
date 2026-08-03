@@ -2,6 +2,38 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.10.0 — 2026-08-01
+
+Flows that pick themselves and gates that hold them. Polaris had 29 commands and one flow, the flow
+was markdown a model could abridge, and every path started with a typed command, so the day's work
+followed a Polaris path only when the user remembered a path existed and picked the right one.
+
+New:
+
+- `rules/flows.json`: eighteen flows, each an ordered phase list naming a fleet agent, a command, a
+  workflow, or one of two runtime targets. Adding a flow is a table row. `scripts/check-flows.sh`
+  refuses one whose phase names a target that is not installed.
+- `scripts/run-state.sh`: the run ledger. A phase is done only with its artifact on disk and its
+  hash matching, so an artifact edited after the fact invalidates the phase that claimed it.
+- Routing without invocation. `hooks/enhance-prompt` reads the prompt it used to discard, classifies
+  it against `rules/patterns.json`, and opens the run. A question routes nowhere.
+- `/polaris:compose` builds a flow from `scripts/inventory.sh` when no catalog row fits, validated
+  and gated exactly as a catalog row is. A shape that runs three times suggests its own row.
+- `hooks/guard-phase` refuses a dispatch the current phase does not name, and refuses one below the
+  agent's floor in `rules/model-floor.json`. `hooks/guard-command` refuses a phase command whose
+  predecessor has not been earned. `hooks/advance-flow` drives the run at `Stop`, once per phase.
+- Three workflows under `workflows/`: `verify` loops until two rounds find nothing new and judges
+  every finding through three lenses, `review` pipelines seven dimensions, `build` splits a plan and
+  carries a capped fix loop per slice.
+- `/polaris:pause` clears a run. `scripts/statusline.sh` shows the open one.
+
+Changed:
+
+- The clarity judgment moved off the session model. `enhance-prompt` no longer asks a model to audit
+  the prompt it is already reading; a `type: "prompt"` hook on the small model does it, and refuses
+  only a prompt naming neither a target nor an action.
+- `rules/model-routing.md` is enforced at dispatch rather than described.
+
 ## 1.9.0 — 2026-07-28
 
 Capture that actually happens. The journal, the work tracker, and memory all relied on an instruction

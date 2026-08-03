@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# UserPromptExpansion: refuse a phase command whose predecessor has not been earned.
+#
+# guard-phase covers a dispatch to an agent. This covers the other door: a phase whose target is a
+# command can be reached by typing the command, and typing it would skip every phase before it.
+#
+# It only ever refuses a command the open run's own flow names as a later phase. A command that is
+# not part of this flow is unrelated work and is none of this hook's business: being mid-run must
+# not stop /catchup or /recall.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+PROJECT_DIR="$(printf '%s' "$payload" | jq -r '.cwd // ""')"
+[ -n "$PROJECT_DIR" ] || PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+[ -f "${PROJECT_DIR}/.polaris/config.json" ] || exit 0
+jq -e '.routing != false' "${PROJECT_DIR}/.polaris/config.json" >/dev/null 2>&1 || exit 0
+
+name="$(printf '%s' "$payload" | jq -r '.command_name // ""')"
+[ -n "$name" ] || exit 0
+bare="${name##*:}"
+
+state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
+[ -n "$state" ] || exit 0
+
+flow="$(printf '%s' "$state" | jq -r .flow)"
+current="$(printf '%s' "$state" | jq -r .current)"
+[ -n "$current" ] && [ "$current" != "null" ] || exit 0
+
+# A composed flow keeps its phases in the ledger, a named one in the catalog. Ask for whichever
+# this run has rather than guessing, the same way the other two hooks do.
+phases="$(printf '%s' "$state" | jq -c 'if has("phases") then .phases else null end')"
+if [ "$phases" = "null" ]; then
+    phases="$(jq -c --arg f "$flow" '.[$f].phases // []' "${ROOT}/rules/flows.json" 2>/dev/null)"
+fi
+
+phase="$(printf '%s' "$phases" | jq -r --arg c "command:${bare}" 'map(select(.run==$c)) | .[0].name // ""')"
+[ -n "$phase" ] || exit 0
+[ "$phase" != "$current" ] || exit 0
+
+why="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" assert "$phase" 2>&1 >/dev/null)" && exit 0
+
+reason="Polaris: /${name} is phase '${phase}' of the open ${flow} run, and it cannot start yet. ${why}
+Run '${current}' first, or /polaris:pause if this flow is wrong for the task."
+jq -cn --arg r "$reason" '{decision:"block",reason:$r}'
+exit 0

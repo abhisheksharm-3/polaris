@@ -8,6 +8,51 @@ writes, including commit messages and PR bodies, reads like a careful human wrot
 
 Polaris lives by its own rules. The standard it enforces on your code, it enforces on itself.
 
+## Flows
+
+A flow is an ordered list of phases, each naming something Polaris already has. `rules/flows.json`
+holds eighteen of them, so adding one is a table row rather than a script.
+
+| Flow | Phases |
+|---|---|
+| `trivial` | edit, gate |
+| `fix` | implement, gate, ship |
+| `bug` | reproduce, rootcause, fix, verify, ship |
+| `feature` | spec, design, build, ship |
+| `foggy` | recon, spec, design, build, ship |
+| `spike` | spike, decide |
+| `review` | review, verify |
+| `audit` | audit, triage, fix, verify |
+| `qa` | break, fix, verify |
+| `cleanup` | cleanup, gate, ship |
+| `security` | threat-model, harden, verify |
+| `incident` | mitigate, rootcause, prevent, notes |
+| `release` | gate, notes, release |
+| `modernize` | survey, upgrade, qa, ship |
+| `docs` | drift, write, gate |
+| `research` | research |
+| `context` | catchup |
+
+You do not type any of them. Describe the work and `hooks/enhance-prompt` classifies it, opens the
+run, and says which flow it chose. A question routes nowhere. A task matching no row goes to
+`/polaris:compose`, which builds a phase list from the installed agents and commands; a composed
+flow is validated, seeded, and gated exactly as a catalog row is.
+
+Once a run is open the ledger at `.polaris/runs/<slug>/state.json` is what the gates read:
+
+- `guard-phase` refuses a dispatch the current phase does not name, and refuses a dispatch below
+  the agent's model floor.
+- `guard-command` refuses a phase command whose predecessor has not been earned.
+- `advance-flow` blocks the end of a turn to ask for the phase or the approval it waits on, once
+  per transition.
+- A phase is done only with its artifact on disk and its hash matching.
+
+`/polaris:pause` clears the run. `"routing": false` in `.polaris/config.json` turns it all off.
+
+To see the open run in your status line, point `statusLine` at `scripts/statusline.sh`; it prints
+`polaris: <slug> · <phase> 2/4 · awaiting approval`.
+
+
 ## The idea
 
 An AI agent left alone drifts two ways: it over-builds (fifty lines where one would do), and it

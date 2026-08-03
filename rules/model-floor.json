@@ -1,0 +1,37 @@
+{
+  "_": "The minimum tier per agent, from rules/model-routing.md. A dispatch may go above a floor, never below.",
+  "tiers": [
+    "haiku",
+    "sonnet",
+    "opus"
+  ],
+  "floor": {
+    "product": "opus",
+    "researcher": "opus",
+    "architect": "opus",
+    "api-designer": "opus",
+    "data-modeler": "opus",
+    "security-architect": "opus",
+    "reviewer": "opus",
+    "verifier": "opus",
+    "tester": "opus",
+    "e2e": "opus",
+    "prod-audit": "opus",
+    "audit-refactor": "opus",
+    "bug-fixer": "sonnet",
+    "backend": "sonnet",
+    "frontend-logic": "sonnet",
+    "ui": "sonnet",
+    "integrations": "sonnet",
+    "infra": "sonnet",
+    "devops": "sonnet",
+    "data-engineer": "sonnet",
+    "code-cleanup": "sonnet",
+    "tech-writer": "sonnet",
+    "shipper": "sonnet",
+    "sre": "sonnet",
+    "perf": "sonnet",
+    "ux": "sonnet",
+    "feature-builder": "sonnet"
+  }
+}

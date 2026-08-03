@@ -742,4 +742,58 @@ done
 echo "ok: the review workflows carry the over-engineering axis"
 expect_exit 0 bash "${DIR}/../scripts/check-flows.sh"
 
+# guard-command: typing a later phase's command skips every phase before it
+GCMD="${DIR}/../hooks/guard-command"
+gc_proj="$(mktemp -d)"; mkdir -p "$gc_proj/.polaris"; echo '{}' > "$gc_proj/.polaris/config.json"
+gc() { jq -n --arg n "$1" --arg d "$gc_proj" '{command_name:$n,cwd:$d}' | "$GCMD"; }
+
+[ -z "$(gc polaris:release)" ] && echo "ok: guard-command is silent with no run open" \
+  || { echo "FAIL: guard-command blocked with no run open"; fail=1; }
+
+CLAUDE_PROJECT_DIR="$gc_proj" bash "$RS" seed release cut-1 >/dev/null
+gc_out="$(gc polaris:release)"
+grep -q '"decision":"block"' <<<"$gc_out" \
+  && echo "ok: guard-command refuses a later phase command" \
+  || { echo "FAIL: guard-command allowed a skipped phase ($gc_out)"; fail=1; }
+grep -q 'gate' <<<"$gc_out" \
+  && echo "ok: guard-command names the phase still owed" \
+  || { echo "FAIL: guard-command did not name the owed phase"; fail=1; }
+[ -z "$(gc polaris:gate)" ] && echo "ok: guard-command allows the phase the run is on" \
+  || { echo "FAIL: guard-command blocked the current phase"; fail=1; }
+[ -z "$(gc polaris:catchup)" ] && echo "ok: guard-command ignores a command outside the flow" \
+  || { echo "FAIL: guard-command blocked unrelated work"; fail=1; }
+[ -z "$(gc polaris:pause)" ] && echo "ok: guard-command never blocks the escape hatch" \
+  || { echo "FAIL: guard-command blocked /polaris:pause"; fail=1; }
+rm -rf "$gc_proj"
+jq -e '.hooks.UserPromptExpansion | length > 0' "${DIR}/../hooks/hooks.json" >/dev/null \
+  && echo "ok: guard-command is registered on UserPromptExpansion" \
+  || { echo "FAIL: guard-command is not registered"; fail=1; }
+
+# the model floor: opus is a minimum on the judgment work, not a default a dispatch can undercut
+MF_PROJ="$(mktemp -d)"; mkdir -p "$MF_PROJ/.polaris"; echo '{}' > "$MF_PROJ/.polaris/config.json"
+mf() { jq -n --arg a "$1" --arg m "$2" '{tool_name:"Agent",tool_input:{subagent_type:$a,model:$m}}' \
+  | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE"; }
+mf reviewer haiku | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: a reviewer dispatched below its floor is refused" \
+  || { echo "FAIL: a reviewer ran on haiku"; fail=1; }
+mf reviewer haiku | grep -q 'opus' \
+  && echo "ok: the refusal names the floor" \
+  || { echo "FAIL: the model refusal does not name the floor"; fail=1; }
+[ -z "$(mf reviewer opus)" ] && echo "ok: a dispatch at the floor is allowed" \
+  || { echo "FAIL: a dispatch at the floor was refused"; fail=1; }
+[ -z "$(mf tech-writer sonnet)" ] && echo "ok: a dispatch at a sonnet floor is allowed" \
+  || { echo "FAIL: a sonnet-floor dispatch was refused"; fail=1; }
+# No explicit model means the agent's own frontmatter decides, which is already the policy.
+[ -z "$(echo '{"tool_name":"Agent","tool_input":{"subagent_type":"reviewer"}}' | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE")" ] \
+  && echo "ok: a dispatch with no model is left to the agent's frontmatter" \
+  || { echo "FAIL: a dispatch with no model was refused"; fail=1; }
+# Every floor must name a real agent, or the table quietly protects nothing.
+mf_bad=""
+for a in $(jq -r '.floor | keys[]' "${DIR}/../rules/model-floor.json"); do
+  [ -f "${DIR}/../agents/${a}.md" ] || mf_bad="${mf_bad} ${a}"
+done
+[ -z "$mf_bad" ] && echo "ok: every model floor names a real agent" \
+  || { echo "FAIL: model floors for agents that do not exist:${mf_bad}"; fail=1; }
+rm -rf "$MF_PROJ"
+
 exit $fail

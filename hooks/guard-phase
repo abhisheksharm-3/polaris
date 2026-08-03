@@ -27,6 +27,26 @@ requested="$(printf '%s' "$payload" | jq -r \
     '.tool_input.subagent_type // .tool_input.agent_type // .tool_input.subagentType // ""' 2>/dev/null)"
 [ -n "$requested" ] || exit 0
 
+# The model floor, checked before the phase gate because it applies whether or not a run is open.
+# rules/model-routing.md has been policy nothing enforced: an agent carries a model in frontmatter,
+# and a dispatch can override it, so the cheapest tier was always one argument away on the work that
+# least tolerates it. A dispatch with no explicit model is left alone; the frontmatter is the policy
+# there, and refusing those would break every existing call site.
+asked="$(printf '%s' "$payload" | jq -r '.tool_input.model // ""' 2>/dev/null)"
+if [ -n "$asked" ] && [ -f "${ROOT}/rules/model-floor.json" ]; then
+    bare="${requested##*:}"
+    floor="$(jq -r --arg a "$bare" '.floor[$a] // ""' "${ROOT}/rules/model-floor.json")"
+    if [ -n "$floor" ]; then
+        rank() { jq -r --arg m "$1" '.tiers | index($m) // -1' "${ROOT}/rules/model-floor.json"; }
+        want="$(rank "$asked")"; need="$(rank "$floor")"
+        if [ "$want" -ge 0 ] && [ "$want" -lt "$need" ]; then
+            reason="Polaris: ${bare} runs on ${floor} or better, and this dispatch asked for ${asked}. It is the judgment work, so the tier is a floor rather than a default. Drop the model argument to take the agent's own tier, or name ${floor} or above."
+            jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+            exit 0
+        fi
+    fi
+fi
+
 state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
 [ -n "$state" ] || exit 0
 
