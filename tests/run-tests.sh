@@ -721,4 +721,25 @@ grep -q 'flows.json' <<<"$cs_out" \
   || { echo "FAIL: no promotion suggestion after repeats ($cs_out)"; fail=1; }
 rm -rf "$cs_tmp"
 
+# workflows: every agent a workflow names must exist. A dispatch to a name that is not there
+# spawns a generic subagent without the fleet's tool restrictions, and nothing says so.
+wf_missing=""
+for f in "${DIR}"/../workflows/*.js; do
+  [ -f "$f" ] || continue
+  node --check "$f" >/dev/null 2>&1 || { echo "FAIL: $(basename "$f") is not valid javascript"; fail=1; }
+  for a in $(grep -oE "agent(Type)?: *'polaris:[a-z-]+'" "$f" | grep -oE "polaris:[a-z-]+" | sort -u); do
+    [ -f "${DIR}/../agents/${a#polaris:}.md" ] || wf_missing="${wf_missing} ${a}($(basename "$f"))"
+  done
+  grep -q 'agentType' "$f" || { echo "FAIL: $(basename "$f") dispatches without agentType"; fail=1; }
+done
+[ -z "$wf_missing" ] && echo "ok: every agent named in a workflow exists" \
+  || { echo "FAIL: workflows name agents that do not exist:${wf_missing}"; fail=1; }
+echo "ok: every workflow passes agentType"
+# The over-engineering axis is mandatory wherever Polaris reviews, workflows included.
+for f in "${DIR}"/../workflows/review.js "${DIR}"/../workflows/verify.js; do
+  grep -q 'over-engineering' "$f" || { echo "FAIL: $(basename "$f") omits the over-engineering axis"; fail=1; }
+done
+echo "ok: the review workflows carry the over-engineering axis"
+expect_exit 0 bash "${DIR}/../scripts/check-flows.sh"
+
 exit $fail

@@ -45,5 +45,6 @@
     "playwright",
     "stack-aware",
     "auto-detect"
-  ]
+  ],
+  "workflows": "./workflows"
 }
