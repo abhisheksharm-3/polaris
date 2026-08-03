@@ -2,7 +2,7 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
-## 1.10.0 — 2026-08-01
+## 1.10.0 — 2026-08-03
 
 Flows that pick themselves and gates that hold them. Polaris had 29 commands and one flow, the flow
 was markdown a model could abridge, and every path started with a typed command, so the day's work
@@ -33,6 +33,13 @@ Changed:
   the prompt it is already reading; a `type: "prompt"` hook on the small model does it, and refuses
   only a prompt naming neither a target nor an action.
 - `rules/model-routing.md` is enforced at dispatch rather than described.
+- `/flow` is the `feature` row rather than a second description of it. It declared eleven phases
+  against that row's four, so a model reading it ran a cycle the ledger had no phases for.
+- `rules/doc-organization.md` documents the three machine files under `runs/`, and says
+  `run-state.sh` owns them: a hand edit reads as a phase claiming an artifact it no longer produced.
+- `commands/route.md` lists `/compose`, `/pause`, `/init`, `/journal`, `/notes`, and `/onboard`, and
+  says routing now runs on every prompt rather than waiting to be typed.
+- The run ledger is git-ignored. A clone should not arrive holding someone else's half-finished run.
 
 ## 1.9.0 — 2026-07-28
 
