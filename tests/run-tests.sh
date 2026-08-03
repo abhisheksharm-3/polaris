@@ -534,9 +534,9 @@ ep_out="$(ep_run "$ep_q" 'what does the stop-capture hook do')"
 # Nothing matched: hand over the table, open nothing.
 ep_u="$(ep_proj '{}')"
 ep_out="$(ep_run "$ep_u" 'make it better')"
-grep -q 'additionalContext' <<<"$ep_out" \
-  && echo "ok: enhance-prompt hands over the table when nothing matched" \
-  || { echo "FAIL: enhance-prompt said nothing on an unknown prompt"; fail=1; }
+grep -q 'compose' <<<"$ep_out" \
+  && echo "ok: enhance-prompt sends an unmatched task to the composer" \
+  || { echo "FAIL: enhance-prompt did not offer composition ($ep_out)"; fail=1; }
 [ -z "$(ep_state "$ep_u")" ] && echo "ok: enhance-prompt opens no run it cannot name" \
   || { echo "FAIL: enhance-prompt opened a run for an unknown class"; fail=1; }
 
@@ -640,5 +640,70 @@ grep -qi 'approv' <<<"$av_out" \
   && echo "ok: advance-flow honors stop_hook_active" \
   || { echo "FAIL: advance-flow ignored stop_hook_active"; fail=1; }
 rm -rf "$av_proj" "$av_tmp"
+
+# inventory: every dispatchable target, with a description the composer can choose from
+INV="${DIR}/../scripts/inventory.sh"
+inv_out="$(bash "$INV")"
+[ "$(grep -c '^agent:' <<<"$inv_out")" -eq "$(ls "${DIR}/../agents"/*.md | wc -l | tr -d ' ')" ] \
+  && echo "ok: inventory lists every fleet agent" \
+  || { echo "FAIL: inventory missed an agent"; fail=1; }
+grep -q '^inline\|^specialist' <<<"$inv_out" \
+  && echo "ok: inventory lists the runtime targets" \
+  || { echo "FAIL: inventory omitted inline and specialist"; fail=1; }
+# A target with no description is one the composer cannot choose between.
+[ "$(awk -F'\t' 'NF<2 || $2==""' <<<"$inv_out" | wc -l | tr -d ' ')" = 0 ] \
+  && echo "ok: every inventory target carries a description" \
+  || { echo "FAIL: an inventory target has no description"; fail=1; }
+# Everything it prints must resolve, or the composer can pick a dead target in good faith.
+inv_bad=0
+while IFS=$'\t' read -r t _; do
+  case "$t" in inline|specialist) continue ;; esac
+  jq -n --arg t "$t" '{probe:{phases:[{name:"p",run:$t}]}}' > "${DIR}/.inv-probe.json"
+  bash "${DIR}/../scripts/check-flows.sh" "${DIR}/.inv-probe.json" >/dev/null 2>&1 || inv_bad=$((inv_bad+1))
+done <<<"$inv_out"
+rm -f "${DIR}/.inv-probe.json"
+[ "$inv_bad" = 0 ] && echo "ok: every inventory target resolves" \
+  || { echo "FAIL: $inv_bad inventory targets do not resolve"; fail=1; }
+
+# run-state: a composed flow is seeded, validated, and driven exactly like a named one
+cs_tmp="$(mktemp -d)"; mkdir -p "$cs_tmp/.polaris"; echo '{}' > "$cs_tmp/.polaris/config.json"
+cs() { CLAUDE_PROJECT_DIR="$cs_tmp" bash "$RS" "$@"; }
+good='[{"name":"survey","run":"agent:researcher","evidence":"what exists"},{"name":"write","run":"agent:tech-writer"},{"name":"check","run":"command:gate"}]'
+bad='[{"name":"survey","run":"agent:not-a-real-agent"}]'
+
+echo "$bad" | cs seed --composed nope >/dev/null 2>&1 \
+  && { echo "FAIL: a composed flow naming a missing agent was seeded"; fail=1; } \
+  || echo "ok: a composed flow naming a missing target is refused"
+[ -z "$(cs get 2>/dev/null)" ] && echo "ok: a refused composition opens no run" \
+  || { echo "FAIL: a refused composition left a run open"; fail=1; }
+
+echo "$good" | cs seed --composed docs-sweep >/dev/null
+[ "$(cs get | jq -r .flow)" = "composed" ] && echo "ok: a composed run records that it was composed" \
+  || { echo "FAIL: composed run not marked composed"; fail=1; }
+[ "$(cs get | jq -r .current)" = "survey" ] && echo "ok: a composed run opens at its first phase" \
+  || { echo "FAIL: composed run opened at the wrong phase"; fail=1; }
+expect_exit 1 env CLAUDE_PROJECT_DIR="$cs_tmp" bash "$RS" assert write
+echo "found" > "$cs_tmp/a.md"
+expect_exit 0 env CLAUDE_PROJECT_DIR="$cs_tmp" bash "$RS" record survey "$cs_tmp/a.md" "three stale pages"
+expect_exit 0 env CLAUDE_PROJECT_DIR="$cs_tmp" bash "$RS" assert write
+[ "$(cs get | jq -r .current)" = "write" ] \
+  && echo "ok: a composed run advances on its own phase list" \
+  || { echo "FAIL: composed run did not advance"; fail=1; }
+
+# The gate reads a composed phase the same way it reads a catalog one.
+echo '{"tool_name":"Agent","tool_input":{"subagent_type":"backend"}}' | CLAUDE_PROJECT_DIR="$cs_tmp" "$GPHASE" \
+  | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: guard-phase gates a composed phase" \
+  || { echo "FAIL: guard-phase ignored a composed phase"; fail=1; }
+
+# A shape that keeps recurring is a catalog row waiting to be written, suggested and never written.
+cs clear >/dev/null 2>&1
+for i in 2 3; do echo "$good" | cs seed --composed "docs-sweep-$i" >/dev/null; cs clear >/dev/null 2>&1; done
+echo "$good" | cs seed --composed docs-sweep-4 >/dev/null
+cs_out="$(cs clear 2>&1 >/dev/null)"
+grep -q 'flows.json' <<<"$cs_out" \
+  && echo "ok: run-state suggests promoting a recurring composed shape" \
+  || { echo "FAIL: no promotion suggestion after repeats ($cs_out)"; fail=1; }
+rm -rf "$cs_tmp"
 
 exit $fail

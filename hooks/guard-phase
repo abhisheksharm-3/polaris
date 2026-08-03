@@ -34,8 +34,7 @@ flow="$(printf '%s' "$state" | jq -r .flow)"
 phase="$(printf '%s' "$state" | jq -r .current)"
 [ -n "$phase" ] && [ "$phase" != "null" ] || exit 0
 
-target="$(jq -r --arg f "$flow" --arg p "$phase" \
-    '.[$f].phases[] | select(.name==$p) | .run // ""' "${ROOT}/rules/flows.json" 2>/dev/null)"
+target="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" target 2>/dev/null || true)"
 case "$target" in agent:*) ;; *) exit 0 ;; esac
 
 # A plugin agent answers to both its bare name and its namespaced one, and the catalog stores the

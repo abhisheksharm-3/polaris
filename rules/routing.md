@@ -41,6 +41,25 @@ the whole repo, `/ponytail-debt` collects deferred shortcuts into a ledger, `/po
 the impact scoreboard. When ponytail is not installed, apply the ladder from `core.md` at the
 matching pressure.
 
+## Routing runs without being asked
+
+`hooks/enhance-prompt` classifies every prompt against `rules/patterns.json` and opens the run for
+it. Nothing is typed, and the table above is the policy the patterns encode.
+
+- **A catalog match** opens that flow's run. Free: the match is a shell pattern, not a model call.
+- **A question** routes nowhere and opens nothing. There is a `conversation` class for exactly this.
+- **Anything else** goes to `/polaris:compose`, which reads `scripts/inventory.sh` and builds a
+  phase list from the installed agents and commands. A composed flow is validated, seeded, and
+  gated exactly as a catalog row is, so nothing downstream knows which it got.
+
+The catalog in `rules/flows.json` is the fast path, not the boundary. A composed shape that runs
+three times prints a suggestion to add it as a row; writing the row stays a human's edit.
+
+Once a run is open, `hooks/guard-phase` refuses a dispatch the current phase does not name, and
+`hooks/advance-flow` blocks the end of a turn to ask for the phase or the approval it is waiting
+on, once per transition. `/polaris:pause` clears the run. `"routing": false` in
+`.polaris/config.json` turns all of it off.
+
 ## Escalation
 
 Start small and escalate only when the task proves larger: a single-file fix that turns out to span

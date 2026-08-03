@@ -44,8 +44,13 @@ if jq -e '.routing != false' "$cfg" >/dev/null 2>&1 && [ -n "$prompt" ]; then
         case "$class" in
             conversation) : ;;
             unknown)
+                # The catalog holds the shapes that recur, and most work is not one of them. Handing
+                # the prompt back unrouted is the fragmentation this hook exists to end, so an
+                # unrecognized task gets a flow composed for it rather than a menu.
                 table="$(jq -r 'to_entries[] | select(.value.phases | length > 0) | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
-                context="Polaris did not recognize a flow for this prompt. Pick the smallest one that fits and open it with scripts/run-state.sh seed <flow> <slug>, or answer directly if it is a question. The catalog:
+                context="Polaris found no catalog flow for this prompt.
+If it is a question, answer it and open nothing. Otherwise run /polaris:compose to build a flow for it from the installed agents and commands, then seed and announce it before starting.
+Use a catalog row instead if one actually fits:
 ${table}"
                 ;;
             *)

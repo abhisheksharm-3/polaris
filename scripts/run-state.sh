@@ -33,30 +33,82 @@ ledger_path() {
     echo "${RUNS}/${slug}/state.json"
 }
 
-# The phase list of the open run, in order. Every subcommand resolves it from the catalog rather
-# than from the ledger, so a flow whose definition changed is caught rather than silently obeyed.
-phases_of() { jq -r --arg f "$1" '.[$f].phases[]?.name' "$CATALOG"; }
-phase_field() { jq -r --arg f "$1" --arg p "$2" --arg k "$3" '.[$f].phases[] | select(.name==$p) | .[$k] // ""' "$CATALOG"; }
+# The phase list of the open run, in order.
+#
+# A named flow resolves from the catalog every time rather than from the ledger, so a flow whose
+# definition changed mid-run is caught rather than silently obeyed. A composed flow has no catalog
+# row by definition, so it carries its phases in the ledger and they are read from there.
+phase_array() {
+    local file="${RUNS}/$(open_slug)/state.json"
+    if [ -f "$file" ] && jq -e 'has("phases")' "$file" >/dev/null 2>&1; then
+        jq -c '.phases' "$file"
+    else
+        jq -c --arg f "$1" '.[$f].phases // []' "$CATALOG"
+    fi
+}
+phases_of() { phase_array "$1" | jq -r '.[].name'; }
+phase_field() { phase_array "$1" | jq -r --arg p "$2" --arg k "$3" '.[] | select(.name==$p) | .[$k] // ""'; }
 
 cmd_seed() {
-    local flow="$1" slug="$2"
-    jq -e --arg f "$flow" 'has($f)' "$CATALOG" >/dev/null 2>&1 || die "no flow named '${flow}'"
-    [ "$(phases_of "$flow" | wc -l)" -gt 0 ] || die "flow '${flow}' has no phases, so it is not a run"
+    local flow="$1" slug="$2" composed=""
+    if [ "$flow" = "--composed" ]; then
+        # A composed flow has no catalog row, so its phases arrive on stdin. Validate them through
+        # the same resolver the catalog goes through: a composer that names a target which is not
+        # installed must fail here, before a run opens on a phase that can never run.
+        composed="$(cat)"
+        jq -e 'type=="array" and length>0' <<<"$composed" >/dev/null 2>&1 \
+            || die "a composed flow needs a non-empty phase array on stdin"
+        local probe; probe="$(mktemp)"
+        jq -n --argjson p "$composed" '{composed:{phases:$p}}' > "$probe"
+        local bad; bad="$(bash "${SCRIPT_DIR}/check-flows.sh" "$probe" 2>&1)" || {
+            rm -f "$probe"; die "composed flow does not resolve: ${bad}"; }
+        rm -f "$probe"
+        flow="composed"
+    else
+        jq -e --arg f "$flow" 'has($f)' "$CATALOG" >/dev/null 2>&1 || die "no flow named '${flow}'"
+        [ "$(jq -r --arg f "$flow" '.[$f].phases | length' "$CATALOG")" -gt 0 ] \
+            || die "flow '${flow}' has no phases, so it is not a run"
+    fi
     local existing; existing="$(open_slug)"
     [ -n "$existing" ] && die "run '${existing}' is already open; /polaris:pause clears it"
     case "$slug" in ""|.|..|*[!A-Za-z0-9._-]*) die "slug '${slug}' is not usable as a path" ;; esac
     mkdir -p "${RUNS}/${slug}" || die "cannot create ${RUNS}/${slug}"
-    jq -n --arg s "$slug" --arg f "$flow" --arg c "$(phases_of "$flow" | head -1)" \
-        '{slug:$s,flow:$f,current:$c,record:{}}' > "${RUNS}/${slug}/state.json"
+    if [ -n "$composed" ]; then
+        jq -n --arg s "$slug" --argjson p "$composed" \
+            '{slug:$s,flow:"composed",current:($p[0].name),record:{},phases:$p}' > "${RUNS}/${slug}/state.json"
+    else
+        jq -n --arg s "$slug" --arg f "$flow" --arg c "$(jq -r --arg f "$flow" '.[$f].phases[0].name' "$CATALOG")" \
+            '{slug:$s,flow:$f,current:$c,record:{}}' > "${RUNS}/${slug}/state.json"
+    fi
     printf '%s' "$slug" > "$OPEN"
     echo "$slug"
 }
 
 cmd_get() { cat "$(ledger_path)"; }
 
+# What the current phase runs. The hooks ask for this rather than reading the catalog themselves,
+# because a composed flow keeps its phases in the ledger and a catalog lookup finds nothing for it.
+# One resolver, so a gate cannot disagree with the run it is gating.
+cmd_target() {
+    local file; file="$(ledger_path)"
+    local flow phase
+    flow="$(jq -r .flow "$file")"; phase="${1:-$(jq -r .current "$file")}"
+    [ -n "$phase" ] && [ "$phase" != "null" ] || return 0
+    phase_field "$flow" "$phase" run
+}
+
 cmd_clear() {
     local slug; slug="$(open_slug)"
     [ -n "$slug" ] || die "no run is open"
+    local file="${RUNS}/${slug}/state.json"
+    # A composed shape that keeps coming back is a catalog row waiting to be written. Count the
+    # shapes rather than the runs, and only ever suggest: a row is a human's edit.
+    if [ -f "$file" ] && jq -e '.flow=="composed"' "$file" >/dev/null 2>&1; then
+        local sig; sig="$(jq -r '[.phases[] | "\(.name):\(.run)"] | join(",")' "$file")"
+        printf '%s\n' "$sig" >> "${RUNS}/.composed-log"
+        local n; n="$(grep -cxF "$sig" "${RUNS}/.composed-log" 2>/dev/null || echo 0)"
+        [ "$n" -ge 3 ] && echo "this shape has run ${n} times; consider adding it to rules/flows.json: ${sig}" >&2
+    fi
     rm -rf "${RUNS:?}/${slug}" "$OPEN"
     echo "$slug"
 }
@@ -140,11 +192,12 @@ cmd_assert() {
 
 sub="${1:-}"; shift || true
 case "$sub" in
-    seed)    [ $# -eq 2 ] || die "usage: seed <flow> <slug>"; cmd_seed "$@" ;;
+    seed)    [ $# -eq 2 ] || die "usage: seed <flow>|--composed <slug>"; cmd_seed "$@" ;;
     get)     cmd_get ;;
+    target)  cmd_target "${1:-}" ;;
     clear)   cmd_clear ;;
     record)  [ $# -ge 1 ] || die "usage: record <phase> [artifact] [evidence]"; cmd_record "$@" ;;
     approve) [ $# -eq 1 ] || die "usage: approve <phase>"; cmd_approve "$@" ;;
     assert)  [ $# -eq 1 ] || die "usage: assert <phase>"; cmd_assert "$@" ;;
-    *)       die "usage: run-state.sh seed|get|record|approve|assert|clear" ;;
+    *)       die "usage: run-state.sh seed|get|target|record|approve|assert|clear" ;;
 esac

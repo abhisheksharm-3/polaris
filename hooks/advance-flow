@@ -42,7 +42,7 @@ phase="$(printf '%s' "$state" | jq -r .current)"
 # nothing to drive. Saying so every turn from here on would be noise.
 [ -n "$phase" ] && [ "$phase" != "null" ] || exit 0
 
-target="$(jq -r --arg f "$flow" --arg p "$phase" '.[$f].phases[] | select(.name==$p) | .run // ""' "${ROOT}/rules/flows.json" 2>/dev/null)"
+target="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" target 2>/dev/null || true)"
 status="$(printf '%s' "$state" | jq -r --arg p "$phase" '.record[$p].status // ""')"
 
 if [ "$status" = "done" ]; then
