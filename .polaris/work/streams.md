@@ -7,27 +7,35 @@
 
 - domain: feature
 - status: active
-- state: Tasks 1 through 5 are built and committed. `rules/flows.json` holds the flow catalog with
-  `scripts/check-flows.sh` asserting every phase target resolves. `scripts/run-state.sh` is the run
-  ledger, one open run per project, a phase done only with its artifact on disk and its hash
-  matching. `scripts/route-prompt.sh` classifies a prompt against the `routing` array in
-  `rules/patterns.json`, with `tests/fixtures/routing-cases.txt` as the fixture set.
-  `hooks/enhance-prompt` reads the prompt, routes it, and seeds the run. `hooks/guard-phase` refuses
-  an out-of-phase `Task` dispatch and `hooks/advance-flow` drives the flow at `Stop`, both
-  registered in `hooks/hooks.json`. `commands/pause.md` clears an open run. The preflight and the
-  first cache sync emptying the install are recorded in `.polaris/runs/`.
-- next: finish Task 6, live verification of the bug flow. Steps 2, 4, and 5 are confirmed from a
-  live session: a described bug announced the `bug` flow and opened the ledger at `reproduce`,
-  `advance-flow` blocked once at `Stop` naming the phase, and `/polaris:pause` cleared the run.
-  Step 3 is unproven, no out-of-phase dispatch was attempted, so `guard-phase` has only its suite
-  coverage. Steps 1, 6, and 7 remain. Then Task 7, the flow composer.
-- files: rules/flows.json, rules/patterns.json, scripts/check-flows.sh, scripts/route-prompt.sh,
-  scripts/run-state.sh, hooks/enhance-prompt, hooks/guard-phase, hooks/advance-flow,
-  hooks/hooks.json, commands/pause.md, tests/fixtures/routing-cases.txt, tests/run-tests.sh,
-  templates/config.default.json, docs/specs/2026-08-01-flow-enforcement.md,
-  docs/plans/2026-08-01-flow-enforcement.md,
+- state: All eleven tasks are built and committed, version 1.10.0 in both manifests, suite at 185
+  assertions. `rules/flows.json` holds eighteen flows, each an ordered phase list, with
+  `scripts/check-flows.sh` asserting every target resolves. `scripts/run-state.sh` is the ledger: a
+  phase is done only with its artifact on disk and its hash matching, one open run per project.
+  `hooks/enhance-prompt` classifies every prompt against the `routing` array in
+  `rules/patterns.json` and opens the run; `/polaris:compose` builds a flow from
+  `scripts/inventory.sh` when no row fits, validated and gated like a catalog row. Four gates read
+  the ledger: `guard-phase` refuses an out-of-phase dispatch and one below the floor in
+  `rules/model-floor.json`, `guard-command` refuses a phase command whose predecessor is unearned,
+  `advance-flow` drives the run at `Stop`, and the small-model veto refuses an unactionable prompt.
+  Three workflows under `workflows/` hold the fan-out. `/polaris:pause` clears a run and
+  `scripts/statusline.sh` shows it.
+- next: two gaps, both needing a live session rather than the suite. An observed deny: every
+  `guard-phase` and `guard-command` assertion is a hand-built payload, and the `Task` versus `Agent`
+  matcher bug is exactly what that gap produces. And whether `SubagentStart` fires for
+  workflow-spawned agents, which decides whether `inject-standard` reaches them; answering it means
+  running `/polaris:verify` once. Nothing is pushed, and the installed plugin holds the working tree
+  under `polaris/1.8.0/`.
+- files: rules/flows.json, rules/model-floor.json, rules/patterns.json, rules/routing.md,
+  scripts/check-flows.sh, scripts/route-prompt.sh, scripts/run-state.sh, scripts/inventory.sh,
+  scripts/statusline.sh, hooks/enhance-prompt, hooks/guard-phase, hooks/guard-command,
+  hooks/advance-flow, hooks/hooks.json, commands/pause.md, commands/compose.md,
+  workflows/verify.js, workflows/review.js, workflows/build.js,
+  tests/fixtures/routing-cases.txt, tests/run-tests.sh, templates/config.default.json,
+  README.md, CHANGELOG.md, .claude-plugin/plugin.json, .claude-plugin/marketplace.json,
+  docs/specs/2026-08-01-flow-enforcement.md, docs/plans/2026-08-01-flow-enforcement.md,
   .polaris/runs/2026-08-01-flow-enforcement-preflight.md
-- touched: 2026-08-01 (routing, run ledger, phase guard, Stop driver, and a live bug-flow probe)
+- touched: 2026-08-01 (the composer, the clarity veto, three workflows, the command gate, the model
+  floor, and the 1.10.0 changelog)
 
 ## Done
 
