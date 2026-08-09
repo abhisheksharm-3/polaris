@@ -2,6 +2,57 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.13.0 — 2026-08-09
+
+A session you can afford to keep open. Seven days of measurement put 67% of requests over 150k
+context, which is what a four-phase flow run as one conversation produces: every turn pays for the
+whole history. The review fan-out, fixed in 1.11.0, was 6% of the same week.
+
+New:
+
+- `hooks/advance-flow` recommends a `/clear` once a phase is recorded and `run-state.sh assert`
+  agrees the ledger can replace the conversation. It stays quiet where a clear would cost work: a
+  phase awaiting approval, an artifact missing from disk, a run with nothing recorded yet.
+- `hooks/enhance-prompt` names the last recorded artifact on the first prompt after a clear, so the
+  next phase reads the file the ledger hash-locked instead of reconstructing it. That line is what
+  makes the recommendation above safe to follow.
+- `scripts/run-state.sh amend <phase> <evidence>` re-hashes an artifact a later phase deliberately
+  changed. It keeps the approval, appends the prior hash and the reason to an `amendments` list, and
+  refuses a phase never recorded, an artifact gone or unchanged, and empty evidence.
+- `scripts/tracker-slice.sh` caps the injected slice of `.polaris/work/streams.md` at 10240 bytes,
+  newest stream first, naming how many it dropped. That file grew 849 to 12553 bytes over six
+  commits and was the one injected term nothing bounded.
+- `scripts/review-level.sh` rates a changeset `low`, `mid`, or `high` from `git diff --numstat`, and
+  holds those thresholds as the only copy in the repo. A risk path outranks size; a test-only diff
+  drops whatever its size.
+- `rules/effort-floor.json` records a minimum reasoning effort per agent over the same agent set as
+  `rules/model-floor.json`, and every dispatch in all three workflows now names an effort drawn from
+  its level table. Thinking tokens bill as output, and effort was governed almost nowhere.
+
+Changed:
+
+- The session payload dropped from 59358 to 46380 bytes. Three rules that matter only under a
+  condition are injected as a path and read when the condition holds.
+- `workflows/review.js` builds the diff once and interpolates it into every reviewer prompt, capped
+  at 1500 lines with the drop count stated. At `high`, a `medium` finding whose fix is 80 characters
+  or less returns unconfirmed naming its fix size, because a verdict there changes no action. High
+  severity is never narrowed. A level of `''`, which the script prints for a changeset with no
+  changed files, dispatches nobody.
+- `workflows/verify.js` binds its round ceiling and its effort to one level, because rounds multiply
+  the fan-out.
+
+Removed:
+
+- The `type: "prompt"` clarity veto on `UserPromptSubmit`. It spent a model call on every prompt,
+  could not read `.polaris/config.json` to be switched off, and each false stop cost a real turn. An
+  unclear prompt is now answered with a question, in the turn.
+
+Known limit:
+
+- The effort floor in `hooks/guard-phase` enforces nothing yet. Measured on 2026-08-09: a workflow
+  `agent()` dispatch fires no `PreToolUse` hook, and a main-loop `Agent` dispatch carries no effort
+  field to read. The per-level effort each workflow sets at the dispatch is what governs today.
+
 ## 1.12.0 — 2026-08-09
 
 Prepare the 1:1 with your manager from state Polaris already holds.
