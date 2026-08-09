@@ -3,12 +3,13 @@
 # (core-standard Rule 5). Times are UTC (ISO-8601 Z). Emits one JSON object on stdout.
 set -euo pipefail
 
-now=""; state=""; max=168
+now=""; state=""; max=168; first=24
 while [ $# -gt 0 ]; do
   case "$1" in
     --now) now="${2:-}"; shift 2 ;;
     --state) state="${2:-}"; shift 2 ;;
     --max-lookback-hours) max="${2:-}"; shift 2 ;;
+    --first-run-hours) first="${2:-}"; shift 2 ;;
     *) echo "sweep-window: unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -19,10 +20,11 @@ if [ -n "$state" ] && [ -f "$state" ]; then
   last="$(jq -r '.lastRunAt // empty' "$state" 2>/dev/null || true)"
 fi
 
-jq -cn --arg now "$now" --arg last "$last" --argjson max "$max" '
-  def firstrun($n): { start: (($n - 86400) | todateiso8601), firstRun: true, capped: false, trueGapHours: 24 };
+jq -cn --arg now "$now" --arg last "$last" --argjson max "$max" --argjson first "$first" '
+  ($max * 3600) as $cap
+  | (if ($first * 3600) > $cap then $cap else ($first * 3600) end) as $fw
+  | def firstrun($n): { start: (($n - $fw) | todateiso8601), firstRun: true, capped: false, trueGapHours: (($fw / 3600) | floor) };
   ($now | fromdateiso8601) as $n
-  | ($max * 3600) as $cap
   | ($last | try fromdateiso8601 catch null) as $l
   # No cursor, an unparseable cursor, or a cursor at/after now (clock skew, corrupt state):
   # fall back to a first run rather than crashing or pulling a backwards window.

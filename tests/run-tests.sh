@@ -247,7 +247,118 @@ echo '{"lastRunAt":"not-a-date"}' > "$sw_state"
 sw5="$(bash "$SW" --now 2026-07-20T00:00:00Z --state "$sw_state" --max-lookback-hours 168)"
 echo "$sw5" | jq -e '.firstRun==true' >/dev/null \
   && echo "ok: sweep-window malformed lastRunAt falls back to first-run" || { echo "FAIL: sweep-window malformed lastRunAt ($sw5)"; fail=1; }
+sw6="$(bash "$SW" --now 2026-08-03T00:00:00Z --state /nonexistent-state --first-run-hours 336 --max-lookback-hours 504)"
+echo "$sw6" | jq -e '.firstRun==true and .start=="2026-07-20T00:00:00Z" and .trueGapHours==336' >/dev/null \
+  && echo "ok: sweep-window first-run-hours widens the first window" || { echo "FAIL: sweep-window first-run-hours ($sw6)"; fail=1; }
+sw7="$(bash "$SW" --now 2026-08-03T00:00:00Z --state /nonexistent-state --max-lookback-hours 504)"
+echo "$sw7" | jq -e '.start=="2026-08-02T00:00:00Z" and .trueGapHours==24' >/dev/null \
+  && echo "ok: sweep-window first run stays 24h without the flag" || { echo "FAIL: sweep-window default first run moved ($sw7)"; fail=1; }
+sw8="$(bash "$SW" --now 2026-08-03T00:00:00Z --state /nonexistent-state --first-run-hours 1000 --max-lookback-hours 168)"
+echo "$sw8" | jq -e '.start=="2026-07-27T00:00:00Z" and .trueGapHours==168' >/dev/null \
+  && echo "ok: sweep-window clamps first-run-hours to the cap" || { echo "FAIL: sweep-window first-run clamp ($sw8)"; fail=1; }
 rm -f "$sw_state"
+
+# oneonone-join: the structural 1:1 test, the forward bracket, and the claiming pass
+OJ="${DIR}/../scripts/oneonone-join.sh"
+oj_ev="${DIR}/fixtures/oneonone-events.json"
+oj_mt="${DIR}/fixtures/oneonone-meetings.json"
+oj_pair='[.[] | select(.recording_id==166154353 or .recording_id==166058462)]'
+oj1="$(bash "$OJ" series --self self@example.com < "$oj_ev")"
+echo "$oj1" | jq -e '.status=="ok" and .manager.email=="manager@example.com"' >/dev/null \
+  && echo "ok: oneonone-join derives the manager from the two-attendee series" || { echo "FAIL: oneonone-join series ($oj1)"; fail=1; }
+echo "$oj1" | jq -e '.instances[0].createdAfter==.instances[0].start' >/dev/null \
+  && echo "ok: oneonone-join brackets forward from the event start" || { echo "FAIL: oneonone-join bracket start"; fail=1; }
+echo "$oj1" | jq -e '(.instances[0].createdBefore|fromdateiso8601) - (.instances[0].end|fromdateiso8601) == 10800' >/dev/null \
+  && echo "ok: oneonone-join applies L as three hours by default" || { echo "FAIL: oneonone-join default L"; fail=1; }
+oj2="$(bash "$OJ" series --self self@example.com --lag-hours 12 < "$oj_ev")"
+echo "$oj2" | jq -e '(.instances[0].createdBefore|fromdateiso8601) - (.instances[0].end|fromdateiso8601) == 43200 and .instances[0].createdAfter==.instances[0].start' >/dev/null \
+  && echo "ok: oneonone-join lag-hours moves only the far edge" || { echo "FAIL: oneonone-join lag-hours"; fail=1; }
+echo "$oj1" | jq -e '[.otherTitles[] | select(test("1:1"))] | length == 0' >/dev/null \
+  && echo "ok: oneonone-join keeps the series title out of otherTitles" || { echo "FAIL: oneonone-join otherTitles"; fail=1; }
+echo "$oj1" | jq -e '.instances[0].start | test("Z$")' >/dev/null \
+  && echo "ok: oneonone-join emits UTC despite a +05:30 calendar offset" || { echo "FAIL: oneonone-join offset normalisation"; fail=1; }
+[ "$(bash "$OJ" widen --lag-hours 3)" = 12 ] && [ "$(bash "$OJ" widen --lag-hours 5)" = 20 ] \
+  && echo "ok: oneonone-join derives the widening probe from L" || { echo "FAIL: oneonone-join widen"; fail=1; }
+oj3="$(jq -c "$oj_pair" "$oj_mt" | bash "$OJ" claim --attendees manager@example.com,self@example.com)"
+echo "$oj3" | jq -e '.status=="resolved" and .recordingId==166058462 and .labeled==false and .tier=="B"' >/dev/null \
+  && echo "ok: oneonone-join resolves the unlabeled in-person recording" || { echo "FAIL: oneonone-join claim ($oj3)"; fail=1; }
+oj4="$(jq -c "$oj_pair"' | [.[] | if .recording_id==166058462 then .calendar_invitees=[{email:"manager@example.com"},{email:"self@example.com"}] else . end]' "$oj_mt" \
+  | bash "$OJ" claim --attendees manager@example.com,self@example.com)"
+echo "$oj4" | jq -e '.status=="resolved" and .recordingId==166058462 and .labeled==true and .tier=="A"' >/dev/null \
+  && echo "ok: oneonone-join claims a remote 1:1 by exact invitee match" || { echo "FAIL: oneonone-join tier A ($oj4)"; fail=1; }
+printf 'Client Sync\nTeam Stand Up\n' > "${DIR}/oj-titles.tmp"
+oj5="$(jq -c "$oj_pair"' | [.[] | if .recording_id==166058462 then .title="Client Sync" else . end]' "$oj_mt" \
+  | bash "$OJ" claim --attendees manager@example.com,self@example.com --titles "${DIR}/oj-titles.tmp")"
+echo "$oj5" | jq -e '.status=="none"' >/dev/null \
+  && echo "ok: oneonone-join drops a candidate another event explains" || { echo "FAIL: oneonone-join title claim ($oj5)"; fail=1; }
+rm -f "${DIR}/oj-titles.tmp"
+oj6="$(jq -c '[.[] | select((.calendar_invitees // []) | length == 0)]' "$oj_mt" \
+  | bash "$OJ" claim --attendees manager@example.com,self@example.com)"
+echo "$oj6" | jq -e '.status=="ambiguous" and .default==(.candidates[0].recordingId) and (.candidates | length) > 1' >/dev/null \
+  && echo "ok: oneonone-join refuses to pick among unclaimed candidates" || { echo "FAIL: oneonone-join ambiguous ($oj6)"; fail=1; }
+oj7="$(echo '[]' | bash "$OJ" claim --attendees a@b.c,d@e.f --created-after 2026-07-22T10:30:00Z --created-before 2026-07-22T14:00:00Z)"
+echo "$oj7" | jq -e '.status=="none" and .bracket.createdBefore=="2026-07-22T14:00:00Z"' >/dev/null \
+  && echo "ok: oneonone-join names the bracket it searched" || { echo "FAIL: oneonone-join empty bracket ($oj7)"; fail=1; }
+oj8="$(jq -c "$oj_pair" "$oj_mt" | bash "$OJ" claim --attendees manager@example.com,self@example.com --created-after 2026-07-22T10:30:00Z)"
+echo "$oj8" | jq -e 'has("lagMinutes") and .lagMinutes==null' >/dev/null \
+  && echo "ok: oneonone-join reports a null lag because list_meetings omits created" || { echo "FAIL: oneonone-join lagMinutes ($oj8)"; fail=1; }
+oj9="$(jq -c "$oj_pair"' | [.[] | if .recording_id==166058462 then .created="2026-07-22T11:17:00Z" else . end]' "$oj_mt" \
+  | bash "$OJ" claim --attendees manager@example.com,self@example.com --created-after 2026-07-22T10:30:00Z)"
+echo "$oj9" | jq -e '.lagMinutes==47' >/dev/null \
+  && echo "ok: oneonone-join measures the ingest lag when created is present" || { echo "FAIL: oneonone-join lag arithmetic ($oj9)"; fail=1; }
+
+# oneonone-inbox: capture, read, and consume, against an isolated HOME
+OI="${DIR}/../scripts/oneonone-inbox.sh"
+oi_home="$(mktemp -d)"
+oi() { HOME="$oi_home" bash "$OI" "$@"; }
+oi_file="$oi_home/.claude/polaris-memory/oneonone/inbox.md"
+oi_out="$(oi add --date 2026-08-03 ask about the promotion rubric)"
+[ -f "$oi_file" ] && grep -qxF -- '- [ ] 2026-08-03 · ask about the promotion rubric' "$oi_file" \
+  && echo "ok: oneonone-inbox add creates the file and the item" || { echo "FAIL: oneonone-inbox add"; fail=1; }
+grep -q 'inbox.md' <<<"$oi_out" && grep -q '1' <<<"$oi_out" \
+  && echo "ok: oneonone-inbox add names the file and the count" || { echo "FAIL: oneonone-inbox add report ($oi_out)"; fail=1; }
+oi_first="$(head -1 "$oi_file")"
+oi add --date 2026-08-04 second thing >/dev/null
+[ "$(head -1 "$oi_file")" = "$oi_first" ] && [ "$(grep -c '^- \[ \]' "$oi_file")" = 2 ] \
+  && echo "ok: oneonone-inbox appends without rewriting" || { echo "FAIL: oneonone-inbox append"; fail=1; }
+oi_before="$(cat "$oi_file")"
+oi add >/dev/null 2>&1; oi_rc=$?
+[ "$oi_rc" != 0 ] && [ "$(cat "$oi_file")" = "$oi_before" ] \
+  && echo "ok: oneonone-inbox refuses an empty add" || { echo "FAIL: oneonone-inbox empty add (rc=$oi_rc)"; fail=1; }
+oi add --date 2026-08-04 "$(printf 'multi\nline thought')" >/dev/null
+[ "$(grep -c '^- \[ \]' "$oi_file")" = 3 ] && [ "$(wc -l < "$oi_file" | tr -d ' ')" = 3 ] \
+  && echo "ok: oneonone-inbox collapses a newline into one line" || { echo "FAIL: oneonone-inbox newline"; fail=1; }
+printf -- '- [x] 2026-07-01 · old thing · raised 2026-07-15\n' >> "$oi_file"
+[ "$(oi list | wc -l | tr -d ' ')" = 3 ] \
+  && echo "ok: oneonone-inbox list skips consumed items" || { echo "FAIL: oneonone-inbox list"; fail=1; }
+oi list | head -1 | grep -q "^1	2026-08-03	ask about the promotion rubric$" \
+  && echo "ok: oneonone-inbox list numbers open items as tsv" || { echo "FAIL: oneonone-inbox list shape"; fail=1; }
+printf 'not an item at all\n' >> "$oi_file"
+oi_err="$(oi list 2>&1 >/dev/null)"; oi_rc=$?
+[ "$oi_rc" = 0 ] && grep -q 'does not parse' <<<"$oi_err" \
+  && echo "ok: oneonone-inbox names an unparsable line and keeps going" || { echo "FAIL: oneonone-inbox unparsable ($oi_err)"; fail=1; }
+oi consume --date 2026-08-05 1 3 >/dev/null
+[ "$(grep -c '^- \[x\].*raised 2026-08-05' "$oi_file")" = 2 ] && [ "$(grep -c '^- \[ \]' "$oi_file")" = 1 ] \
+  && echo "ok: oneonone-inbox consumes exactly the named items" || { echo "FAIL: oneonone-inbox consume"; fail=1; }
+oi_before="$(cat "$oi_file")"
+oi consume --date 2026-08-05 1 2 3 4 5 6 >/dev/null 2>&1; oi_rc=$?
+[ "$oi_rc" != 0 ] && [ "$(cat "$oi_file")" = "$oi_before" ] \
+  && echo "ok: oneonone-inbox refuses more than five per agenda" || { echo "FAIL: oneonone-inbox cap (rc=$oi_rc)"; fail=1; }
+oi consume --date 2026-08-05 99 >/dev/null 2>&1; oi_rc=$?
+[ "$oi_rc" != 0 ] && [ "$(cat "$oi_file")" = "$oi_before" ] \
+  && echo "ok: oneonone-inbox refuses an out-of-range item" || { echo "FAIL: oneonone-inbox range (rc=$oi_rc)"; fail=1; }
+oi_out="$(HOME=/nonexistent-home bash "$OI" list 2>&1)"; oi_rc=$?
+[ "$oi_rc" = 0 ] && [ -z "$(HOME=/nonexistent-home bash "$OI" list 2>/dev/null)" ] \
+  && echo "ok: oneonone-inbox list on a missing inbox is empty, not an error" || { echo "FAIL: oneonone-inbox missing ($oi_out)"; fail=1; }
+oi consume --date 2026-08-05 1 >/dev/null
+oi restore --date 2026-08-05 >/dev/null
+[ "$(grep -c '^- \[x\]' "$oi_file")" = 1 ] && [ "$(grep -c 'raised 2026-08-05' "$oi_file")" = 0 ] \
+  && echo "ok: oneonone-inbox restore reopens that date's items only" || { echo "FAIL: oneonone-inbox restore"; fail=1; }
+oi_before="$(cat "$oi_file")"
+oi restore --date 2026-01-01 >/dev/null 2>&1; oi_rc=$?
+[ "$oi_rc" != 0 ] && [ "$(cat "$oi_file")" = "$oi_before" ] \
+  && echo "ok: oneonone-inbox restore refuses a date it never consumed" || { echo "FAIL: oneonone-inbox restore date (rc=$oi_rc)"; fail=1; }
+rm -rf "$oi_home"
 
 # okr-pace: behind, ahead, on-track, flag, and near-zero-elapsed
 OP="${DIR}/../scripts/okr-pace.sh"
