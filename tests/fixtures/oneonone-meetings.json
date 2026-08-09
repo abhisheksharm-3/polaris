@@ -1,0 +1,36 @@
+[
+  {
+    "recording_id": 166154353,
+    "title": "Client Sync",
+    "url": "https://fathom.video/calls/100000001",
+    "calendar_invitees": [
+      { "email": "self@example.com" },
+      { "email": "manager@example.com" },
+      { "email": "peer1@example.com" },
+      { "email": "peer2@example.com" },
+      { "email": "peer3@example.com" },
+      { "email": "peer4@example.com" },
+      { "email": "peer5@example.com" },
+      { "email": "client1@example.net" },
+      { "email": "client2@example.net" }
+    ]
+  },
+  {
+    "recording_id": 166058462,
+    "title": "Impromptu Call",
+    "url": "https://fathom.video/calls/100000002",
+    "calendar_invitees": []
+  },
+  {
+    "recording_id": 169067879,
+    "title": "Impromptu Call",
+    "url": "https://fathom.video/calls/100000003",
+    "calendar_invitees": []
+  },
+  {
+    "recording_id": 169014920,
+    "title": "Impromptu Call",
+    "url": "https://fathom.video/calls/100000004",
+    "calendar_invitees": []
+  }
+]

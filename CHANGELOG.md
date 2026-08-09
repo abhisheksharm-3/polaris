@@ -2,6 +2,30 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.12.0 — 2026-08-09
+
+Prepare the 1:1 with your manager from state Polaris already holds.
+
+Added:
+
+- `/oneonone` builds the agenda for the next manager 1:1 over a 14-day window, from journals, work
+  streams, git, Jira, the calendar, and Fathom. `add` captures an item any time; `recap` writes what
+  the meeting agreed back into the same file and the same page.
+- `scripts/oneonone-join.sh` resolves the manager from calendar structure — the recurring
+  two-attendee series — with no configuration, then joins that meeting to its recording. The bracket
+  runs forward from the meeting, because Fathom's `created` is ingest time; bracketing the meeting's
+  own interval matches nothing.
+- `scripts/oneonone-inbox.sh` holds what you want to raise between meetings, enforces five items per
+  agenda, and restores the ones a meeting never reached.
+- `scripts/sweep-window.sh` takes `--first-run-hours`, clamped to the lookback cap. `/sweep` passes
+  none and keeps its 24-hour first run.
+
+Fathom does no speaker separation on an in-person or impromptu recording, so a 1:1 held in a room
+comes back attributed entirely to whoever recorded it. `/oneonone` detects that from the calendar
+invitee set, then takes content from the recording and never a speaker: feedback from an unlabeled
+recording lands under `To confirm`, and no direction is guessed. The failure this exists to prevent
+is your own words returning as your manager's feedback, in a document you send to that manager.
+
 ## 1.11.0 — 2026-08-03
 
 A review that no longer runs unbounded.

@@ -88,6 +88,50 @@
   editing the checkboxes. Decide whether the plan template should stop carrying checkboxes once a
   plan is hash-locked, or whether the ledger should hash phases instead of whole files.
 
+## oneonone-prep — prepare the user for a manager 1:1 from state Polaris already holds
+
+- domain: feature
+- status: active, on the ship phase, blocked on a human
+- state: The `feature` run under `.polaris/runs/oneonone-prep/` has spec recorded and approved at
+  2026-08-04T14:54:39Z: `.polaris/specs/oneonone-prep.md`, 87 acceptance criteria across 13
+  requirement groups, sha `9188465e00fa`, `check-patterns.sh prose` exit 0. It picks a new
+  `/oneonone` command with verbs `add`, bare, and `recap` over a `/sweep` lens. Design is in flight;
+  `.polaris/plans/oneonone-prep.md` does not exist yet. The feature has a hand-built precedent that
+  landed while the spec was being written: two sessions in the Sage project produced
+  `~/.claude/polaris-memory/oneonone/agendas/2026-08-05-oneonone.md` (14.7 KB, frontmatter carrying
+  variant, window, six sources and the Notion URL) and published it to Notion under Work OS → 1:1 →
+  "1:1 — 2026-08-05". That is the format reference and the architect has read it.
+- built, 2026-08-09: design approved and recorded, then tasks 1 to 8 of 9 built and green.
+  `scripts/sweep-window.sh` gained `--first-run-hours` clamped to the cap; `scripts/oneonone-join.sh`
+  and `scripts/oneonone-inbox.sh` are new with two fixtures cut from a live calendar pull;
+  `commands/oneonone.md` carries `add`, assemble and `recap`. The suite went 185 to 217 assertions,
+  `check-commands.sh` and the prose check both exit 0. Four defects in the plan surfaced only against
+  real data: jq's `fromdateiso8601` cannot parse the `+05:30` the calendar returns, `list_meetings`
+  carries neither `created` nor `duration_minutes` so the self-instrumenting lag never accumulates,
+  `cwd` is per tool call so project discovery had to collapse 73 directories to 7 repository roots,
+  and two assertions were wrong (a four-recording fixture claimed against a single-resolution
+  expectation, and `wc -l` padding on macOS).
+- next: task 9 is the live run and is the only work left. It creates a Notion subpage, so it waits on
+  the user. Nothing is committed and nothing is pushed; the ship phase waits on the same word. Four
+  findings from the
+  real artifact are with the architect and the plan has to answer them: the meeting slipped to
+  2026-08-07 and ran as an untitled impromptu call, then the user wrote an `## Outcomes` section
+  back into the same Notion page, so the loop is prepare → meet → recap rather than prepare → meet;
+  the recap's `Not raised` list carries seven unreached items into the next meeting and no
+  acceptance criterion covers carry-forward; AC 34's "the second run rewrites that one file"
+  contradicts the user's instruction that removed content stay removed; and the generated draft
+  credited the user with work they did not build. One cleanup is still owed: the orphan run ledger
+  at `.polaris/runs/oneonone-prep/` inside the worktree.
+- files: .polaris/specs/oneonone-prep.md, .polaris/plans/oneonone-prep.md (not yet written)
+- touched: 2026-08-09 (the hand-built precedent found and sent to the architect; `routing` reverted
+  in the main checkout's `.polaris/config.json`, which now matches HEAD)
+- decided, do not reopen: the work happens in the git worktree `.claude/worktrees/oneonone-prep` on
+  branch `worktree-oneonone-prep`, at the user's request.
+- found this session, worth a fix of its own: a worktree does not isolate a Polaris run. All four
+  flow gates and `scripts/run-state.sh` resolve their paths from `CLAUDE_PROJECT_DIR`, and which
+  checkout that names moved mid-session — a `"routing": false` written into the main checkout's
+  config never took effect here, because the gates were reading the worktree copy.
+
 ## Done
 
 - gaps — closed the top three plan-vs-code gaps from the 2026-07-15 research report, and the three

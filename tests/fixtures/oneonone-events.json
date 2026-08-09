@@ -1,0 +1,78 @@
+[
+  {
+    "summary": "Forward deployment · O1",
+    "start": { "dateTime": "2026-07-20T16:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-20T17:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": "525sst2fi6k7b5bc81sqc6cld4",
+    "attendees": []
+  },
+  {
+    "summary": "Team Stand Up",
+    "start": { "dateTime": "2026-07-22T10:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-22T10:45:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": "5ij9os08euv8d33afqkf7eebvf",
+    "attendees": [
+      { "email": "self@example.com", "self": true },
+      { "email": "manager@example.com", "displayName": "Manager Example" },
+      { "email": "peer1@example.com" },
+      { "email": "peer2@example.com" },
+      { "email": "peer3@example.com" },
+      { "email": "peer4@example.com" },
+      { "email": "peer5@example.com" }
+    ]
+  },
+  {
+    "summary": "1:1 Manager / Self",
+    "start": { "dateTime": "2026-07-22T16:00:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-22T16:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": "da2d2380871a4f3da1c1f23f3e1ce03b",
+    "attendees": [
+      { "email": "manager@example.com", "displayName": "Manager Example" },
+      { "email": "self@example.com", "organizer": true, "self": true }
+    ]
+  },
+  {
+    "summary": "Client Sync",
+    "start": { "dateTime": "2026-07-22T20:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-22T21:00:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": "1qsiamtsrfp87eavc8ldlejh5i",
+    "attendees": [
+      { "email": "self@example.com", "self": true },
+      { "email": "manager@example.com", "displayName": "Manager Example" },
+      { "email": "peer1@example.com" },
+      { "email": "peer2@example.com" },
+      { "email": "peer3@example.com" },
+      { "email": "peer4@example.com" },
+      { "email": "peer5@example.com" },
+      { "email": "client1@example.net" },
+      { "email": "client2@example.net" }
+    ]
+  },
+  {
+    "summary": "Peer / Self",
+    "start": { "dateTime": "2026-07-23T12:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-23T13:00:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": null,
+    "attendees": [
+      { "email": "self@example.com", "self": true },
+      { "email": "peer1@example.com" }
+    ]
+  },
+  {
+    "summary": "Client Sync",
+    "start": { "dateTime": "2026-07-24T20:30:00+05:30", "timeZone": "Asia/Kolkata" },
+    "end": { "dateTime": "2026-07-24T21:00:00+05:30", "timeZone": "Asia/Kolkata" },
+    "recurringEventId": "1qsiamtsrfp87eavc8ldlejh5i",
+    "attendees": [
+      { "email": "self@example.com", "self": true },
+      { "email": "manager@example.com", "displayName": "Manager Example" },
+      { "email": "peer1@example.com" },
+      { "email": "peer2@example.com" },
+      { "email": "peer3@example.com" },
+      { "email": "peer4@example.com" },
+      { "email": "peer5@example.com" },
+      { "email": "client1@example.net" },
+      { "email": "client2@example.net" }
+    ]
+  }
+]
