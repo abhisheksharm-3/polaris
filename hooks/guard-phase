@@ -47,6 +47,26 @@ if [ -n "$asked" ] && [ -f "${ROOT}/rules/model-floor.json" ]; then
     fi
 fi
 
+# The effort floor, the companion to the model floor above and checked the same way. Thinking
+# tokens bill as output, so effort moves the output side of a dispatch the way the tier moves its
+# per-token price, and a fan-out that governs one and not the other governs half its cost. A
+# dispatch with no explicit effort is left alone, for the same reason the model check leaves one
+# alone: the session's setting is the policy there.
+effort="$(printf '%s' "$payload" | jq -r '.tool_input.effort // ""' 2>/dev/null)"
+if [ -n "$effort" ] && [ -f "${ROOT}/rules/effort-floor.json" ]; then
+    bare="${requested##*:}"
+    efloor="$(jq -r --arg a "$bare" '.floor[$a] // ""' "${ROOT}/rules/effort-floor.json")"
+    if [ -n "$efloor" ]; then
+        erank() { jq -r --arg m "$1" '.levels | index($m) // -1' "${ROOT}/rules/effort-floor.json"; }
+        ewant="$(erank "$effort")"; eneed="$(erank "$efloor")"
+        if [ "$ewant" -ge 0 ] && [ "$ewant" -lt "$eneed" ]; then
+            reason="Polaris: ${bare} thinks at ${efloor} effort or better, and this dispatch asked for ${effort}. Drop the effort argument to take the session's, or name ${efloor} or above."
+            jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+            exit 0
+        fi
+    fi
+fi
+
 state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
 [ -n "$state" ] || exit 0
 

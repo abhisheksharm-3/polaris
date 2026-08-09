@@ -41,6 +41,19 @@ const VERDICT = {
 const target = (args && args.target) || 'the current changeset'
 const extra = (args && args.context) || ''
 
+// Effort and the round ceiling are one dial, because rounds multiply the fan-out: every round is
+// one agent per angle, and thinking tokens bill as output. A level names both rather than leaving
+// effort to the session, which is how this workflow came to run every agent of every round at high.
+const LEVELS = {
+  low: { effort: 'low', maxRounds: 1, dry: 1, judge: 'low' },
+  mid: { effort: 'medium', maxRounds: 2, dry: 2, judge: 'medium' },
+  high: { effort: 'high', maxRounds: 4, dry: 2, judge: 'high' },
+}
+const askedLevel = args ? args.level : undefined
+const level = typeof askedLevel === 'string' && Object.hasOwn(LEVELS, askedLevel) ? askedLevel : 'high'
+const rules = LEVELS[level]
+if (askedLevel !== undefined && level !== askedLevel) log(`verify level ${JSON.stringify(askedLevel)} not recognized; running high`)
+
 const ANGLES = [
   { key: 'correctness', agent: 'polaris:reviewer', ask: 'wrong results, unhandled states, broken invariants' },
   { key: 'security', agent: 'polaris:security-architect', ask: 'injection, broken authorization, secret exposure, unsafe input' },
@@ -61,7 +74,7 @@ let round = 0
 // last round is where the findings the first round's noise hid finally surface. Dedup against
 // everything seen rather than against what was confirmed, or a finding the judges rejected comes
 // back every round and the loop never ends.
-while (dryRounds < 2 && round < 4) {
+while (dryRounds < rules.dry && round < rules.maxRounds) {
   round += 1
   phase('Find')
   const rounds = await parallel(
@@ -70,7 +83,7 @@ while (dryRounds < 2 && round < 4) {
         `Sweep ${target} for ${a.ask}. Round ${round}.\n${extra}\n` +
           `Report only what you can point at with a file and a line. Do not repeat these, already found:\n` +
           [...seen].join('\n'),
-        { label: `find:${a.key}:r${round}`, phase: 'Find', agentType: a.agent, schema: FINDINGS, effort: 'high' },
+        { label: `find:${a.key}:r${round}`, phase: 'Find', agentType: a.agent, schema: FINDINGS, effort: rules.effort },
       ),
     ),
   )
@@ -82,7 +95,7 @@ while (dryRounds < 2 && round < 4) {
 
   if (fresh.length === 0) {
     dryRounds += 1
-    log(`round ${round}: nothing new (${dryRounds} of 2 dry)`)
+    log(`round ${round}: nothing new (${dryRounds} of ${rules.dry} dry)`)
     continue
   }
   dryRounds = 0
@@ -101,7 +114,7 @@ while (dryRounds < 2 && round < 4) {
             agent(
               `A reviewer claims: ${f.summary}\nAt ${f.file}:${f.line}\nEvidence given: ${f.evidence}\n\n` +
                 `Try to refute it, through this lens: ${lens}. Read the code. If you cannot prove it wrong, say so.`,
-              { label: `judge:${f.file}:${f.line}`, phase: 'Judge', agentType: 'polaris:verifier', schema: VERDICT },
+              { label: `judge:${f.file}:${f.line}`, phase: 'Judge', agentType: 'polaris:verifier', schema: VERDICT, effort: rules.judge },
             ),
         ),
       ).then(votes => {
@@ -115,14 +128,14 @@ while (dryRounds < 2 && round < 4) {
   confirmed.push(...judged.filter(Boolean).filter(j => j.survives).map(j => j.finding))
 }
 
-if (round >= 4 && dryRounds < 2) {
+if (round >= rules.maxRounds && dryRounds < rules.dry) {
   log('stopped at the round ceiling without converging; the list is incomplete')
 }
 
 return {
   target,
   rounds: round,
-  converged: dryRounds >= 2,
+  converged: dryRounds >= rules.dry,
   found: seen.size,
   confirmed: confirmed.sort((a, b) => ['high', 'medium', 'low'].indexOf(a.severity) - ['high', 'medium', 'low'].indexOf(b.severity)),
 }

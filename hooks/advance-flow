@@ -10,6 +10,11 @@
 # exit gets switched off within a week, and a gate that is off enforces nothing. The marker is a
 # directory because mkdir is atomic and does not follow symlinks; when it cannot be created, for
 # any reason, this hook stays silent rather than risk blocking every turn.
+#
+# It also recommends a /clear once a phase is approved, which is the only lever Polaris has on the
+# dominant cost term: the feature flow runs four phases as one conversation, and every request pays
+# for the whole history. The recommendation is gated on run-state.sh assert, so it never fires over
+# work the ledger cannot replace.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
@@ -48,7 +53,14 @@ status="$(printf '%s' "$state" | jq -r --arg p "$phase" '.record[$p].status // "
 if [ "$status" = "done" ]; then
     instructions="Polaris run '${slug}' (${flow} flow): phase '${phase}' is recorded and stops for a human. Present its artifact and its evidence, then stop and wait. When the human approves, run: scripts/run-state.sh approve ${phase}"
 else
-    instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Run it, then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+    recorded="$(printf '%s' "$state" \
+        | jq -r '[.record[] | select(.status=="done" and ((.artifact // "") != ""))] | sort_by(.at) | (last // {}) | .artifact // ""' 2>/dev/null)"
+    if [ -n "$recorded" ] && [ -f "$recorded" ] \
+        && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" assert "$phase" >/dev/null 2>&1; then
+        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Every phase before '${phase}' is recorded and hash-checked, and every approval those phases ask for is stamped, so this conversation holds nothing the ledger does not. Do not start '${phase}' in this turn: tell the user run '${slug}' stays open, ${recorded} stays on disk, and they may run /clear now before starting '${phase}'; the next prompt is told both. This is a recommendation, not a requirement. Without a clear, run '${phase}' then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+    else
+        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Run it, then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+    fi
 fi
 
 # Claim the transition before emitting. A second stop on the same phase loses the race and stays

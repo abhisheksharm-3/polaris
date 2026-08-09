@@ -17,9 +17,9 @@ session, not a one-shot generate: you and the human sharpen terms together until
 
 - **A glossary at `CONTEXT.md` in the repo root.** This is the one Polaris doc that lives with the
   code, not under `.polaris/`, because it is meant to sit beside `src/` and be cross-referenced with
-  live code as the language and the code drift apart. (Rule 7: `doc-organization.md` says every doc
-  lives under `.polaris/`; the glossary is the deliberate exception, since a glossary read against the
-  code has to live where the code is.)
+  live code as the language and the code drift apart. (Rule 7: `rules/doc-organization.md` says every
+  doc lives under `.polaris/`; the glossary is the deliberate exception, since a glossary read against
+  the code has to live where the code is.)
 - **An ADR ledger at `docs/adr/NNNN-slug.md`.** One file per decision, numbered in order. To add one,
   scan `docs/adr/` for the highest number and increment.
 

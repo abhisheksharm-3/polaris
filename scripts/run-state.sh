@@ -139,6 +139,46 @@ cmd_record() {
     advance_past "$phase"
 }
 
+# Re-hash an earlier phase's artifact after it was deliberately changed.
+#
+# The hash exists so an artifact cannot change without the phase that claimed it going invalid, and
+# that invariant is worth keeping: it is what lets a later phase, or a cleared session, trust the
+# file over the conversation. But a long run finds things, and a spec that cannot absorb what its own
+# build discovered gets bypassed rather than amended. Without this the only ways out are re-seeding
+# the run, which discards real approvals, or leaving shipped work unspecced.
+#
+# So an amendment is allowed and is never quiet. It refuses a phase that was never recorded, it
+# demands evidence, it keeps the prior hash and the reason in an `amendments` list that nothing
+# prunes, and it stamps `amendedAt`. An approval survives, because the human approved the artifact's
+# purpose rather than its bytes, and the record now shows plainly that the bytes moved after they
+# said yes.
+cmd_amend() {
+    local phase="$1" evidence="${2:-}"
+    local file; file="$(ledger_path)"
+    [ "$(jq -r --arg p "$phase" '.record[$p].status // ""' "$file")" = "done" ] \
+        || die "phase '${phase}' is not recorded; there is nothing to amend"
+    [ -n "$evidence" ] || die "an amendment needs evidence saying what changed and why"
+
+    local artifact old
+    artifact="$(jq -r --arg p "$phase" '.record[$p].artifact // ""' "$file")"
+    old="$(jq -r --arg p "$phase" '.record[$p].sha256 // ""' "$file")"
+    [ -n "$artifact" ] || die "phase '${phase}' recorded no artifact to re-hash"
+    [ -f "$artifact" ] || die "phase '${phase}' recorded ${artifact}, which is gone"
+    [ -n "$old" ] || die "phase '${phase}' was recorded without a hash; there is nothing to amend"
+
+    local new; new="$(hash_of "$artifact")"
+    [ "$new" != "$old" ] || die "${artifact} has not changed since phase '${phase}' recorded it"
+
+    local tmp; tmp="$(mktemp)"
+    jq --arg p "$phase" --arg s "$new" --arg o "$old" --arg e "$evidence" \
+       --arg t "$(date -u +%FT%TZ)" \
+       '.record[$p].sha256 = $s
+        | .record[$p].amendedAt = $t
+        | .record[$p].amendments = ((.record[$p].amendments // []) + [{at:$t,from:$o,to:$s,evidence:$e}])' \
+       "$file" > "$tmp" && mv "$tmp" "$file"
+    echo "amended ${phase}: ${artifact}"
+}
+
 cmd_approve() {
     local phase="$1"
     local file; file="$(ledger_path)"
@@ -178,8 +218,10 @@ cmd_assert() {
         [ "$status" = "done" ] || die "phase '${p}' is not done; '${target}' cannot start"
         artifact="$(jq -r --arg p "$p" '.record[$p].artifact // ""' "$file")"
         sha="$(jq -r --arg p "$p" '.record[$p].sha256 // ""' "$file")"
-        if [ -n "$sha" ]; then
+        if [ -n "$artifact" ]; then
             [ -f "$artifact" ] || die "phase '${p}' recorded ${artifact}, which is gone"
+        fi
+        if [ -n "$sha" ]; then
             [ "$(hash_of "$artifact")" = "$sha" ] || die "phase '${p}' recorded ${artifact}, which has changed since"
         fi
         if [ -n "$(phase_field "$flow" "$p" approve)" ]; then
@@ -198,6 +240,7 @@ case "$sub" in
     clear)   cmd_clear ;;
     record)  [ $# -ge 1 ] || die "usage: record <phase> [artifact] [evidence]"; cmd_record "$@" ;;
     approve) [ $# -eq 1 ] || die "usage: approve <phase>"; cmd_approve "$@" ;;
+    amend)   [ $# -eq 2 ] || die "usage: amend <phase> <evidence>"; cmd_amend "$@" ;;
     assert)  [ $# -eq 1 ] || die "usage: assert <phase>"; cmd_assert "$@" ;;
-    *)       die "usage: run-state.sh seed|get|target|record|approve|assert|clear" ;;
+    *)       die "usage: run-state.sh seed|get|target|record|approve|amend|assert|clear" ;;
 esac

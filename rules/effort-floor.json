@@ -1,0 +1,37 @@
+{
+  "_": "The minimum reasoning effort per agent, the companion to model-floor.json. A dispatch may go above a floor, never below. Thinking tokens bill as output, so this is the dial that moves the output side of the bill the way the model floor moves the per-token price.",
+  "levels": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "floor": {
+    "product": "high",
+    "researcher": "high",
+    "architect": "high",
+    "api-designer": "high",
+    "data-modeler": "high",
+    "security-architect": "high",
+    "reviewer": "high",
+    "verifier": "high",
+    "tester": "high",
+    "prod-audit": "high",
+    "audit-refactor": "high",
+    "e2e": "medium",
+    "bug-fixer": "medium",
+    "backend": "medium",
+    "frontend-logic": "medium",
+    "ui": "medium",
+    "integrations": "medium",
+    "infra": "medium",
+    "devops": "medium",
+    "data-engineer": "medium",
+    "feature-builder": "medium",
+    "tech-writer": "medium",
+    "sre": "medium",
+    "perf": "medium",
+    "ux": "medium",
+    "code-cleanup": "low",
+    "shipper": "low"
+  }
+}

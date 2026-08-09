@@ -16,8 +16,10 @@
   `scripts/inventory.sh` when no row fits, validated and gated like a catalog row. Four gates read
   the ledger: `guard-phase` refuses an out-of-phase dispatch and one below the floor in
   `rules/model-floor.json`, `guard-command` refuses a phase command whose predecessor is unearned,
-  `advance-flow` drives the run at `Stop`, and the small-model veto refuses an unactionable prompt.
-  Three workflows under `workflows/` hold the fan-out. `/polaris:pause` clears a run and
+  and `advance-flow` drives the run at `Stop`. The fourth gate, the small-model clarity veto, was
+  deleted on 2026-08-03: it false-stopped a real question, cost a model call on every prompt, and
+  had no off switch short of editing `hooks.json`. The suite now asserts no prompt-type input hook
+  returns. Three workflows under `workflows/` hold the fan-out. `/polaris:pause` clears a run and
   `scripts/statusline.sh` shows it.
   The docs now match that shape: a 2026-08-03 drift pass rewrote `commands/flow.md` from eleven
   prose phases down to 44 lines that defer to the `feature` row, documented the `runs/<slug>/`
@@ -28,8 +30,9 @@
   `guard-phase` and `guard-command` assertion is a hand-built payload, and the `Task` versus `Agent`
   matcher bug is exactly what that gap produces. And whether `SubagentStart` fires for
   workflow-spawned agents, which decides whether `inject-standard` reaches them; answering it means
-  running `/polaris:verify` once. Nothing is pushed, and the installed plugin holds the working tree
-  under `polaris/1.8.0/`.
+  running `/polaris:verify` once. That question is now a cost question as well as a correctness one,
+  so the `token-efficiency` stream depends on its answer. Nothing is pushed, and the newest installed
+  plugin is `polaris/1.10.0/`, one release behind the tree.
 - files: rules/flows.json, rules/model-floor.json, rules/patterns.json, rules/routing.md,
   scripts/check-flows.sh, scripts/route-prompt.sh, scripts/run-state.sh, scripts/inventory.sh,
   scripts/statusline.sh, hooks/enhance-prompt, hooks/guard-phase, hooks/guard-command,
@@ -39,8 +42,13 @@
   README.md, CHANGELOG.md, .claude-plugin/plugin.json, .claude-plugin/marketplace.json,
   docs/specs/2026-08-01-flow-enforcement.md, docs/plans/2026-08-01-flow-enforcement.md,
   .polaris/runs/2026-08-01-flow-enforcement-preflight.md
-- touched: 2026-08-01 (the composer, the clarity veto, three workflows, the command gate, the model
-  floor, and the 1.10.0 changelog)
+- touched: 2026-08-09 (the double-block defect found; body last built 2026-08-01)
+- found 2026-08-09, a defect: `advance-flow` keys its once-per-transition marker on
+  `${session}-${slug}-${phase}-${status}`, and `status` moves from empty to `done` inside a single
+  phase, so every phase blocks twice rather than once. A four-phase `feature` run is eight `Stop`
+  blocks. The fix is to drop `status` from the key. This is the mechanical half of the user's report
+  that the hooks fire too often and interrupt work; the clarity veto in `token-efficiency` is the
+  other half.
 - open question, for a human: `docs/POLARIS_MASTER_PLAN.md` still calls `/flow` the full
   orchestration cycle at line 822 and describes that cycle at line 794. Left as written on the
   argument that a plan records intent and rewriting it erases the history. Decide addendum or
@@ -65,28 +73,146 @@
   .polaris/specs/sweep-briefing-format.md
 - touched: 2026-08-03 (spec written and recorded, then the run was cleared unapproved)
 
-## review-levels — make /polaris:review cost what the job is worth
+## token-efficiency — make Polaris affordable at the limit, not just correct
 
 - domain: feature
-- status: active
-- state: The `feature` run under `.polaris/runs/review-levels/` has spec and design done and
-  approved; the ledger's `current` is `build`. `workflows/review.js` now carries the `LEVELS` table,
-  the coerced-string level resolution, the batched per-dimension Confirm stage, and the trimmed
-  `meta` block (Plan Steps 1-7); `CHANGELOG.md` carries the `1.11.0` entry (Step 8); the README needed
-  no edit since it documents only `/review-pr` and no workflow name (Step 9). Steps 10 (the
-  four-level acceptance run) and 11 (commit) are still outstanding, and nothing here is committed
-  yet.
-- next: run Step 10's four acceptance passes against a real changeset, then commit per Step 11 and
-  record the `build` phase in the ledger with `scripts/run-state.sh record build ...`.
-- files: workflows/review.js, hooks/guard-review, rules/flows.json, CHANGELOG.md
-- touched: 2026-08-03 (spec and design approved; Steps 1-9 implemented, uncommitted)
-- open question, for a human: `.polaris/plans/review-levels.md` uses `- [ ]` checkboxes as its
-  resume ledger, but the plan artifact's sha256 is locked in as the design phase's evidence in
-  `.polaris/runs/review-levels/state.json`; ticking a box after design is recorded invalidates that
-  phase under the run-ledger rule ("an artifact edited after the fact invalidates the phase that
-  claimed it"). Progress after design is recorded is tracked here and in the run ledger, not by
-  editing the checkboxes. Decide whether the plan template should stop carrying checkboxes once a
-  plan is hash-locked, or whether the ledger should hash phases instead of whole files.
+- status: active, on the build phase
+- state: Opened 2026-08-03 after the user reported that one default `/polaris:review` costs about
+  half a session limit. The measured cause: `review.js` at its `high` default dispatches 7 reviewers
+  at `effort: 'high'` plus up to 7 verifiers, and `rules/model-floor.json` floors 12 of those 14 at
+  opus. The Claude Code docs then corrected the cost model: a subagent "builds its own cache,
+  starting with no cache hits on its first call" and uses the five-minute TTL even on a subscription,
+  so agent count dominates the bill rather than model tier, and a mixed-tier fan-out is
+  cache-neutral. `.polaris/specs/token-efficiency-briefing.md` holds the research, 
+  `check-patterns.sh prose` exit 0. Two shipped this session, ahead of the spec: the clarity veto is
+  deleted from the tree and patched out of the live `1.10.0` cache (backup beside it), and the suite
+  is at 184 assertions, exit 0.
+  Both gated phases are now behind it. `spec` is recorded and approved: 421 lines, 36 acceptance
+  criteria, requirements ranked to lead with the measured 67% long-context term ahead of the 6%
+  review term. `design` is recorded and approved: `.polaris/plans/token-efficiency.md`, 827 lines,
+  13 tasks across 17 steps, tasks 1-6 at full code detail and 7-12 held at interface resolution
+  until phase-1 measurements exist. Two amendments came from the user during design. The `/clear`
+  gate was widened from an approved predecessor to a recorded one plus `run-state.sh assert`, after
+  the approval reading was found to skip 41 of 52 catalog boundaries including `feature`'s
+  `build` to `ship`. And task 5a was added to measure whether `SessionStart`'s `initialUserMessage`
+  lets the resume skip the prompt, because a hook cannot run `/clear` itself and the docs do not
+  settle what that field does.
+  Phase-1 build is in flight. Tasks 1-4 are done and the suite is 184 to 200 assertions, exit 0:
+  the recovery line in `enhance-prompt` now names the last recorded artifact, `advance-flow` carries
+  the gated `/clear` recommendation, and the injected payload is trimmed. The tester mutation-proved
+  the new assertions in a sandbox, narrowing the gate back to requiring approval to confirm the
+  regression fixture bites. Measured payload: 44923 bytes before, 35310 after, on a
+  `.polaris/work/streams.md` that grew to 12059 bytes mid-run.
+  The build workflow did not finish cleanly. Task 4's agent died after about 23 minutes without
+  recording a result, and the workflow retried it. The retry had none of its predecessor's context,
+  and it silently replaced `${recorded}` in `hooks/enhance-prompt` with the word "something",
+  defeating the requirement that the recovery line name the artifact. The suite went red at 199 and
+  the failing assertion was the one the first agent had written, which is the only reason it was
+  caught. The workflow was stopped by hand, the line was restored, and the suite is green again at
+  200. The review lenses and the report never ran under that workflow and were relaunched on their
+  own.
+  A 2026-08-09 audit re-measured the payload and named the one term nothing bounds. The injected
+  slice of this file, across its last six commits, went 849 to 1197 to 2142 to 2739 to 6476 to 12553
+  bytes: monotonic, fifteenfold in five commits, and now larger than `rules/core.md` at 10135. The
+  `## Done` exclusion bounds nothing, because the active section is what grows. Session payload is
+  about 33KB and a `/clear` re-pays all of it, so the clear's saving shrinks as this file grows.
+  Subagent injection is a smaller separate term: `hooks/inject-standard` is about 1.9KB per subagent,
+  paid 28 times by a `critical` review at its ceiling. The audit also confirmed the tree is one
+  release ahead of what runs: the veto removal, the payload trim, and the tests asserting both are
+  all uncommitted, so `HEAD` and the marketplace clone at `067a682` still carry the veto.
+  Phase 2 landed on 2026-08-09, minus the one task that needed a measurement. `scripts/review-level.sh`
+  holds the R3 table as the only copy of those thresholds and survives binary counts, both rename
+  forms, spaces in paths, and malformed input. `workflows/review.js` gained the evidence pack, built
+  once before the fan-out, capped at 1500 diff lines with the drop count stated and the diff framed as
+  untrusted data; the confirm narrowing at `high`, where a `medium` whose fix is 80 characters or less
+  returns unconfirmed naming its fix size while `high` severity is never narrowed; and a no-dispatch
+  path for the empty level the script prints when nothing changed. The suite is 222 to 237, exit 0,
+  and the pack and the filter are run as real code rather than grepped.
+  Task 9's probe ran the same day and answered its open question against the plan's first branch. A
+  workflow `agent()` dispatch reaches no hook: the probe dispatched `polaris:reviewer` at `haiku`,
+  four tiers under its floor, and it ran unrefused. A main-loop `Agent` dispatch does reach
+  `guard-phase`, from the `1.11.0` cache, carrying `description`, `prompt`, `subagent_type`, and
+  `model`, with the session's effort at top level outside `tool_input`. Two consequences: the review
+  level has to move through a file under `.polaris/runs/<slug>/`, which is a wording amendment to
+  AC26 through AC28; and the effort floor already built for R4 reads `.tool_input.effort`, which
+  nothing populates, so that hook governs nothing. Both are written up in the report's section 3a.
+- next: the user approved the audit's six fixes on 2026-08-09, in this order. Commit the veto removal
+  and cut 1.12.0, because nothing else stops the next version bump from restoring it. Cap this file's
+  injected slice, oldest cut first and the cut announced, since it is the only unbounded term. Fix
+  the `advance-flow` marker key. Add the information test to `rules/core.md`. Rewrite
+  `commands/enhance.md` so enhancement never returns the work to the user. Gitignore `.claude/`.
+  Before that, the relaunched review and report workflow, five agents, with the reviewers told to
+  look for further damage of the retry's shape. Then task 5a, which needs a live `/clear` only the
+  user can perform, and task 6, the commit, which is in neither workflow.
+  Two design findings are carried and resolved in the plan: `guard-phase` sees only
+  `subagent_type`/`agent_type`/`subagentType`/`model` on stdin so the review level is not
+  determinable there (task 9 measured it, and the answer is the plan's second branch), and
+  `review.js` cannot shell out, so the caller passes `args.level`.
+  Owed next, in this order: amend the spec so AC26 through AC28 read as a run whose review level is
+  recorded rather than a dispatch payload carrying it, then build task 9 against a file under
+  `.polaris/runs/<slug>/`. Decide separately what to do about an effort floor no dispatch can reach.
+  Task 12, the report's per-level agent count and tier, still needs real review runs and is the
+  expensive one left.
+- files: workflows/review.js, scripts/review-level.sh, scripts/tracker-slice.sh,
+  rules/model-floor.json, rules/effort-floor.json, rules/model-routing.md, hooks/guard-phase,
+  hooks/hooks.json, hooks/enhance-prompt, tests/run-tests.sh, CLAUDE.md,
+  .polaris/specs/token-efficiency-briefing.md, .polaris/specs/token-efficiency.md,
+  .polaris/plans/token-efficiency.md, .polaris/reports/2026-08-03-token-efficiency.md
+- raised 2026-08-09, not yet specced: whether the workflows optimize reasoning effort and not only
+  model tier. The user named effort as a main reason usage shoots up. `workflows/review.js` already
+  sets effort per level in its `LEVELS` table, low at `low` through high at `high` and `critical`,
+  while `rules/model-floor.json` governs tier. Whether `build.js` and `verify.js` set effort at all,
+  and whether the floor should carry an effort column beside the tier, is open.
+- touched: 2026-08-09 (phase 2 built minus task 9, suite 222 to 237; the dispatch probe ran and
+  showed no workflow dispatch reaches a hook)
+- known, not a defect in this stream: the removed clarity veto kept firing for three more prompts
+  because hooks load into a session at start, so a cache patch needs `/reload-plugins` or a restart
+  before it takes effect. It then came back when the installed plugin moved to `1.11.0`, which was
+  cut from the commit before the deletion. Both `1.10.0` and `1.11.0` are patched by hand with a
+  `.bak` beside each. Every version bump restores it until the repo's `hooks/hooks.json` ships,
+  which is `1.12.0` at the earliest. It fired again on 2026-08-09, stopping a real prompt with
+  "What files or errors should I fix?", and the user got through only by prefixing the resend with
+  "dont veto the following prompt". Two further reasons it cannot be lived with: it is a
+  `type: "prompt"` hook, so it runs no shell and reads no config, which means `routing: false` does
+  not disable it; and its own prompt makes ending the turn the delivery mechanism, so the rewrite it
+  returns is the consolation prize for being blocked rather than an enhancement.
+- decided, do not reopen: the model floor follows the review level (sonnet at low and mid, opus at
+  high, opus everywhere at critical), and the level is chosen from the diff with the explicit
+  argument kept as an override.
+
+## oneonone-prep — prepare the user for a manager 1:1 from state Polaris already holds
+
+- domain: feature
+- status: active, on the spec phase
+- state: Opened 2026-08-03. The user has bi-weekly 1:1s with their manager, and once a month one of
+  those also carries the OKR review, so the mode has two variants. They supplied the source material
+  themselves: two Reddit threads on making 1:1s meaningful and a video transcript of a five-section
+  agenda (wins first, top three FYIs, things to discuss live, a status grid never read aloud). The
+  advice converges on one mechanic worth building: the report owns the meeting and sends the agenda a
+  day ahead, and the thing that defeats every template is that people forget between meetings what
+  they meant to raise. Polaris already accumulates the facts a template needs, so the question the
+  spec must answer is which sections are derivable from `journal-facts.sh`, `worktracker-snapshot.sh`,
+  git history, and the OKR ledger at `~/.claude/polaris-memory/okr/`, and which have to be asked. The
+  `product` agent is writing `.polaris/specs/oneonone-prep.md` and was told to argue the surface, new
+  command against a `/sweep` lens against a `/catchup` extension, rather than assume a new command.
+- next: read the spec, decide the surface, and answer the open questions it raises before design. One
+  cleanup is still owed: revert `routing: false` in `.polaris/config.json`.
+- files: .polaris/specs/oneonone-prep.md, commands/sweep.md, commands/catchup.md, commands/track.md,
+  commands/journal.md, scripts/okr-pace.sh, scripts/journal-facts.sh,
+  scripts/worktracker-snapshot.sh
+- touched: 2026-08-09 (worktree pruned at the user's request; the work moves back to the main
+  checkout)
+- was decided, then reversed on 2026-08-09: the work happened in the git worktree
+  `.claude/worktrees/oneonone-prep` on branch `worktree-oneonone-prep`. The user asked for the
+  worktree to be pruned, so `.claude/` is gone. Its one commit, `8ec3e3e feat: prepare the manager
+  1:1 from state Polaris already holds`, reached `origin/main` through PR #1 before the prune, so
+  nothing was lost. The gitignore cleanup the audit asked for is moot now that the directory does
+  not exist.
+- found this session, worth a fix of its own: a worktree does not isolate a Polaris run. All four
+  flow gates and `scripts/run-state.sh` resolve their paths from `CLAUDE_PROJECT_DIR`, which stays
+  pointed at the main checkout, so a run seeded from inside a worktree writes a ledger no hook ever
+  reads, and the main checkout's run is the one still enforced. That is why routing had to be
+  switched off repo-wide to run two features at once instead of the worktree simply holding its own.
 
 ## oneonone-prep — prepare the user for a manager 1:1 from state Polaris already holds
 
@@ -133,6 +259,18 @@
   config never took effect here, because the gates were reading the worktree copy.
 
 ## Done
+
+- review-levels — gave `/polaris:review` four levels and bounded its fan-out, shipped as 1.11.0
+  (3c2bc1b, 067a682). `workflows/review.js` carries the `LEVELS` table, the coerced-string level
+  resolution, and the batched per-dimension Confirm stage; ceilings are 2, 8, 14, and 28 agents. The
+  user has since called the hand-passed level "kinda patch fix", because `high` stays the default and
+  so the expensive path stays the common one. The `token-efficiency` stream is the follow-up that
+  chooses the level automatically.
+- open question this left, for a human: `.polaris/plans/review-levels.md` uses `- [ ]` checkboxes as
+  its resume ledger, but the plan artifact's sha256 is locked in as the design phase's evidence in
+  `.polaris/runs/review-levels/state.json`; ticking a box after design is recorded invalidates that
+  phase under the run-ledger rule. Decide whether the plan template should stop carrying checkboxes
+  once a plan is hash-locked, or whether the ledger should hash phases instead of whole files.
 
 - gaps — closed the top three plan-vs-code gaps from the 2026-07-15 research report, and the three
   changes are committed (873d34c, 793a357). The master plan §3 no longer claims all-built and §3.4

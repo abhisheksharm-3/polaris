@@ -15,7 +15,8 @@ depends on how the project is set up.
 
 Most routing no longer needs this command. `hooks/enhance-prompt` classifies every prompt against
 `rules/patterns.json`, opens the run for it, and says which flow it chose; `/polaris:compose` builds
-one when no catalog row fits. Reach for `/route` when you want the answer without the run.
+one when no catalog row fits. Reach for `/route` when you want the answer without the run, and read
+`rules/routing.md` when the classifier's own answer is what is in question.
 
 Match the situation to the closest row, then hand the user that command.
 

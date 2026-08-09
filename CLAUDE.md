@@ -80,10 +80,12 @@ enforces on itself.
 | `bash scripts/check-patterns.sh <prose\|code\|injection> <file>` | Run one deterministic pattern check (exit 1 = flagged) |
 | `bash scripts/check-agents.sh` | Validate agent definitions in `agents/` |
 | `bash scripts/check-flows.sh [catalog]` | Prove every phase in a flow catalog names a target that resolves. Defaults to `rules/flows.json`; takes a path so a composed flow is checked before it is seeded |
-| `bash scripts/run-state.sh seed\|get\|target\|record\|approve\|assert\|clear` | The run ledger under `.polaris/runs/<slug>/state.json`. Every gate reads it |
+| `bash scripts/run-state.sh seed\|get\|target\|record\|approve\|amend\|assert\|clear` | The run ledger under `.polaris/runs/<slug>/state.json`. Every gate reads it |
 | `bash scripts/route-prompt.sh` | A prompt on stdin, its flow on stdout, or `unknown` |
 | `bash scripts/inventory.sh` | Every dispatchable target with its description, for the composer |
 | `bash scripts/statusline.sh` | The open run, for a `statusLine` setting |
+| `git diff --numstat \| bash scripts/review-level.sh` | The review level a changeset earns: `low`, `mid`, `high`, or empty. The only copy of those thresholds; the caller passes the answer to `workflow:review` as `args.level` |
+| `bash scripts/tracker-slice.sh <file> [max-bytes]` | The slice of the work tracker worth injecting, newest first, under a byte ceiling (default 10240) |
 | `bash scripts/check-commands.sh` | Validate command definitions in `commands/` |
 | `bash scripts/ensure-companions.sh` | Idempotent companion-plugin installer (no-op after first run) |
 | `bash scripts/journal-facts.sh <YYYY-MM-DD> [source]` | One day's activity as factual markdown, bucketed by project. Needs `jq`; skips the GitHub calls when the source is `hook` |
@@ -140,9 +142,16 @@ enforces on itself.
 - A flow is data, not prose. `rules/flows.json` is the source of truth for what a flow runs, and any
   command describing a flow defers to it. `commands/flow.md` is the `feature` row, not a second
   definition of it.
+- An artifact edited after its phase recorded it invalidates that phase, and `run-state.sh assert`
+  refuses every later one. That is the invariant a cleared session depends on, so the fix is
+  `run-state.sh amend <phase> <evidence>`, not a re-seed. An amendment re-hashes the artifact, keeps
+  the approval, and appends the prior hash and the reason to an `amendments` list. It refuses a phase
+  that was never recorded, an artifact that is gone or unchanged, and an empty evidence string.
 - The dispatch tool is named `Agent` in current Claude Code and `Task` in older versions, and the
   field naming the agent moved with it. A hook matching one name fires for nobody and says nothing,
   which is why `guard-phase` reads all three field spellings and the matcher admits both tools.
-- The clarity veto is a `type: "prompt"` hook, so it cannot read `.polaris/config.json` the way the
-  other hooks do. Removing its entry from `hooks.json` is its only off switch.
+- Nothing judges the user's prompt before the turn starts. A `type: "prompt"` veto on
+  `UserPromptSubmit` used to, and it is gone: it spent a model call on every prompt, could not read
+  `.polaris/config.json` to be switched off, and its false stops each cost a real turn. The test
+  suite asserts no prompt-type input hook comes back.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

@@ -10,6 +10,10 @@
 # refuse against. A version of this hook that only described the route would suggest better and
 # enforce nothing.
 #
+# It is also the recovery path after a /clear. advance-flow recommends the clear at an approval stop;
+# this hook is what makes the clear cheap, because it names the run, the phase, and the artifact the
+# next phase reads on the first prompt after it.
+#
 # Fail open throughout. A misroute costs a sentence; a hook that errors on every prompt costs the
 # session. Nothing here writes into a project that has no .polaris/config.json, because a project
 # that never ran setup did not ask for a ledger.
@@ -38,7 +42,13 @@ if jq -e '.routing != false' "$cfg" >/dev/null 2>&1 && [ -n "$prompt" ]; then
         slug="$(printf '%s' "$open" | jq -r .slug)"
         flow="$(printf '%s' "$open" | jq -r .flow)"
         phase="$(printf '%s' "$open" | jq -r .current)"
+        recorded="$(printf '%s' "$open" \
+            | jq -r '[.record[] | select(.status=="done" and ((.artifact // "") != ""))] | sort_by(.at) | (last // {}) | .artifact // ""' 2>/dev/null)"
         context="Polaris run '${slug}' is open: the ${flow} flow, currently on phase '${phase}'. Treat this prompt as input to that run. Do not start another. Use /polaris:pause to abandon it."
+        if [ -n "$recorded" ] && [ -f "$recorded" ]; then
+            context="${context}
+The last recorded phase left ${recorded} on disk, hash-locked in the ledger. Read it for what the earlier phases settled rather than reconstructing it from this conversation, which may have been cleared."
+        fi
     else
         class="$(printf '%s' "$prompt" | bash "${ROOT}/scripts/route-prompt.sh" 2>/dev/null || echo unknown)"
         case "$class" in
@@ -70,9 +80,10 @@ Record each phase with scripts/run-state.sh record <phase> <artifact> <evidence>
     fi
 fi
 
-# The clarity directive used to live here: a paragraph asking the session model to judge its own
-# prompt. Judging a prompt is a cheap model's job, and a model cannot audit the prompt it is already
-# reading. It is now a type: "prompt" hook on the small model, registered beside this one.
+# Nothing here judges whether the prompt is clear enough to act on. That check lived in this hook,
+# then moved to a small-model veto beside it, and is now gone from both: it cost a model call on
+# every prompt and a real turn on every false stop. An unclear prompt is answered with a question,
+# in the turn, where the user can see the reasoning and argue with it.
 
 [ -n "$context" ] && emit "$context"
 exit 0

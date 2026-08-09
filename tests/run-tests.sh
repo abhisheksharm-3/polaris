@@ -73,15 +73,13 @@ if echo "$payload" | CLAUDE_PROJECT_DIR="$tmp_on" "$ENH" | grep -qi 'judge wheth
 else echo "ok: enhance-prompt no longer judges its own prompt"; fi
 rm -rf "$tmp_on" "$tmp_off"
 
-# the clarity veto: registered on the small model, beside the router, not instead of it
+# No prompt-type gate on input. A veto that judges the prompt costs a model call on every turn and
+# pays for itself only on an empty prompt, which the reply already catches. It false-stopped a real
+# question on 2026-08-03; the turn it ate is the whole cost of the feature.
 vetos="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt")] | length' "${DIR}/../hooks/hooks.json")"
-[ "$vetos" = 1 ] && echo "ok: one prompt-type veto is registered"   || { echo "FAIL: expected one prompt-type UserPromptSubmit hook, found $vetos"; fail=1; }
+[ "$vetos" = 0 ] && echo "ok: no prompt-type veto stands between the user and the turn"   || { echo "FAIL: expected no prompt-type UserPromptSubmit hook, found $vetos"; fail=1; }
 cmds="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="command")] | length' "${DIR}/../hooks/hooks.json")"
-[ "$cmds" = 1 ] && echo "ok: the router survives beside the veto"   || { echo "FAIL: the router command hook is missing"; fail=1; }
-# No model field, so it takes the configured small fast model rather than pinning one that ages out.
-[ "$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt") | has("model")] | any' "${DIR}/../hooks/hooks.json")" = "false" ]   && echo "ok: the veto takes the configured small model"   || { echo "FAIL: the veto pins a model"; fail=1; }
-# It must bias to letting work through: a false stop costs a real turn.
-jq -r '.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt") | .prompt' "${DIR}/../hooks/hooks.json"   | grep -q 'When in doubt, return ok: true'   && echo "ok: the veto is told to let work through when unsure"   || { echo "FAIL: the veto has no bias toward allowing"; fail=1; }
+[ "$cmds" = 1 ] && echo "ok: the router is the only input hook"   || { echo "FAIL: the router command hook is missing"; fail=1; }
 
 # guard-edit: warns on slop in an edited file when enabled, silent when disabled
 GEDIT="${DIR}/../hooks/guard-edit"
@@ -205,6 +203,43 @@ printf '#!/bin/sh\nexit 1\n' > "$ss_bin2/git"; chmod +x "$ss_bin2/git"
 ss_out2="$( cd "$ss_cwd2" && echo '{}' | HOME="$ss_home2" PATH="$ss_bin2:$PATH" bash "$SS" 2>/dev/null )"
 echo "$ss_out2" | grep -q "companion skills are not installed" && echo "ok: session-start warns when skill bulk missing" || { echo "FAIL: no companion-missing notice"; fail=1; }
 rm -rf "$ss_home2" "$ss_cwd2" "$ss_bin2"
+
+# AC11: three conditional rules are named, not injected. The grep is for the read, not the path: the
+# load-on-demand index names all three files on purpose, and a test that forbids the name would
+# force the payload to hide where the rule lives.
+grep -qE 'cat "\$\{PLUGIN_ROOT\}/rules/(routing|memory|doc-organization)\.md"' "$SS" \
+  && { echo "FAIL: session-start still injects a conditional rule body"; fail=1; } \
+  || echo "ok: session-start injects no conditional rule body"
+for r in routing memory doc-organization; do
+  grep -q "rules/${r}.md" "$SS" \
+    || { echo "FAIL: session-start does not name rules/${r}.md"; fail=1; }
+done
+echo "ok: session-start names every rule it stopped injecting"
+grep -rqF 'rules/memory.md' "${DIR}/../commands" && grep -rqF 'rules/routing.md' "${DIR}/../commands" \
+  && grep -rqF 'rules/doc-organization.md' "${DIR}/../commands" \
+  && echo "ok: every moved rule is loaded by a command that needs it" \
+  || { echo "FAIL: a moved rule is reachable from nowhere"; fail=1; }
+
+# AC12 and AC13: the tracker's active and blocked streams are worth the payload, its Done archive is
+# history that only grows. The injection screen still reads the whole file, archive included.
+ss_home3="$(mktemp -d)"; ss_cwd3="$(mktemp -d)"
+mkdir -p "$ss_home3/.claude/skills" "$ss_cwd3/.polaris/work"
+touch "$ss_home3/.claude/skills/.polaris-mindrally-synced" "$ss_home3/.claude/skills/.polaris-companions-installed"
+printf '# Work streams\n\n## live-one\n\n- status: active\n\n## held-one\n\n- status: blocked\n\n## Done\n\n- archived-one, shipped last week\n' \
+  > "$ss_cwd3/.polaris/work/streams.md"
+ss_out3="$( cd "$ss_cwd3" && echo '{}' | HOME="$ss_home3" CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "$SS" 2>/dev/null )"
+grep -q 'live-one' <<<"$ss_out3" && grep -q 'held-one' <<<"$ss_out3" \
+  && echo "ok: session-start injects the active and blocked streams" \
+  || { echo "FAIL: session-start dropped an open stream"; fail=1; }
+! grep -q 'archived-one' <<<"$ss_out3" \
+  && echo "ok: session-start withholds the Done archive" \
+  || { echo "FAIL: session-start injected the Done archive"; fail=1; }
+cat "${DIR}/fixtures/injection-bad.txt" >> "$ss_cwd3/.polaris/work/streams.md"
+ss_out3="$( cd "$ss_cwd3" && echo '{}' | HOME="$ss_home3" CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "$SS" 2>/dev/null )"
+grep -q 'withheld' <<<"$ss_out3" && ! grep -q 'live-one' <<<"$ss_out3" \
+  && echo "ok: a tracker with injection markers is withheld whole" \
+  || { echo "FAIL: an injection-marked tracker was injected"; fail=1; }
+rm -rf "$ss_home3" "$ss_cwd3"
 
 # regression: ensure-companions installs once then skips (no per-start plugin install); RCA 2026-07-16
 EC="${DIR}/../scripts/ensure-companions.sh"
@@ -676,6 +711,27 @@ ep_out="$(ep_run "$ep_bare" 'the referral code field accepts duplicates')"
 [ ! -d "$ep_bare/.polaris" ] \
   && echo "ok: enhance-prompt writes nothing into a project that never ran setup" \
   || { echo "FAIL: enhance-prompt created .polaris in a bare project"; fail=1; }
+# AC3: a cleared session's first prompt gets the run, the phase, and the path to the last artifact.
+# Without the path it would go looking for the approved spec, or guess, which is what makes the
+# /clear recommendation in advance-flow safe to follow.
+ep_rec="$(ep_proj '{}')"
+CLAUDE_PROJECT_DIR="$ep_rec" bash "$EP_RS" seed feature ep-recover >/dev/null
+echo "acceptance criteria" > "$ep_rec/spec.md"
+CLAUDE_PROJECT_DIR="$ep_rec" bash "$EP_RS" record spec "$ep_rec/spec.md" "12 criteria" >/dev/null
+CLAUDE_PROJECT_DIR="$ep_rec" bash "$EP_RS" approve spec >/dev/null
+ep_out="$(ep_run "$ep_rec" 'carry on')"
+grep -q 'ep-recover' <<<"$ep_out" && grep -q 'design' <<<"$ep_out" \
+  && echo "ok: enhance-prompt names the run and the phase after a clear" \
+  || { echo "FAIL: enhance-prompt did not name run and phase ($ep_out)"; fail=1; }
+grep -q 'spec.md' <<<"$ep_out" \
+  && echo "ok: enhance-prompt names the artifact the recorded phase left" \
+  || { echo "FAIL: enhance-prompt named no artifact ($ep_out)"; fail=1; }
+rm "$ep_rec/spec.md"
+ep_out="$(ep_run "$ep_rec" 'carry on')"
+grep -q 'ep-recover' <<<"$ep_out" && ! grep -q 'spec.md' <<<"$ep_out" \
+  && echo "ok: enhance-prompt names no artifact that is gone from disk" \
+  || { echo "FAIL: enhance-prompt named a missing artifact ($ep_out)"; fail=1; }
+rm -rf "$ep_rec"
 rm -rf "$ep_bug" "$ep_q" "$ep_u" "$ep_off" "$ep_bare"
 
 # guard-phase: a dispatch the current phase does not name is refused
@@ -748,6 +804,12 @@ grep -q 'reproduce' <<<"$av_out" \
 [ -z "$(av_run '' s1)" ] && echo "ok: advance-flow blocks once per transition" \
   || { echo "FAIL: advance-flow blocked twice for the same phase"; fail=1; }
 
+# AC6: nothing is recorded yet, so there is no artifact for a cleared session to read and no
+# recommendation to make. This is the state a clear would actually cost work in.
+! grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends no clear before anything is recorded" \
+  || { echo "FAIL: advance-flow recommended a clear over unrecorded work"; fail=1; }
+
 # A recorded phase that stops for a human asks for the approval, not the next phase.
 echo "repro" > "$av_proj/repro.md"
 av_state record reproduce "$av_proj/repro.md" "a failing case" >/dev/null
@@ -755,6 +817,14 @@ av_out="$(av_run '' s1)"
 grep -q 'rootcause' <<<"$av_out" \
   && echo "ok: advance-flow asks for the next phase once one is recorded" \
   || { echo "FAIL: advance-flow did not name the next phase ($av_out)"; fail=1; }
+
+# The widened gate: 'reproduce' declares no approve in rules/flows.json, and its artifact is recorded
+# and hash-matching, so the boundary is safe to clear. Gating on an approved predecessor would have
+# skipped this boundary and the 40 others like it, including the one after 'build' in the feature
+# flow, which is the most expensive phase Polaris runs.
+grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends a clear past a recorded phase that needs no approval" \
+  || { echo "FAIL: advance-flow recommended no clear past an unapproved boundary ($av_out)"; fail=1; }
 av_state record rootcause "$av_proj/repro.md" "the cause" >/dev/null
 av_out="$(av_run '' s1)"
 grep -qi 'approv' <<<"$av_out" \
@@ -765,6 +835,36 @@ grep -qi 'approv' <<<"$av_out" \
 [ -z "$(jq -n '{stop_hook_active:true,session_id:"s1"}' | TMPDIR="$av_tmp" CLAUDE_PROJECT_DIR="$av_proj" "$ADV")" ] \
   && echo "ok: advance-flow honors stop_hook_active" \
   || { echo "FAIL: advance-flow ignored stop_hook_active"; fail=1; }
+# AC7: done and awaiting a human is the one branch that must stay quiet. The artifact exists, but the
+# phase has not been presented yet, and a clear would take the presentation with it.
+! grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends no clear while an approval is owed" \
+  || { echo "FAIL: advance-flow recommended a clear before an approval"; fail=1; }
+
+# AC5: past an approval, the conversation holds nothing the ledger does not, and the hook says so
+# with both the slug and the path, because a clear that loses the path costs more than it saves.
+av_state approve rootcause >/dev/null
+av_out="$(av_run '' s2)"
+grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends a clear past an approval" \
+  || { echo "FAIL: advance-flow recommended no clear past an approval ($av_out)"; fail=1; }
+grep -q 'demo' <<<"$av_out" && grep -q 'repro.md' <<<"$av_out" \
+  && echo "ok: the clear recommendation names the run and the artifact" \
+  || { echo "FAIL: the clear recommendation named no run or artifact ($av_out)"; fail=1; }
+
+# AC8: the artifact is the thing that replaces the conversation. Gone from disk, the recommendation
+# must not fire, whatever the ledger claims about the phase.
+mv "$av_proj/repro.md" "$av_proj/repro.moved"
+av_out="$(av_run '' s3)"
+grep -q '"decision":"block"' <<<"$av_out" && ! grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends no clear when the recorded artifact is gone" \
+  || { echo "FAIL: advance-flow recommended a clear over a missing artifact ($av_out)"; fail=1; }
+mv "$av_proj/repro.moved" "$av_proj/repro.md"
+echo "edited after recording" >> "$av_proj/repro.md"
+av_out="$(av_run '' s4)"
+! grep -q '/clear' <<<"$av_out" \
+  && echo "ok: advance-flow recommends no clear when a recorded artifact changed" \
+  || { echo "FAIL: advance-flow recommended a clear over a changed artifact ($av_out)"; fail=1; }
 rm -rf "$av_proj" "$av_tmp"
 
 # inventory: every dispatchable target, with a description the composer can choose from
@@ -832,6 +932,48 @@ grep -q 'flows.json' <<<"$cs_out" \
   || { echo "FAIL: no promotion suggestion after repeats ($cs_out)"; fail=1; }
 rm -rf "$cs_tmp"
 
+# amend: an approved artifact may change, and it may never change quietly. The hash is what lets a
+# later phase and a cleared session trust the file over the conversation, so an amendment has to
+# leave that trust intact by being recorded rather than by being forbidden.
+am_tmp="$(mktemp -d)"; mkdir -p "$am_tmp/.polaris"; echo '{}' > "$am_tmp/.polaris/config.json"
+am() { CLAUDE_PROJECT_DIR="$am_tmp" bash "${DIR}/../scripts/run-state.sh" "$@"; }
+am seed feature amend-demo >/dev/null 2>&1
+printf 'first\n' > "$am_tmp/spec.md"
+am record spec "$am_tmp/spec.md" "the first draft" >/dev/null 2>&1
+am approve spec >/dev/null 2>&1
+am_before="$(jq -r '.record.spec.approvedAt' "$am_tmp/.polaris/runs/amend-demo/state.json")"
+printf 'first\nsecond\n' > "$am_tmp/spec.md"
+am assert design >/dev/null 2>&1 \
+  && { echo "FAIL: assert passed over an artifact edited after approval"; fail=1; } \
+  || echo "ok: an edited artifact invalidates the phase that claimed it"
+am amend spec "what the build found" >/dev/null 2>&1
+am assert design >/dev/null 2>&1 \
+  && echo "ok: an amendment restores the phase it re-hashed" \
+  || { echo "FAIL: assert still refuses after an amendment"; fail=1; }
+[ "$(jq -r '.record.spec.approvedAt' "$am_tmp/.polaris/runs/amend-demo/state.json")" = "$am_before" ] \
+  && echo "ok: an amendment keeps the approval it was given" \
+  || { echo "FAIL: the amendment dropped or moved the approval"; fail=1; }
+# The amendment must be legible later, or it is the silent edit it replaced.
+[ "$(jq -r '.record.spec.amendments | length' "$am_tmp/.polaris/runs/amend-demo/state.json")" = "1" ] \
+  && [ -n "$(jq -r '.record.spec.amendments[0].from' "$am_tmp/.polaris/runs/amend-demo/state.json")" ] \
+  && [ -n "$(jq -r '.record.spec.amendedAt' "$am_tmp/.polaris/runs/amend-demo/state.json")" ] \
+  && echo "ok: an amendment records the prior hash, the reason and the time" \
+  || { echo "FAIL: the amendment left no legible trail"; fail=1; }
+am amend spec "nothing actually changed" >/dev/null 2>&1 \
+  && { echo "FAIL: amend accepted an unchanged artifact"; fail=1; } \
+  || echo "ok: amend refuses an artifact that has not changed"
+am amend spec >/dev/null 2>&1 \
+  && { echo "FAIL: amend accepted an empty evidence string"; fail=1; } \
+  || echo "ok: amend refuses an amendment with no evidence"
+am amend ship "never recorded" >/dev/null 2>&1 \
+  && { echo "FAIL: amend accepted a phase that was never recorded"; fail=1; } \
+  || echo "ok: amend refuses a phase that was never recorded"
+rm -f "$am_tmp/spec.md"
+am amend spec "the artifact is gone" >/dev/null 2>&1 \
+  && { echo "FAIL: amend accepted a missing artifact"; fail=1; } \
+  || echo "ok: amend refuses an artifact that is gone"
+rm -rf "$am_tmp"
+
 # workflows: every agent a workflow names must exist. A dispatch to a name that is not there
 # spawns a generic subagent without the fleet's tool restrictions, and nothing says so.
 wf_missing=""
@@ -875,6 +1017,45 @@ process.stdout.write(bad.join("; "))
 ' "${DIR}/../workflows/review.js")"
 [ -z "$lv_out" ] && echo "ok: every review level resolves against DIMENSIONS and keeps over-engineering" \
   || { echo "FAIL: ${lv_out}"; fail=1; }
+
+# The evidence pack and the confirm narrowing are pure code inside the workflow, so the test runs
+# the real source rather than grepping for it: a pack that silently drops the tail, or a narrowing
+# that reaches high severity, both read fine and cost a finding.
+rv_out="$(node -e '
+const fs = require("fs")
+const s = fs.readFileSync(process.argv[1], "utf8")
+const from = s.indexOf("const PACK_LINES")
+const to = s.indexOf("const flatten")
+const bad = []
+if (from < 0 || to < 0 || from > to) { process.stdout.write("review.js no longer holds the pack and the filter before flatten"); process.exit(0) }
+if (from > s.indexOf("await pipeline")) bad.push("the pack is built after the fan-out, not before it")
+if (!/Review \$\{target\}[\s\S]*\$\{evidence\}/.test(s)) bad.push("the reviewer prompt does not interpolate the pack")
+const snippet = s.slice(from, to) + "\nreturn { pack, isEligible, whyNotEligible }"
+const diff = Array.from({ length: 4000 }, (_, i) => "+line " + i).join("\n")
+const run = (level, confirm) => new Function("level", "rules", "args", snippet)(level, { confirm }, { evidence: diff })
+const high = run("high", ["high", "medium"])
+const packed = high.pack.split("\n")
+if (packed.length !== 1501) bad.push("the pack holds " + packed.length + " lines, expected 1500 plus the truncation line")
+if (!/2500 diff line\(s\) dropped/.test(high.pack)) bad.push("the pack does not say how many lines it dropped")
+const med = sz => ({ severity: "medium", fix: "x".repeat(sz) })
+if (high.isEligible(med(30))) bad.push("a medium with a 30-character fix is still confirmed at high")
+if (!/30 characters/.test(high.whyNotEligible(med(30)))) bad.push("the narrowing does not name the fix size")
+if (!high.isEligible(med(200))) bad.push("a medium with a long fix is no longer confirmed at high")
+if (!high.isEligible({ severity: "high", fix: "x" })) bad.push("narrowing reached high severity at high")
+const mid = run("mid", ["high"])
+if (!mid.isEligible({ severity: "high", fix: "x" })) bad.push("a high-severity finding is not confirmed at mid")
+if (mid.isEligible(med(200))) bad.push("mid confirmed a medium it does not ask about")
+process.stdout.write(bad.join("; "))
+' "${DIR}/../workflows/review.js")"
+[ -z "$rv_out" ] && echo "ok: the evidence pack is bounded and the confirm narrowing spares high severity" \
+  || { echo "FAIL: ${rv_out}"; fail=1; }
+
+# An empty level is what review-level.sh prints for a changeset with no changed files. The workflow
+# must dispatch nothing rather than fall back to seven reviewers over an empty diff.
+grep -q "asked === ''" "${DIR}/../workflows/review.js" \
+  && [ "$(grep -c "level: 'none'" "${DIR}/../workflows/review.js")" -eq 1 ] \
+  && echo "ok: an empty changeset dispatches no reviewer" \
+  || { echo "FAIL: review.js reviews a changeset with no changed files"; fail=1; }
 
 expect_exit 0 bash "${DIR}/../scripts/check-flows.sh"
 
@@ -930,6 +1111,111 @@ for a in $(jq -r '.floor | keys[]' "${DIR}/../rules/model-floor.json"); do
 done
 [ -z "$mf_bad" ] && echo "ok: every model floor names a real agent" \
   || { echo "FAIL: model floors for agents that do not exist:${mf_bad}"; fail=1; }
+
+# The effort floor, the companion to the model floor. Thinking tokens bill as output, so a fan-out
+# that governs tier and not effort governs half its cost.
+ef() { jq -n --arg a "$1" --arg e "$2" '{tool_name:"Agent",tool_input:{subagent_type:$a,effort:$e}}' \
+  | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE"; }
+ef reviewer low | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: a reviewer dispatched below its effort floor is refused" \
+  || { echo "FAIL: a reviewer thought at low effort"; fail=1; }
+ef reviewer low | grep -q 'high' \
+  && echo "ok: the effort refusal names the floor" \
+  || { echo "FAIL: the effort refusal does not name the floor"; fail=1; }
+[ -z "$(ef reviewer high)" ] && echo "ok: a dispatch at the effort floor is allowed" \
+  || { echo "FAIL: a dispatch at the effort floor was refused"; fail=1; }
+[ -z "$(ef shipper low)" ] && echo "ok: a mechanical agent may think at low effort" \
+  || { echo "FAIL: a low effort floor was refused its own level"; fail=1; }
+[ -z "$(echo '{"tool_name":"Agent","tool_input":{"subagent_type":"reviewer"}}' | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE")" ] \
+  && echo "ok: a dispatch with no effort is left to the session" \
+  || { echo "FAIL: a dispatch with no effort was refused"; fail=1; }
+# The two floors must cover the same agents, or one of them silently protects a subset.
+diff <(jq -r '.floor|keys[]' "${DIR}/../rules/model-floor.json" | sort) \
+     <(jq -r '.floor|keys[]' "${DIR}/../rules/effort-floor.json" | sort) >/dev/null 2>&1 \
+  && echo "ok: the effort floor and the model floor cover the same agents" \
+  || { echo "FAIL: the effort and model floors name different agents"; fail=1; }
 rm -rf "$MF_PROJ"
+
+# Every workflow dispatch names an effort. A dispatch that omits it inherits the session's, which is
+# how verify.js and build.js came to run every agent at high with nothing saying so.
+wf_bad=""
+for w in "${DIR}/../workflows"/*.js; do
+  d="$(grep -c 'agent(' "$w")"; e="$(grep -c 'effort:' "$w")"
+  [ "$e" -ge "$d" ] || wf_bad="${wf_bad} $(basename "$w")(${e}/${d})"
+done
+[ -z "$wf_bad" ] && echo "ok: every workflow dispatch names an effort" \
+  || { echo "FAIL: workflow dispatches without an effort:${wf_bad}"; fail=1; }
+
+# The tracker is the one injected file a project writes to every session, so it is the one that
+# grows without a ceiling. The cap is what stops the /clear lever paying for it on every clear.
+TS="${DIR}/../scripts/tracker-slice.sh"
+ts_file="$(mktemp)"
+{ printf '# Work streams\n\n'
+  for n in 1 2 3 4 5; do
+    printf '## stream-%s\n\n- status: active\n- touched: 2026-0%s-01\n' "$n" "$n"
+    head -c 3000 /dev/zero | tr '\0' 'x'; printf '\n\n'
+  done
+  printf '## Done\n\n- archived-one, shipped last week\n'; } > "$ts_file"
+ts_out="$(bash "$TS" "$ts_file" 10240)"
+[ "$(printf '%s' "$ts_out" | wc -c)" -le 11000 ] \
+  && echo "ok: the tracker slice honors its byte ceiling" \
+  || { echo "FAIL: the tracker slice blew its ceiling at $(printf '%s' "$ts_out" | wc -c) bytes"; fail=1; }
+[ "$(printf '%s' "$ts_out" | grep -c '^## stream-')" -lt 5 ] \
+  && echo "ok: the tracker slice drops what does not fit" \
+  || { echo "FAIL: the tracker slice kept every stream"; fail=1; }
+printf '%s' "$ts_out" | grep -q 'not shown' \
+  && echo "ok: the tracker slice names what it dropped" \
+  || { echo "FAIL: the tracker slice dropped streams in silence"; fail=1; }
+[ "$(printf '%s' "$ts_out" | grep -m1 '^## stream-')" = "## stream-5" ] \
+  && echo "ok: the tracker slice keeps the newest stream first" \
+  || { echo "FAIL: the tracker slice is not ordered newest first"; fail=1; }
+printf '%s' "$ts_out" | grep -q 'archived-one' \
+  && { echo "FAIL: the tracker slice injected the Done archive"; fail=1; } \
+  || echo "ok: the tracker slice withholds the Done archive"
+# CRLF is the quiet way the Done trim stops working: `## Done\r` never matches `## Done$`.
+ts_crlf="$(mktemp)"; sed 's/$/\r/' "$ts_file" > "$ts_crlf"
+bash "$TS" "$ts_crlf" 10240 | grep -q 'archived-one' \
+  && { echo "FAIL: a CRLF tracker leaks its Done archive"; fail=1; } \
+  || echo "ok: the Done archive is withheld from a CRLF tracker"
+# An unreadable tracker must cost the tracker, never the whole session payload.
+ts_unread="$(mktemp)"; cp "$ts_file" "$ts_unread"; chmod 000 "$ts_unread"
+bash "$TS" "$ts_unread" 10240 >/dev/null 2>&1 \
+  && echo "ok: an unreadable tracker exits clean rather than aborting" \
+  || { echo "FAIL: an unreadable tracker returned non-zero"; fail=1; }
+chmod 644 "$ts_unread"; rm -f "$ts_file" "$ts_crlf" "$ts_unread"
+
+# The review level, from the diff alone. These run the R3 table with no dispatch and no model, which
+# is the whole reason the table lives in a script rather than inside the workflow.
+RL="${DIR}/../scripts/review-level.sh"
+TAB="$(printf '\t')"
+rl() { printf '%b' "$1" | bash "$RL"; }
+rl_is() {
+  got="$(rl "$2")"
+  [ "$got" = "$3" ] && echo "ok: $1" || { echo "FAIL: $1 (got '${got}', wanted '${3}')"; fail=1; }
+}
+rl_is "a one-file doc diff rates low" "3${TAB}1${TAB}README.md\n" low
+# A risk path beats the size rule: two lines under auth/ is where a small diff is the expensive one.
+rl_is "a risk path rates high whatever its size" "2${TAB}0${TAB}src/auth/session.ts\n" high
+rl_is "4 files and 120 lines rate mid" \
+  "30${TAB}0${TAB}src/a.ts\n30${TAB}0${TAB}src/b.ts\n30${TAB}0${TAB}src/c.ts\n30${TAB}0${TAB}src/d.ts\n" mid
+rl_is "20 files and 900 lines rate high" \
+  "$(i=1; while [ $i -le 20 ]; do printf '45\t0\tsrc/f%s.ts\n' $i; i=$((i+1)); done)" high
+# A test-only diff drops whatever its size, or every change to this file would order a full review.
+rl_is "a 1000-line test-only diff rates low" "600${TAB}400${TAB}tests/run-tests.sh\n" low
+rl_is "an empty diff rates nothing" "" ""
+rl_is "risk wins over low risk" \
+  "5${TAB}0${TAB}db/migrations/004.sql\n2${TAB}0${TAB}docs/api.md\n" high
+rl_is "the order of the paths does not change the answer" \
+  "2${TAB}0${TAB}docs/api.md\n5${TAB}0${TAB}db/migrations/004.sql\n" high
+# Numstat shapes that would otherwise crash the arithmetic or launder a risk path through a rename.
+rl_is "a binary file counts as a file and no lines" "-${TAB}-${TAB}assets/logo.png\n" low
+rl_is "both sides of a rename are judged" "1${TAB}1${TAB}old.ts => src/auth/new.ts\n" high
+rl_is "a brace rename is expanded before it is judged" \
+  "1${TAB}1${TAB}src/{old => auth}/x.ts\n" high
+rl_is "a path holding a space survives" "1${TAB}1${TAB}src/my file.ts\n" low
+rl_garbage="$(printf 'garbage\n' | bash "$RL")"; rl_code=$?
+[ -z "$rl_garbage" ] && [ "$rl_code" -eq 0 ] \
+  && echo "ok: malformed numstat rates nothing and exits 0" \
+  || { echo "FAIL: malformed numstat did not exit clean and empty"; fail=1; }
 
 exit $fail

@@ -43,13 +43,26 @@ const OUTCOME = {
 const plan = (args && args.plan) || 'the approved plan in .polaris/plans/'
 const MAX_FIXES = 3
 
+// The Check stage is two agents per slice and the fix loop is a third, so effort here multiplies by
+// slice count. A level names it rather than leaving it to the session, which is how every dispatch
+// in this file came to run at high.
+const LEVELS = {
+  low: { plan: 'medium', build: 'low', check: 'low', fix: 'low' },
+  mid: { plan: 'high', build: 'medium', check: 'medium', fix: 'medium' },
+  high: { plan: 'high', build: 'medium', check: 'high', fix: 'high' },
+}
+const askedLevel = args ? args.level : undefined
+const level = typeof askedLevel === 'string' && Object.hasOwn(LEVELS, askedLevel) ? askedLevel : 'high'
+const rules = LEVELS[level]
+if (askedLevel !== undefined && level !== askedLevel) log(`build level ${JSON.stringify(askedLevel)} not recognized; running high`)
+
 phase('Split')
 const split = await agent(
   `Read ${plan}. Break it into slices that can be built independently.\n` +
     `Each slice names the Polaris fleet agent that should build it, what it covers, and what done means ` +
     `in terms something can check. List the files each slice touches so overlapping ones can be isolated.\n` +
     `Fewer, larger slices beat many small ones: every slice costs a dispatch, a review, and a QA pass.`,
-  { label: 'split', phase: 'Split', agentType: 'polaris:architect', schema: SLICES, effort: 'high' },
+  { label: 'split', phase: 'Split', agentType: 'polaris:architect', schema: SLICES, effort: rules.plan },
 )
 
 const slices = (split && split.slices) || []
@@ -75,6 +88,7 @@ const built = await pipeline(
         phase: 'Build',
         agentType: s.agent.startsWith('polaris:') ? s.agent : `polaris:${s.agent}`,
         schema: OUTCOME,
+        effort: rules.build,
         ...(collides(s) ? { isolation: 'worktree' } : {}),
       },
     ).then(r => ({ slice: s, build: r })),
@@ -90,13 +104,13 @@ const built = await pipeline(
           agent(
             `Review the slice "${slice.name}" (${slice.scope}). Report only real defects, with file and line, ` +
               `and include the over-engineering axis: what in this slice should not exist.`,
-            { label: `review:${slice.name}`, phase: 'Check', agentType: 'polaris:reviewer', schema: OUTCOME, effort: 'high' },
+            { label: `review:${slice.name}`, phase: 'Check', agentType: 'polaris:reviewer', schema: OUTCOME, effort: rules.check },
           ),
         () =>
           agent(
             `Try to break the slice "${slice.name}". Done was defined as: ${slice.done}. ` +
               `Drive the real thing, not a description of it.`,
-            { label: `qa:${slice.name}`, phase: 'Check', agentType: 'polaris:tester', schema: OUTCOME, effort: 'high' },
+            { label: `qa:${slice.name}`, phase: 'Check', agentType: 'polaris:tester', schema: OUTCOME, effort: rules.check },
           ),
       ])
 
@@ -109,7 +123,7 @@ const built = await pipeline(
         `Fix these in the slice "${slice.name}", at the root cause rather than the symptom:\n` +
           problems.map(p => `- ${p}`).join('\n') +
           `\n\nRun the quality gate before reporting.`,
-        { label: `fix:${slice.name}:${rounds}`, phase: 'Check', agentType: 'polaris:bug-fixer', schema: OUTCOME },
+        { label: `fix:${slice.name}:${rounds}`, phase: 'Check', agentType: 'polaris:bug-fixer', schema: OUTCOME, effort: rules.fix },
       )
     }
 

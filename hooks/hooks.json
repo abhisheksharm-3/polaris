@@ -20,14 +20,6 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" enhance-prompt"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "You are a gate on an engineering assistant's input. Return {\"ok\": true} unless the prompt is genuinely impossible to act on.\n\nReturn {\"ok\": true} if the prompt names ANY of: a file, a path, a symbol, an error message, a command, a concrete verb with an object, a question about the codebase, an answer to something asked earlier, a short reply such as yes, no, go ahead, continue, or stop, or anything that reads as a continuation of work already under way.\n\nReturn {\"ok\": false, \"reason\": \"...\"} only when the prompt names no target and no action, so that no engineer could begin. The reason is the ONLY text the user sees and their turn ends, so make it the sharpened version of what they probably meant, phrased as a prompt they can send back. Never explain the rule; write the better prompt.\n\nWhen in doubt, return ok: true. A false stop costs a real turn.\n\nThe prompt: $ARGUMENTS"
-          }
-        ]
       }
     ],
     "Stop": [
