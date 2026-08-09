@@ -108,8 +108,10 @@ output.
 4. End with one concrete next action.
 5. State an error matter-of-factly: the cause and the fix, no "uh oh", no "there seems to be".
 
-Dropped from the source as conflicting with terse output (Rule 7 — surfaced, not blended): restate
-state every turn, cap lists at five items, give specific time estimates.
+Dropped from the source as conflicting with terse output (Rule 7, surfaced not blended): restate
+state every turn, cap lists at five items, give specific time estimates, make wins visible, and
+suppress tangents until the current work is finished. That is five of the source's ten rules, so
+half of it was taken and half was refused on purpose.
 
 ## Quick self-check before submitting
 

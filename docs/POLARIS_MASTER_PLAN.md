@@ -204,15 +204,15 @@ gate. Marketing copy passes the writing standard exactly as commit messages do.
 
 The subsystem feature surface shipped. These cross-cutting pieces are specified in this plan but not
 yet in the tree, listed so the §3 status is not read as "everything described exists". Verified
-against the current repo on 2026-07-16.
+against the current repo on 2026-08-09.
 
 - **Run history beyond `/flow`** (`.polaris/runs/`, §11). `/flow` now writes a run log and the
   doc-org tree lists `runs/`; the other multi-agent commands (`/audit`, `/debug`, `/incident`) do
   not write one yet.
 - **Plugin monitors** (`monitors/monitors.json`, §11). None ship; live external signals (CI status,
   error logs) are not surfaced to Claude as notifications.
-- **Cost meter** (§11). No statusline script and no OpenTelemetry wiring, so spend is not surfaced
-  live during a run.
+- **Cost meter** (§11). `scripts/statusline.sh` ships and shows the open run, but it reports no spend:
+  there is no OpenTelemetry wiring, so cost is not surfaced live during a run.
 - **`/schedule` and routines** (§5, §10.1). No `/schedule` command; the maintenance track runs on
   demand only, not on a schedule or a repository trigger.
 - **Connector activation and embeddings RAG memory** (subsystem E, §8.2). `/catchup` is

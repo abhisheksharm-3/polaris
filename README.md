@@ -121,6 +121,7 @@ project.
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |
 | `/sweep` | Deep start-of-day/end-of-day sweep of every source into a dated Notion briefing |
 | `/journal [date]` | Write or regenerate one day's journal from every source: sessions, git, GitHub, Jira, Slack threads and DMs, mail, meetings, memory |
+| `/oneonone` | Prepare the recurring 1:1 with your manager: capture items between meetings, assemble the agenda from the fortnight, record what was agreed |
 | `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
 | `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
