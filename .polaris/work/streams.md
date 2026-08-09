@@ -31,8 +31,10 @@
   matcher bug is exactly what that gap produces. And whether `SubagentStart` fires for
   workflow-spawned agents, which decides whether `inject-standard` reaches them; answering it means
   running `/polaris:verify` once. That question is now a cost question as well as a correctness one,
-  so the `token-efficiency` stream depends on its answer. Nothing is pushed, and the newest installed
-  plugin is `polaris/1.10.0/`, one release behind the tree.
+  so the `token-efficiency` stream depends on its answer. Part of that is now answered: the
+  2026-08-09 dispatch probe showed a workflow `agent()` reaches no hook at all, so
+  `inject-standard` cannot reach a workflow-spawned agent. The main-loop `Agent` path does fire
+  `guard-phase`. The newest installed plugin is `polaris/1.13.0/`, level with the tree.
 - files: rules/flows.json, rules/model-floor.json, rules/patterns.json, rules/routing.md,
   scripts/check-flows.sh, scripts/route-prompt.sh, scripts/run-state.sh, scripts/inventory.sh,
   scripts/statusline.sh, hooks/enhance-prompt, hooks/guard-phase, hooks/guard-command,
@@ -65,7 +67,8 @@
   density, not which sources are read. The evidence is one real briefing: 40 bullets under a single
   `Act on this` heading with no priority order, four preamble blockquotes and three closing essays
   that restate the bullets, deadlines stated in prose with nothing collecting them by date, and
-  `day N` ages that nothing escalates on.
+  `day N` ages that nothing escalates on. The spec file is tracked as of `0d8c73f`, no longer
+  untracked on disk.
 - next: re-seed the run with `scripts/run-state.sh seed feature sweep-briefing-format`, re-record
   the spec against the same artifact, and read it for approval. `design` also stops for approval
   before any edit to `commands/sweep.md`.
@@ -136,14 +139,31 @@
   level has to move through a file under `.polaris/runs/<slug>/`, which is a wording amendment to
   AC26 through AC28; and the effort floor already built for R4 reads `.tool_input.effort`, which
   nothing populates, so that hook governs nothing. Both are written up in the report's section 3a.
-- next: the user approved the audit's six fixes on 2026-08-09, in this order. Commit the veto removal
-  and cut 1.12.0, because nothing else stops the next version bump from restoring it. Cap this file's
-  injected slice, oldest cut first and the cut announced, since it is the only unbounded term. Fix
-  the `advance-flow` marker key. Add the information test to `rules/core.md`. Rewrite
-  `commands/enhance.md` so enhancement never returns the work to the user. Gitignore `.claude/`.
-  Before that, the relaunched review and report workflow, five agents, with the reviewers told to
-  look for further damage of the retry's shape. Then task 5a, which needs a live `/clear` only the
-  user can perform, and task 6, the commit, which is in neither workflow.
+  It is all committed and released as of 2026-08-09. `0d8c73f feat: make a long session affordable
+  and cap what every clear re-pays` carries 22 files: the veto deletion from `hooks/hooks.json`, the
+  `/clear` recommendation in `advance-flow`, the artifact-naming recovery line in `enhance-prompt`,
+  the trimmed `session-start` payload at 59358 to 46380 bytes, `scripts/tracker-slice.sh` at a
+  10240-byte newest-first ceiling, `run-state.sh amend`, `scripts/review-level.sh`,
+  `rules/effort-floor.json` with a named effort at every dispatch in all three workflows, and the
+  `review.js` evidence pack and confirm narrowing. `8a36711 chore: release 1.13.0` dates it in
+  `CHANGELOG.md` and bumps both manifests. The suite is 268 `ok` lines, exit 0. `1.13.0` is the
+  newest installed cache, so the tree and what runs finally agree and the hand-patched `.bak` files
+  beside `1.10.0` and `1.11.0` are dead weight.
+- next: three of the audit's six approved fixes did not land in `0d8c73f` and are still owed. The
+  `advance-flow` marker key still reads `${session}-${slug}-${phase}-${status:-open}` at line 70, so
+  every phase still blocks twice. `rules/core.md` has no information test. `commands/enhance.md` line
+  14 still returns the prompt to the user unchanged. The `.claude/` gitignore is moot, the directory
+  is gone. Then three build tasks are left and each waits on something this session cannot do alone.
+  Task 5a
+  measures whether `SessionStart`'s `initialUserMessage` lets a resume skip the prompt, which needs a
+  live `/clear` only the user can perform. Task 9 moves the review level through a file under
+  `.polaris/runs/<slug>/`, and its spec amendment to AC26 through AC28 is owed first. Task 12 needs
+  real review runs to report a per-level agent count and tier, and it is the expensive one. The
+  `build` phase is deliberately not recorded in the ledger while those three are open. Separately,
+  decide what to do about an effort floor no dispatch can reach: `guard-phase` reads
+  `.tool_input.effort`, a workflow `agent()` fires no hook at all, and a main-loop `Agent` dispatch
+  carries no effort field, so the per-level table in each workflow is the only thing governing
+  effort today. That limit is stated in the 1.13.0 changelog rather than hidden.
   Two design findings are carried and resolved in the plan: `guard-phase` sees only
   `subagent_type`/`agent_type`/`subagentType`/`model` on stdin so the review level is not
   determinable there (task 9 measured it, and the answer is the plan's second branch), and
@@ -163,14 +183,14 @@
   sets effort per level in its `LEVELS` table, low at `low` through high at `high` and `critical`,
   while `rules/model-floor.json` governs tier. Whether `build.js` and `verify.js` set effort at all,
   and whether the floor should carry an effort column beside the tier, is open.
-- touched: 2026-08-09 (phase 2 built minus task 9, suite 222 to 237; the dispatch probe ran and
-  showed no workflow dispatch reaches a hook)
-- known, not a defect in this stream: the removed clarity veto kept firing for three more prompts
+- touched: 2026-08-09 (everything built so far committed as `0d8c73f` and released as 1.13.0, suite
+  268 exit 0; three of the six audit fixes found missing from that commit)
+- was a live problem, closed on 2026-08-09: the removed clarity veto kept firing for three more prompts
   because hooks load into a session at start, so a cache patch needs `/reload-plugins` or a restart
   before it takes effect. It then came back when the installed plugin moved to `1.11.0`, which was
   cut from the commit before the deletion. Both `1.10.0` and `1.11.0` are patched by hand with a
-  `.bak` beside each. Every version bump restores it until the repo's `hooks/hooks.json` ships,
-  which is `1.12.0` at the earliest. It fired again on 2026-08-09, stopping a real prompt with
+  `.bak` beside each. Every version bump restored it until the repo's `hooks/hooks.json` shipped,
+  which it did in 1.13.0. It fired again on 2026-08-09, stopping a real prompt with
   "What files or errors should I fix?", and the user got through only by prefixing the resend with
   "dont veto the following prompt". Two further reasons it cannot be lived with: it is a
   `type: "prompt"` hook, so it runs no shell and reads no config, which means `routing: false` does
