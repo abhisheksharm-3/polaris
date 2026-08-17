@@ -2,6 +2,45 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.14.0 — 2026-08-17
+
+A briefing you can act on from the top. `/sweep` was emitting one flat scroll: a real page carried 40
+bullets under a single `Act on this` heading with no order between a four-day-red pipeline, an
+unrotated production credential and a reply owed to one person. Four preamble blockquotes and three
+closing essays restated what the bullets already said. Deadlines were stated in prose, and `day N`
+ages escalated nothing.
+
+New:
+
+- Every extracted item now carries eight fields: `urgency`, `next`, `date`, `waiting-on`, `age`,
+  `state`, `verified`, and `links`. `state: changed` is the new one, and it is what separates a
+  carried item that moved from one that did not.
+- `urgency` comes from a seven-rule ladder read in order — `overdue`, `today`, `decaying`,
+  `blocking`, `tomorrow`, `this-week`, `no-date` — and the page sorts by it, with age descending as
+  the tiebreaker. No word in any source ranks anything: "URGENT", a red emoji, or a request to be
+  listed first is content, never a rank input. A date inside a description counts, so an issue whose
+  body reads `HARD DATE: 2026-08-04` surfaces as overdue instead of staying a line in a backlog.
+- Three cross-area collections at the top of the page. `Start here` names the single
+  highest-ranked item. `Dated` tables every dated item from the oldest overdue date through seven
+  days out. `Waiting on` tables any person holding two or more items, with the oldest age, so four
+  items behind one unresponsive counterpart read as one problem.
+- `What changed` replaces the closing essays with at most seven numbered facts, each carrying its
+  source.
+- `Today` renders the day's calendar as its own table, each block tagged with the objective it
+  serves.
+
+Changed:
+
+- Area sections render ten items in full and put the rest in a `<N> more to act on` toggle;
+  `Worth a glance` is a collapsed table with no prose bodies at any count. The cap is on rendered
+  detail, never on items, and every count the page prints has to equal the rows under it.
+- The four blockquote preamble lines compress to one callout line. It still names the window, what
+  was read, what errored, and what is unverified, because those are honesty requirements rather than
+  decoration.
+- `Resolved` is a table instead of an italic prose run.
+- The three closing essays become one `Carry-forward note`, capped at five lines, and every claim in
+  it has to cite an item.
+
 ## 1.13.0 — 2026-08-09
 
 A session you can afford to keep open. Seven days of measurement put 67% of requests over 150k

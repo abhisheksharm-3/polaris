@@ -59,7 +59,7 @@
 ## sweep-briefing-format — restructure what /sweep emits
 
 - domain: feature
-- status: blocked, on a human approval
+- status: shipped as 1.14.0
 - state: The spec is written and was recorded: `.polaris/specs/sweep-briefing-format.md`, 503 lines,
   `check-patterns.sh prose` exit 0. The run then reached its approval stop and was cleared with
   `scripts/run-state.sh clear` to free the one-open-run slot for `review-levels`, so the ledger no
@@ -69,12 +69,40 @@
   that restate the bullets, deadlines stated in prose with nothing collecting them by date, and
   `day N` ages that nothing escalates on. The spec file is tracked as of `0d8c73f`, no longer
   untracked on disk.
-- next: re-seed the run with `scripts/run-state.sh seed feature sweep-briefing-format`, re-record
-  the spec against the same artifact, and read it for approval. `design` also stops for approval
-  before any edit to `commands/sweep.md`.
+- 2026-08-17: the spec was rendered against a real 66-hour briefing as a sample, in the scratchpad
+  at `sweep-sample-2026-08-17.md`. Three defects in the spec surfaced that no reading of it found.
+  R2 ranks `feat/enhanced-script-generator` — 60 commits, no PR, a repo that has never run CI, and
+  the old page's own top item — as `no-date`, so it lands 14th of 16 inside a collapsed toggle;
+  either `decaying` widens to cover unreviewed-and-unguarded work or R2 needs an eighth band. R4's
+  `Dated` range reads "within the window's end plus seven days", which excludes an overdue date,
+  and the sample had one 13 days past. The format did surface that overdue date, SAGE-259's
+  `HARD DATE: 2026-08-04`, which the old page had buried inside a "backlog, none moved" bullet.
+- 2026-08-17, a new reference: the user shared Dia's Monday Brief and likes it, with the caveat
+  that it is thin. Three things it does that the spec does not: one hero action instead of a ranked
+  seven, a numbered `New updates` list of facts where the spec cut the closing essay entirely, and
+  the day's calendar as its own timeline. Thin because it carries no age on anything, which is the
+  half the current format already gets right. The sample folds all three in.
+- built and released 2026-08-17 as 1.14.0, at the user's instruction to skip the ledger because
+  another session held the one open-run slot. `commands/sweep.md` went 325 to 444 lines in three
+  edits: step 4 gained the eight-field item and the seven-rule urgency ladder, step 5's three flat
+  tags became the `age`, `state` and `verified` fields, and step 6's three-line render became a
+  ten-block page order with five conditional sections. All three sample defects are fixed in it —
+  `decaying` widened rather than an eighth band added, `Dated` widened to include overdue, and a
+  date inside a description made to count.
+- proved 2026-08-17 by a live `--dry-run` over a 1h58m window, executed from the repo tree rather
+  than through `/polaris:sweep`, because the installed cache was still 1.13.0 and would have
+  rendered the old format. All six sources read. The render is in the scratchpad at
+  `sweep-dryrun-2026-08-17-evening.md`, prose exit 0, and every printed count equals its rendered
+  rows, checked by script rather than by eye.
+- next: nothing owed. Two things to watch on the next real run. A 12:34 local start reads as the
+  evening block, so a midday sweep runs the OKR interview rather than the pace read, which is
+  inherited behaviour and not new. And `Start here` picked a 13-day-overdue backlog line over the
+  window's most interesting finding, which is the rank working as specified and worth confirming is
+  what you want after a week of it.
 - files: commands/sweep.md, scripts/sweep-window.sh, scripts/okr-pace.sh,
-  .polaris/specs/sweep-briefing-format.md
-- touched: 2026-08-03 (spec written and recorded, then the run was cleared unapproved)
+  .polaris/specs/sweep-briefing-format.md, CHANGELOG.md,
+  .polaris/releases/2026-08-17-v1.14.0.md
+- touched: 2026-08-17 (built, dry-run proved, released as 1.14.0)
 
 ## token-efficiency — make Polaris affordable at the limit, not just correct
 
@@ -203,40 +231,6 @@
 ## oneonone-prep — prepare the user for a manager 1:1 from state Polaris already holds
 
 - domain: feature
-- status: active, on the spec phase
-- state: Opened 2026-08-03. The user has bi-weekly 1:1s with their manager, and once a month one of
-  those also carries the OKR review, so the mode has two variants. They supplied the source material
-  themselves: two Reddit threads on making 1:1s meaningful and a video transcript of a five-section
-  agenda (wins first, top three FYIs, things to discuss live, a status grid never read aloud). The
-  advice converges on one mechanic worth building: the report owns the meeting and sends the agenda a
-  day ahead, and the thing that defeats every template is that people forget between meetings what
-  they meant to raise. Polaris already accumulates the facts a template needs, so the question the
-  spec must answer is which sections are derivable from `journal-facts.sh`, `worktracker-snapshot.sh`,
-  git history, and the OKR ledger at `~/.claude/polaris-memory/okr/`, and which have to be asked. The
-  `product` agent is writing `.polaris/specs/oneonone-prep.md` and was told to argue the surface, new
-  command against a `/sweep` lens against a `/catchup` extension, rather than assume a new command.
-- next: read the spec, decide the surface, and answer the open questions it raises before design. One
-  cleanup is still owed: revert `routing: false` in `.polaris/config.json`.
-- files: .polaris/specs/oneonone-prep.md, commands/sweep.md, commands/catchup.md, commands/track.md,
-  commands/journal.md, scripts/okr-pace.sh, scripts/journal-facts.sh,
-  scripts/worktracker-snapshot.sh
-- touched: 2026-08-09 (worktree pruned at the user's request; the work moves back to the main
-  checkout)
-- was decided, then reversed on 2026-08-09: the work happened in the git worktree
-  `.claude/worktrees/oneonone-prep` on branch `worktree-oneonone-prep`. The user asked for the
-  worktree to be pruned, so `.claude/` is gone. Its one commit, `8ec3e3e feat: prepare the manager
-  1:1 from state Polaris already holds`, reached `origin/main` through PR #1 before the prune, so
-  nothing was lost. The gitignore cleanup the audit asked for is moot now that the directory does
-  not exist.
-- found this session, worth a fix of its own: a worktree does not isolate a Polaris run. All four
-  flow gates and `scripts/run-state.sh` resolve their paths from `CLAUDE_PROJECT_DIR`, which stays
-  pointed at the main checkout, so a run seeded from inside a worktree writes a ledger no hook ever
-  reads, and the main checkout's run is the one still enforced. That is why routing had to be
-  switched off repo-wide to run two features at once instead of the worktree simply holding its own.
-
-## oneonone-prep — prepare the user for a manager 1:1 from state Polaris already holds
-
-- domain: feature
 - status: active, on the ship phase, blocked on a human
 - state: The `feature` run under `.polaris/runs/oneonone-prep/` has spec recorded and approved at
   2026-08-04T14:54:39Z: `.polaris/specs/oneonone-prep.md`, 87 acceptance criteria across 13
@@ -246,7 +240,11 @@
   landed while the spec was being written: two sessions in the Sage project produced
   `~/.claude/polaris-memory/oneonone/agendas/2026-08-05-oneonone.md` (14.7 KB, frontmatter carrying
   variant, window, six sources and the Notion URL) and published it to Notion under Work OS → 1:1 →
-  "1:1 — 2026-08-05". That is the format reference and the architect has read it.
+  "1:1 — 2026-08-05". That is the format reference and the architect has read it. The five-section
+  shape came from source material the user supplied: two Reddit threads on making 1:1s meaningful
+  and a video transcript of a wins-first agenda. The mechanic worth building is that the report owns
+  the meeting and sends the agenda a day ahead, and what defeats every template is forgetting
+  between meetings what you meant to raise.
 - built, 2026-08-09: design approved and recorded, then tasks 1 to 8 of 9 built and green.
   `scripts/sweep-window.sh` gained `--first-run-hours` clamped to the cap; `scripts/oneonone-join.sh`
   and `scripts/oneonone-inbox.sh` are new with two fixtures cut from a live calendar pull;
@@ -268,9 +266,13 @@
   contradicts the user's instruction that removed content stay removed; and the generated draft
   credited the user with work they did not build. One cleanup is still owed: the orphan run ledger
   at `.polaris/runs/oneonone-prep/` inside the worktree.
-- files: .polaris/specs/oneonone-prep.md, .polaris/plans/oneonone-prep.md (not yet written)
-- touched: 2026-08-09 (the hand-built precedent found and sent to the architect; `routing` reverted
-  in the main checkout's `.polaris/config.json`, which now matches HEAD)
+- documented 2026-08-17 in `b4df35e`: `/oneonone` had shipped with `commands/oneonone.md` and two
+  scripts and no doc named it, so an installed copy gave no way to discover it. `README.md` and the
+  `CLAUDE.md` command table now carry it, `oneonone-inbox.sh` and `oneonone-join.sh` included.
+- files: .polaris/specs/oneonone-prep.md, .polaris/plans/oneonone-prep.md (not yet written),
+  commands/oneonone.md, scripts/oneonone-inbox.sh, scripts/oneonone-join.sh
+- touched: 2026-08-17 (documented in README and CLAUDE.md; the live run and ship still wait on the
+  user)
 - decided, do not reopen: the work happens in the git worktree `.claude/worktrees/oneonone-prep` on
   branch `worktree-oneonone-prep`, at the user's request.
 - found this session, worth a fix of its own: a worktree does not isolate a Polaris run. All four
