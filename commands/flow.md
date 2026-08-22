@@ -20,7 +20,8 @@ same run. This is the explicit door to the same room.
 
 1. Read `.polaris/config.json`.
 2. Open the run: `${CLAUDE_PLUGIN_ROOT}/scripts/run-state.sh seed feature <slug>`, with a slug drawn
-   from the task. It refuses when a run is already open; `/polaris:pause` clears that one.
+   from the task. It refuses when this session already has a run open; `/polaris:pause` clears
+   that one. Another session's run is no obstacle, and a slug it already owns is.
 3. Say which phases the run holds and which stop for approval:
    `jq -r '.feature.phases[] | "\(.name) -> \(.run)"' "${CLAUDE_PLUGIN_ROOT}/rules/flows.json"`.
 4. Run the first phase. Dispatch `product` to write the spec, with explicit acceptance criteria,

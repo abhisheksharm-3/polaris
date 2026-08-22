@@ -10,7 +10,7 @@
 - state: All eleven tasks are built and committed, version 1.10.0 in both manifests, suite at 185
   assertions. `rules/flows.json` holds eighteen flows, each an ordered phase list, with
   `scripts/check-flows.sh` asserting every target resolves. `scripts/run-state.sh` is the ledger: a
-  phase is done only with its artifact on disk and its hash matching, one open run per project.
+  phase is done only with its artifact on disk and its hash matching, one open run per session.
   `hooks/enhance-prompt` classifies every prompt against the `routing` array in
   `rules/patterns.json` and opens the run; `/polaris:compose` builds a flow from
   `scripts/inventory.sh` when no row fits, validated and gated like a catalog row. Four gates read
@@ -38,13 +38,32 @@
 - files: rules/flows.json, rules/model-floor.json, rules/patterns.json, rules/routing.md,
   scripts/check-flows.sh, scripts/route-prompt.sh, scripts/run-state.sh, scripts/inventory.sh,
   scripts/statusline.sh, hooks/enhance-prompt, hooks/guard-phase, hooks/guard-command,
-  hooks/advance-flow, hooks/hooks.json, commands/pause.md, commands/compose.md,
+  hooks/advance-flow, hooks/hooks.json, commands/pause.md, commands/compose.md, commands/flow.md,
+  CLAUDE.md,
   workflows/verify.js, workflows/review.js, workflows/build.js,
   tests/fixtures/routing-cases.txt, tests/run-tests.sh, templates/config.default.json,
   README.md, CHANGELOG.md, .claude-plugin/plugin.json, .claude-plugin/marketplace.json,
   docs/specs/2026-08-01-flow-enforcement.md, docs/plans/2026-08-01-flow-enforcement.md,
   .polaris/runs/2026-08-01-flow-enforcement-preflight.md
-- touched: 2026-08-09 (the double-block defect found; body last built 2026-08-01)
+- touched: 2026-08-22 (parallel runs released as 1.15.0; body last built 2026-08-01)
+- 2026-08-17, released as 1.15.0 on 2026-08-22: the ledger holds one run per session rather than one per
+  project, so two conversations in one repo no longer refuse each other. `scripts/run-state.sh`
+  keys its pointer at `.polaris/runs/.open-<session id>` from `POLARIS_SESSION` or
+  `CLAUDE_CODE_SESSION_ID`; a live probe confirmed a subagent inherits that id unchanged, which is
+  what keeps a gate and the agent it gates reading one run. `seed` now refuses a second run in the
+  same session and refuses a slug whose directory another session owns, since two conversations
+  writing one `state.json` is the race the hash invariant cannot survive. A run left at the old
+  shared `.open` path is adopted by the first session that asks, proved on the live
+  `token-efficiency` run, which migrated and still reads phase `build`. Five new assertions in
+  `tests/run-tests.sh` cover parallel seeds, the per-session limit, the slug collision, a `clear`
+  that does not reach across sessions, and the adoption. Suite at 277 assertions, 0 failures.
+  Known cost: nothing reaps a pointer whose session ended, so an abandoned run now sits on disk
+  invisibly where the single `.open` used to force a decision.
+- next, for this stream: 1.15.0 is tagged and released, so a `/plugin` update makes parallel runs
+  live. Nothing reaps a pointer whose session ended, which is recorded as a known limit rather than
+  solved; revisit if abandoned runs actually accumulate. The two older gaps still need a live session: an
+  observed `guard-phase` deny rather than a hand-built payload, and the `Task` versus `Agent`
+  matcher bug that gap produced.
 - found 2026-08-09, a defect: `advance-flow` keys its once-per-transition marker on
   `${session}-${slug}-${phase}-${status}`, and `status` moves from empty to `done` inside a single
   phase, so every phase blocks twice rather than once. A four-phase `feature` run is eight `Stop`

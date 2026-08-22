@@ -622,7 +622,7 @@ expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert fix
 expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" approve rootcause
 expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" assert fix
 
-# One open run per project, and clear ends it.
+# One open run per session, and clear ends it.
 expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed feature other
 rs_out="$(rs seed feature other 2>&1 || true)"
 grep -q 'demo' <<<"$rs_out" \
@@ -636,6 +636,32 @@ expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed feature other
 expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" clear
 expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed conversation nope
 expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" bash "$RS" seed no-such-flow nope
+
+# Two sessions are two conversations, so they hold two runs at once. This is the whole point of
+# keying the pointer by session: one open run per session, never one per machine.
+rsx() { env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION="$1" bash "$RS" "${@:2}"; }
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-a bash "$RS" seed bug para-a
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-b bash "$RS" seed feature para-b
+[ "$(rsx sess-a get | jq -r .slug)" = "para-a" ] && [ "$(rsx sess-b get | jq -r .slug)" = "para-b" ] \
+  && echo "ok: run-state holds two parallel runs, one per session" \
+  || { echo "FAIL: parallel sessions did not each keep their own run"; fail=1; }
+
+# The per-session limit still binds, and a slug another session owns is refused rather than shared.
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-a bash "$RS" seed feature para-a2
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-c bash "$RS" seed bug para-a
+
+# Clearing one session leaves the other running.
+expect_exit 0 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-a bash "$RS" clear
+expect_exit 1 env CLAUDE_PROJECT_DIR="$rs_tmp" POLARIS_SESSION=sess-a bash "$RS" get
+[ "$(rsx sess-b get | jq -r .slug)" = "para-b" ] \
+  && echo "ok: clearing one session does not touch another session's run" \
+  || { echo "FAIL: clear reached across sessions"; fail=1; }
+
+# A run opened before the pointer was per-session is adopted, not orphaned.
+printf 'para-b' > "${rs_tmp}/.polaris/runs/.open"
+[ "$(rsx sess-d get | jq -r .slug)" = "para-b" ] \
+  && echo "ok: run-state adopts a run left at the pre-session pointer" \
+  || { echo "FAIL: a legacy open run was not adopted"; fail=1; }
 rm -rf "$rs_tmp"
 
 # route-prompt: every fixture prompt lands in its expected flow, conversation routes nowhere

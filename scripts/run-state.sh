@@ -6,15 +6,23 @@
 # Two invariants, both of which the gates depend on:
 # 1. A phase is done only with its artifact on disk and its hash matching. An artifact edited after
 #    the fact invalidates the phase that claimed it, because a stale claim is worse than no claim.
-# 2. One open run per project. Two ledgers means two answers to "what phase is this", and the
-#    PreToolUse gate would then allow whatever the more permissive one says.
+# 2. One open run per session. Two ledgers in one session means two answers to "what phase is
+#    this", and the PreToolUse gate would then allow whatever the more permissive one says. Two
+#    sessions are two conversations, each with its own answer, so they run in parallel: the pointer
+#    is keyed by CLAUDE_CODE_SESSION_ID, which subagents inherit unchanged from the session that
+#    dispatched them, so a gate and the agent it gates always read the same run.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 RUNS="${PROJECT_DIR}/.polaris/runs"
-OPEN="${RUNS}/.open"
+SESSION="${POLARIS_SESSION:-${CLAUDE_CODE_SESSION_ID:-shared}}"
+OPEN="${RUNS}/.open-${SESSION//[^A-Za-z0-9._-]/_}"
 CATALOG="${ROOT}/rules/flows.json"
+
+# A run opened before the pointer was per-session sits at the old shared path. Adopt it into the
+# first session that asks, so an in-flight run survives the upgrade instead of going invisible.
+[ -e "$OPEN" ] || [ ! -f "${RUNS}/.open" ] || mv "${RUNS}/.open" "$OPEN"
 
 die() { echo "run-state: $*" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || die "jq is required"
@@ -70,8 +78,12 @@ cmd_seed() {
             || die "flow '${flow}' has no phases, so it is not a run"
     fi
     local existing; existing="$(open_slug)"
-    [ -n "$existing" ] && die "run '${existing}' is already open; /polaris:pause clears it"
+    [ -n "$existing" ] && die "run '${existing}' is already open in this session; /polaris:pause clears it"
     case "$slug" in ""|.|..|*[!A-Za-z0-9._-]*) die "slug '${slug}' is not usable as a path" ;; esac
+    # Sessions run in parallel but they do not share a run. A slug whose directory is already there
+    # belongs to another session, and two conversations writing one state.json is the one race the
+    # ledger cannot survive, so the second caller picks a different slug.
+    [ -d "${RUNS}/${slug}" ] && die "run '${slug}' already exists; another session owns it, so pick another slug"
     mkdir -p "${RUNS}/${slug}" || die "cannot create ${RUNS}/${slug}"
     if [ -n "$composed" ]; then
         jq -n --arg s "$slug" --argjson p "$composed" \

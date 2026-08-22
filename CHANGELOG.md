@@ -2,6 +2,36 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.15.0 — 2026-08-22
+
+Two Polaris sessions in one repo no longer refuse each other. The run ledger kept its open-run
+pointer at one path per project, `.polaris/runs/.open`, so the second conversation to start got
+`run 'x' is already open` and the only way forward was `/polaris:pause`, which clears a run someone
+else is mid-way through. In practice that meant one flow at a time per repo, and a second session
+either sat blocked or worked outside the ledger where no gate could see it.
+
+Changed:
+
+- The pointer is now `.polaris/runs/.open-<session id>`, read from `POLARIS_SESSION` or
+  `CLAUDE_CODE_SESSION_ID`. A subagent inherits that id unchanged from the session that dispatched
+  it, which is what keeps `guard-phase` and the agent it gates reading one run. One open run per
+  session, as many sessions as you like.
+- `seed` gained a second refusal: a slug whose directory already exists belongs to another session,
+  and two conversations writing one `state.json` is the race the hash invariant cannot survive, so
+  the second caller picks a different slug. The per-session limit still binds.
+- `clear`, and so `/polaris:pause`, ends the calling session's run only. A run open elsewhere keeps
+  going.
+- A run left at the pre-1.15.0 `.open` path is adopted by the first session that asks, so an
+  in-flight run survives the upgrade rather than going invisible.
+- `.gitignore` covers `.polaris/runs/.open*`, since a per-session pointer is checkout state.
+
+Known limit: nothing reaps a pointer whose session has ended. An abandoned run stays on disk until
+`clear`, where the single shared pointer used to force the decision by being in the way.
+
+Tests: five assertions cover two sessions holding two runs, the per-session limit, the slug
+collision, a `clear` that does not reach across sessions, and the adoption of the old pointer. The
+suite is at 277 assertions.
+
 ## 1.14.0 — 2026-08-17
 
 A briefing you can act on from the top. `/sweep` was emitting one flat scroll: a real page carried 40

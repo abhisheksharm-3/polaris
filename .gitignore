@@ -4,6 +4,6 @@ Thumbs.db
 
 # The run ledger is per-checkout state, not history. A clone should not arrive holding someone
 # else's half-finished run, and the gates would enforce its phases against work that is not yours.
-.polaris/runs/.open
+.polaris/runs/.open*
 .polaris/runs/.composed-log
 .polaris/runs/*/state.json

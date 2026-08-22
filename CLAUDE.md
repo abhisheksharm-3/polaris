@@ -144,6 +144,12 @@ enforces on itself.
 - A flow is data, not prose. `rules/flows.json` is the source of truth for what a flow runs, and any
   command describing a flow defers to it. `commands/flow.md` is the `feature` row, not a second
   definition of it.
+- One open run per **session**, not per project. The pointer is `.polaris/runs/.open-<session id>`,
+  keyed by `CLAUDE_CODE_SESSION_ID`, which subagents inherit unchanged, so a gate and the agent it
+  gates always read the same run. Two sessions in one repo therefore run in parallel; `seed` refuses
+  a second run in the same session, and refuses a slug whose directory another session already owns.
+  A run left at the old shared `.open` path is adopted by the first session that asks. Nothing
+  reaps a pointer whose session ended, so an abandoned run stays on disk until `clear`.
 - An artifact edited after its phase recorded it invalidates that phase, and `run-state.sh assert`
   refuses every later one. That is the invariant a cleared session depends on, so the fix is
   `run-state.sh amend <phase> <evidence>`, not a re-seed. An amendment re-hashes the artifact, keeps
