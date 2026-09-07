@@ -1,6 +1,6 @@
 # Polaris Memory
 
-<!-- Injected every session. How to maintain the global memory at ~/.claude/polaris-memory/. -->
+<!-- Loaded on demand; session-start names the path, not the body. How to maintain the global memory at ~/.claude/polaris-memory/. -->
 
 Polaris keeps a global, file-based memory across all projects so context is not re-explained every
 session. The `Stop` hook asks for capture at the end of a working session, so the store fills without

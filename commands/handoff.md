@@ -66,5 +66,5 @@ Then run the doc through the writing standard and fix any hit:
 
 Report the path you wrote and a one-line summary of what it captures. End with a
 `Suggested skills / commands for next session:` line naming the Polaris commands the next agent
-should reach for, chosen from the work that remains (for example `/flow` to build, `/debug` to
+should reach for, chosen from the work that remains (for example `/flow` to build, `/polaris:debug` to
 chase a failing test, `/gate` before a push, `/review-pr` to review).

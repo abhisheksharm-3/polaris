@@ -91,11 +91,16 @@ on first run. See `companions.json` for the full manifest.
 
 ## Setup
 
-Run `/init` (or `/polaris:init`) at a project root. It interviews you on how the standard should
+Run `/polaris:init` at a project root. It interviews you on how the standard should
 apply here (dead code, backward compatibility, architecture, naming, PR conventions, or a one-step
 auto mode), writes `.polaris/config.json`, installs companions, and sets up `CLAUDE.md`. The gate,
 the hooks, and every agent read that config, so the same engine enforces a different profile per
 project.
+
+Type the `polaris:` prefix. `/init` and `/debug` are Claude Code's own, so the bare names never
+reach Polaris: `/init` writes a CLAUDE.md and no `.polaris/config.json`, and without that file the
+routing, both phase gates, and the flow driver all stay off. A session in a project with no config
+now says so.
 
 ## The command surface
 
@@ -103,7 +108,7 @@ project.
 |---|---|
 | `/flow <task>` | The full build cycle: idea to a reviewed, tested, shipped PR, with human gates at spec, design, and plan, and capped verify loops |
 | `/recon <effort>` | Chart a large, foggy effort as a shared decision map of open questions, before any spec or code |
-| `/debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
+| `/polaris:debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
 | `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
 | `/gate [--fix] [--scope]` | Run the quality gate on the current changeset |
 | `/audit` | Whole-codebase four-category audit (security, performance, architecture, structure) |
@@ -127,12 +132,12 @@ project.
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
 | `/route <situation>` | Route a situation to the one right Polaris command, and say why |
 | `/remember`, `/recall` | Write to and read from global memory |
-| `/init` | Setup interview, companions, and CLAUDE.md |
+| `/polaris:init` | Setup interview, companions, and CLAUDE.md |
 
 ## Using Polaris
 
 Polaris is organized around jobs, not tools. Each job below names the situation you are in, the one
-command to run, and how to get the best result from it. Run `/init` once per project first so every
+command to run, and how to get the best result from it. Run `/polaris:init` once per project first so every
 command reads your profile.
 
 Every command scales to the input. A one-line fix runs a short path; a real feature runs the whole
@@ -162,7 +167,7 @@ answers one feasibility question with the smallest prototype, then discards or g
 
 ### Fix a bug
 
-**Use `/debug <symptom>`** for any bug where the cause is not obvious. It interviews you, grounds
+**Use `/polaris:debug <symptom>`** for any bug where the cause is not obvious. It interviews you, grounds
 itself in the code, the stack docs, and the database schema, reproduces the failure, finds the root
 cause, names the class of bug, fixes the class rather than the one instance, verifies, and adds a
 regression test.
@@ -313,17 +318,31 @@ findings cite, loaded for code work.
 opinions, mapped by `rules/stack-map.json`. `rules/patterns.json` is the machine-readable data that
 drives the deterministic checker and the hooks. `rules/routing.md` classifies each task to the
 agent, command, ponytail intensity, and model tier to use, and `rules/model-routing.md` holds the
-tier table it routes to. Three more rules are injected every session: `rules/craft.md` (the craft
-principles behind the standard), `rules/memory.md` (how the global memory is written and pruned),
-and `rules/doc-organization.md` (where a generated document belongs). `rules/connectors.md` is the
-shared protocol for reading a window of work out of the connectors, including the Slack sequence
-that finds thread replies and DMs.
+tier table it routes to. `rules/craft.md` holds the craft principles behind the standard,
+`rules/memory.md` how the global memory is written and pruned, `rules/doc-organization.md` where a
+generated document belongs, and `rules/core-protocols.md` the docs protocol, skill resolution, and
+the surgical-versus-aggressive rule. `rules/connectors.md` is the shared protocol for reading a
+window of work out of the connectors, including the Slack sequence that finds thread replies and DMs.
 
-The gate lives in `skills/quality-gate/`. The hooks are `guard-commit-pr` (blocks bad commit and PR
-text), `guard-edit` (surfaces slop on edit, opt-in), `guard-input` (flags injection in tool
-results), `enhance-prompt` (gated), `session-start` (injects the standard, surfaces work and
-memory, installs companions), and `stop-capture` (requires the journal narrative, the tracker
-reconcile, and the memory pass before a working session ends).
+Only `rules/core.md` is injected. A hook's context is capped at 10,000 characters and the overflow
+is silently replaced by a file path, so everything else is named as a path and read when its
+condition holds. `core.md` carries a 7,000-byte budget the test suite enforces.
+
+The gate lives in `skills/quality-gate/`. Eleven hooks are wired in `hooks/hooks.json`:
+
+| Hook | Event | What it does |
+|---|---|---|
+| `session-start` | SessionStart | Injects `core.md`, names the rest, surfaces open work and memory, installs companions |
+| `enhance-prompt` | UserPromptSubmit | Classifies the prompt into a flow and seeds the run |
+| `guard-commit-pr` | PreToolUse | Denies a commit or PR message that breaks the writing standard |
+| `guard-edit` | PreToolUse | Denies a write carrying an inline comment; other slop is advisory |
+| `guard-phase` | PreToolUse | Refuses a dispatch the current phase does not name, and one below the model floor |
+| `guard-command` | UserPromptExpansion | Refuses a phase command whose predecessor is not earned |
+| `guard-input` | PostToolUse | Flags injection markers in a tool result |
+| `inject-standard` | SubagentStart | Puts the comment law and the ladder into a code-writing subagent |
+| `guard-review` | SubagentStop | Sends back a review that omits the over-engineering axis |
+| `advance-flow` | Stop | Drives the open run to its next phase or to the human it waits on |
+| `stop-capture` | Stop | Requires the journal narrative, the tracker reconcile, and the memory pass |
 
 ## Memory and the work tracker
 

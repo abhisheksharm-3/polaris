@@ -1,6 +1,6 @@
 # Polaris Routing
 
-<!-- Injected every session. Classify the task, then use the tools this table names. -->
+<!-- Loaded on demand; session-start names the path, not the body. Classify the task, then use the tools this table names. -->
 
 Classify each task, then reach for the tools named here. Match the smallest thing that fits: do not
 run the full cycle for a one-line change, and do not hand-run a feature that wants the cycle.

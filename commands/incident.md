@@ -28,7 +28,7 @@ stopped before moving on.
 
 ## Phase 2 — Find the cause
 
-Run the `/debug` root-cause path on the underlying cause: ground in the code and the stack, reason
+Run the `/polaris:debug` root-cause path on the underlying cause: ground in the code and the stack, reason
 from the evidence and a reproduction where one is possible, form and refute competing hypotheses,
 and name the class of failure. Correlate with the deploy or data change that triggered it.
 

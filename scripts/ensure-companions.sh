@@ -35,20 +35,50 @@ if [ ! -f "$PLUGIN_MARKER" ] && [ "$have_jq" = 1 ] && command -v claude >/dev/nu
   touch "$PLUGIN_MARKER"
 fi
 
-# --- Stack skill bulk (sync once) ---
+# --- Stack skill bulk (sync once, only the skills something actually names) ---
+#
+# This copied every directory in the upstream repo into ~/.claude/skills/, which is user-global
+# rather than plugin-scoped. On 2026-09-07 that was 270 skill directories against the 43 that
+# companions.json names, so installing Polaris put ~227 skills the plugin never references into
+# every session of every project on the machine, Polaris or not. A skill's description loads
+# whether it is used or not, so that is a cost the user did not ask for and cannot see.
+#
+# Now it copies the named set. `--all` restores the old behaviour for anyone who wants the library.
 if [ ! -f "$MARKER" ] && command -v git >/dev/null 2>&1; then
   src="https://github.com/Mindrally/skills"
   [ "$have_jq" = 1 ] && [ -f "$MANIFEST" ] && src="$(jq -r '.skillBulk.source // "https://github.com/Mindrally/skills"' "$MANIFEST")"
+  # The wanted set is the union of three sources, and all three matter. companions.json names what
+  # the agents preload; namedSkills names the ui and research picks; and rules/stack-map.json names
+  # what the stack-resolution protocol loads per detected stack. Leaving stack-map out of the union
+  # would have excluded the skills the protocol exists to reach, which is the one set that must be
+  # there: 7 of its 8 entries are not in companionSkills.
+  wanted=""
+  if [ "${1:-}" != "--all" ] && [ "$have_jq" = 1 ] && [ -f "$MANIFEST" ]; then
+    wanted="$(jq -r '[.companionSkills.skills[]?, (.namedSkills | del(.note) | .[][]?)] | unique | .[]' "$MANIFEST" 2>/dev/null)"
+    if [ -f "${ROOT}/rules/stack-map.json" ]; then
+      wanted="${wanted}
+$(jq -r '[.[].skills[]?] | unique | .[]' "${ROOT}/rules/stack-map.json" 2>/dev/null)"
+    fi
+    wanted="$(printf '%s\n' "$wanted" | awk 'NF' | sort -u)"
+  fi
   mkdir -p "$DEST"
   TMP="$(mktemp -d)"
   if git clone --depth 1 "$src" "$TMP" >/dev/null 2>&1; then
+    copied=0; skipped=0
     for d in "$TMP"/*/; do
       name="$(basename "$d")"
       case "$name" in .*) continue;; esac
-      [ -e "${DEST}/${name}" ] || cp -R "$d" "${DEST}/${name}"
+      if [ -n "$wanted" ] && ! printf '%s\n' "$wanted" | grep -qx "$name"; then
+        skipped=$((skipped + 1)); continue
+      fi
+      [ -e "${DEST}/${name}" ] || { cp -R "$d" "${DEST}/${name}"; copied=$((copied + 1)); }
     done
     touch "$MARKER"
-    echo "ensure-companions: synced the stack skill bulk"
+    if [ "$skipped" -gt 0 ]; then
+      echo "ensure-companions: installed ${copied} named skills, left ${skipped} unnamed ones out (--all takes the whole library)"
+    else
+      echo "ensure-companions: synced ${copied} skills"
+    fi
   fi
   rm -rf "$TMP"
 fi

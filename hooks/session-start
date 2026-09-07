@@ -147,12 +147,20 @@ if [ ! -f "${PROJECT_DIR}/.polaris/config.json" ]; then
 <important-reminder>Polaris is installed but this project has no .polaris/config.json, so routing, both phase gates, and the flow driver are all inactive. Run /polaris:init to set it up. Note /init is Claude Code's own command and does not configure Polaris.</important-reminder>"
 fi
 
-# Check for superpowers companion (any version subdir)
-superpowers_dir="${HOME}/.claude/plugins/cache/claude-plugins-official/superpowers"
-if [ ! -d "$superpowers_dir" ]; then
+# The companion plugins, checked because neither is guaranteed any more. Both were `dependencies` in
+# plugin.json until 2026-09-07, and a dependency has no documented optional form: a companion that
+# would not resolve disabled all of Polaris, and this nag could never fire because the dependency
+# had already guaranteed the directory. Recommending beats hard-coupling for a plugin that works
+# without them, so they moved out of the manifest and both are named here.
+missing_companions=""
+for c in superpowers frontend-design; do
+    [ -d "${HOME}/.claude/plugins/cache/claude-plugins-official/${c}" ] \
+        || missing_companions="${missing_companions} ${c}"
+done
+if [ -n "$missing_companions" ]; then
     combined_context="${combined_context}
 
-<important-reminder>⚠️ Polaris works best alongside Superpowers. Install it with: /plugin install superpowers@claude-plugins-official</important-reminder>"
+<important-reminder>Polaris works best alongside:${missing_companions}. Install with: /plugin install <name>@claude-plugins-official</important-reminder>"
 fi
 
 # The companion skill bulk is what the agents' preloaded `skills:` fields resolve against. Its

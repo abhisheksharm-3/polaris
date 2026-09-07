@@ -14,3 +14,15 @@ jobs:
         run: jq --version
       - name: Run the test suite
         run: bash tests/run-tests.sh
+      - name: Validate the plugin and marketplace manifests
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate . --strict
+          else
+            echo "claude CLI unavailable; falling back to a schema-shape check"
+            jq -e '.name and .version and .description' .claude-plugin/plugin.json
+            jq -e '.name and .owner and (.plugins | length > 0)' .claude-plugin/marketplace.json
+            jq -e '.version == (input | .plugins[0].version)' \
+              .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+              || { echo "plugin.json and marketplace.json disagree on version"; exit 1; }
+          fi

@@ -98,9 +98,11 @@ enforces on itself.
 ## Architecture
 
 - `agents/` — the SDLC agent fleet (product, architect, backend, reviewer, tester, shipper, …)
-- `commands/` — slash-command entry points (`/flow`, `/debug`, `/gate`, `/audit`, `/compose`, …)
-- `skills/` — bundled skills (quality-gate, ui-new, ui-polish, ui-prototype, playwright-e2e,
-  extract-design-system, merge-conflicts)
+- `commands/` — slash-command entry points (`/flow`, `/polaris:debug`, `/gate`, `/audit`, `/compose`, …)
+- `skills/` — bundled skills (quality-gate, playwright-e2e, extract-design-system,
+  merge-conflicts). The three ui-* skills were deleted on 2026-09-07: they were copies of the
+  companion skills `agents/ui.md` already preloads, and none of the 42 reference paths they routed
+  to existed
 - `hooks/` — `session-start`, `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
   `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
   `guard-command`, and `advance-flow`, all wired in `hooks.json`

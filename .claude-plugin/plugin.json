@@ -1,22 +1,15 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "polaris",
+  "displayName": "Polaris",
   "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, a 27-agent SDLC fleet, an orchestration cycle, memory, and stack-aware enforcement.",
   "version": "1.15.0",
-  "dependencies": [
-    {
-      "name": "superpowers",
-      "marketplace": "claude-plugins-official"
-    },
-    {
-      "name": "frontend-design",
-      "marketplace": "claude-plugins-official"
-    }
-  ],
   "userConfig": {
     "notionParentPageId": {
       "type": "string",
       "title": "Sweep Notion parent page",
-      "description": "Page id or url that /sweep writes each dated briefing under. One value for every project."
+      "description": "Page id or url that /sweep writes each dated briefing under. One value for every project.",
+      "required": false
     },
     "timezone": {
       "type": "string",
@@ -27,7 +20,9 @@
       "type": "number",
       "title": "Sweep maximum lookback (hours)",
       "description": "Ceiling on how far back /sweep pulls when it has not run in a while.",
-      "default": 168
+      "default": 168,
+      "min": 1,
+      "max": 720
     }
   },
   "author": {
@@ -38,13 +33,14 @@
   "repository": "https://github.com/abhisheksharm-3/polaris",
   "license": "MIT",
   "keywords": [
-    "design",
-    "ui-ux",
-    "nextjs",
-    "react",
-    "playwright",
-    "stack-aware",
-    "auto-detect"
+    "sdlc",
+    "code-review",
+    "quality-gate",
+    "agents",
+    "workflows",
+    "hooks",
+    "standard",
+    "stack-aware"
   ],
   "workflows": "./workflows"
 }

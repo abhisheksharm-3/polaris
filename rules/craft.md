@@ -1,6 +1,6 @@
 # Polaris Craft Principles
 
-<!-- Language-agnostic engineering judgment. Injected every session. Complements core.md. -->
+<!-- Language-agnostic engineering judgment. Loaded on demand; session-start names the path, not the body. Complements core.md. -->
 <!-- core.md owns simplicity, code-level DRY, root-cause, one-file-one-responsibility, no workarounds. -->
 <!-- This file owns design judgment, adapted from The Pragmatic Programmer. No principle is restated from core.md. -->
 

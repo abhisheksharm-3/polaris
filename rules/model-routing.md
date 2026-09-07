@@ -1,6 +1,6 @@
 # Polaris Model Routing
 
-<!-- Injected every session. The floor per task class; agents set `model` in frontmatter to match. -->
+<!-- Loaded on demand; session-start names the path, not the body. The floor per task class; agents set `model` in frontmatter to match. -->
 
 Every agent and every cycle step runs on a model chosen from this policy, not left to default. The
 policy sets the model floor per task class: harder or higher-stakes work must not run on a weaker

@@ -1,6 +1,6 @@
 # Polaris Doc Organization
 
-<!-- Injected every session. Keeps every doc Polaris produces in one place, named consistently. -->
+<!-- Loaded on demand; session-start names the path, not the body. Keeps every doc Polaris produces in one place, named consistently. -->
 
 All docs Polaris produces live under `.polaris/` in the project root. Nothing scatters into the
 repo. The layout:

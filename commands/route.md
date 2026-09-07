@@ -35,7 +35,7 @@ Match the situation to the closest row, then hand the user that command.
 
 | Situation | Use |
 |---|---|
-| A bug that resists diagnosis | `/debug` |
+| A bug that resists diagnosis | `/polaris:debug` |
 | A pile of bugs or issues to sort and prioritize | `/triage` |
 | A production incident happening now | `/incident` |
 | A security surface to threat-model and harden | `/harden` |
@@ -61,7 +61,7 @@ Match the situation to the closest row, then hand the user that command.
 | Write a handoff for someone picking this up | `/handoff` |
 | Cut a release | `/release` |
 | Write up a day, or a release, for people | `/journal`, `/notes` |
-| Set Polaris up in a project, or learn one | `/init`, `/onboard` |
+| Set Polaris up in a project, or learn one | `/polaris:init`, `/onboard` |
 | A fact worth keeping across sessions | `/remember` (save), `/recall` (retrieve) |
 
 ## When nothing fits

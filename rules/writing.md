@@ -1,7 +1,7 @@
 # Polaris Writing Standard
 
 <!-- The one prose standard. Applies to code comments, commit messages, PR titles and bodies, -->
-<!-- docs, and marketing copy. No exceptions. Injected every session. -->
+<!-- docs, and marketing copy. No exceptions. Loaded on demand; session-start names the path, not the body. -->
 <!-- Sources: Wikipedia "Signs of AI writing" + the Polaris blog-writer guardrails. -->
 
 Every sentence must pass this filter before it goes out. These patterns are the clearest signals
