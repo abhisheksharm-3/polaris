@@ -49,9 +49,25 @@ complete record, and now archives it. `SessionEnd` had no hook, so nothing reape
 pointer. `scripts/usage-facts.sh` reads `~/.claude/usage.db`, 904 sessions and 66,815 turns of real
 token counts that nothing in Polaris had opened.
 
+**The fan-out had no ceiling on the side that multiplies.** `verify.js` capped its finders at 16 and
+left its judges at three lenses per finding with no cap on findings, so one productive round could
+dispatch 60 and a full run reached roughly 207. Each level now names a `judgeBudget` spent
+worst-first, the panel scales with severity, and findings past the budget are reported as unjudged
+rather than dropped. Worst case at high goes from unbounded to 52. `build.js` had the same shape one
+level up, where the slice count decided everything after it; `MAX_SLICES` caps it per level and names
+what it deferred. `review.js` needed no change: its confirm agents batch per dimension, which is
+what holds it at the documented 2/8/14/28, and there is now a test asserting that batching.
+
+**Two references the split broke.** `/oneonone` called `worktracker-snapshot.sh` and
+`check-patterns.sh` through `${CLAUDE_PLUGIN_ROOT}`, which resolves to `polaris-work` now, where
+neither existed, so the command would have failed only when run. The snapshot script is mirrored, and
+`polaris-work` carries its own `screen-injection.sh` with the eight injection phrases rather than all
+of `patterns.json`. A check in both directions now fails on any `${CLAUDE_PLUGIN_ROOT}` path that
+does not resolve inside its own plugin.
+
 The README told new users to run `/init`, which is Claude Code's own and writes no
 `.polaris/config.json`, leaving the routing, both phase gates and the flow driver silently off. Six
-rules files claimed to be injected every session and only one is. Tests go 277 to 338.
+rules files claimed to be injected every session and only one is. Tests go 277 to 351.
 
 ## 1.15.0 — 2026-08-22
 
