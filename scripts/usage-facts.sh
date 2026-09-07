@@ -29,6 +29,16 @@
 #   usage-facts.sh sessions [n]         the n most recent sessions
 set -uo pipefail
 
+# Validate the subcommand before looking for the database. A caller who typed the wrong name has
+# made a mistake whether or not the database exists, and checking the file first meant this exited 0
+# on any machine without one: the assertion for a bad subcommand passed locally, where usage.db is
+# present, and failed in CI, where it is not.
+sub="${1:-project}"
+case "$sub" in
+    project|agents|models|days|sessions) ;;
+    *) echo "usage-facts: usage: usage-facts.sh project|agents|models|days|sessions [arg]" >&2; exit 1 ;;
+esac
+
 DB="${POLARIS_USAGE_DB:-${HOME}/.claude/usage.db}"
 [ -f "$DB" ] || exit 0
 command -v sqlite3 >/dev/null 2>&1 || { echo "usage-facts: sqlite3 is required" >&2; exit 0; }
@@ -39,7 +49,6 @@ q() { sqlite3 "file:${DB}?mode=ro" -readonly "$@" 2>/dev/null; }
 
 fmt() { awk -F'|' 'BEGIN{OFS="\t"} {print}'; }
 
-sub="${1:-project}"
 case "$sub" in
     project)
         dir="${2:-$PWD}"
@@ -96,9 +105,5 @@ case "$sub" in
                   total_output_tokens,
                   COALESCE(topic, '')                   AS topic
            FROM sessions ORDER BY last_timestamp DESC LIMIT ${n};" | fmt
-        ;;
-    *)
-        echo "usage-facts: usage: usage-facts.sh project|agents|models|days|sessions [arg]" >&2
-        exit 1
         ;;
 esac

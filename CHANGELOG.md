@@ -2,6 +2,15 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.16.1 — 2026-09-07
+
+`scripts/usage-facts.sh` checked for `~/.claude/usage.db` before it validated its subcommand, so on
+any host without that file it exited 0 on a name it does not accept. The assertion for a bad
+subcommand therefore passed on a machine that has the database and failed in CI, which does not:
+1.16.0's own CI run went red on it. The subcommand is validated first now, since a caller who typed
+the wrong name has made a mistake either way, and the test runs both conditions rather than the one
+that happens to hold locally.
+
 ## 1.16.0 — 2026-09-07
 
 An audit of every feature against the current Claude Code documentation, then its findings.
