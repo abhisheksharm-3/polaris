@@ -268,13 +268,34 @@ wt_repo="$(mktemp -d)"
   GIT_AUTHOR_DATE="2026-07-15T12:00:00Z" GIT_COMMITTER_DATE="2026-07-15T12:00:00Z" \
     sh -c 'echo hi > a.txt && git add a.txt && git commit -qm "add the widget"'
 )
-wt_empty="$(mktemp -d)"   # no transcripts, so git commits are the signal under test
-wt_before="$(POLARIS_JOURNAL_PROJECTS_DIR="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-15T00:00:00Z")"
-wt_after="$(POLARIS_JOURNAL_PROJECTS_DIR="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-16T00:00:00Z")"
+wt_empty="$(mktemp)"      # no typed prompts, so git commits are the signal under test
+wt_before="$(POLARIS_HISTORY_FILE="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-15T00:00:00Z")"
+wt_after="$(POLARIS_HISTORY_FILE="$wt_empty" bash "$WTS" "$wt_repo" "2026-07-16T00:00:00Z")"
 echo "$wt_before" | grep -q 'add the widget' && echo "ok: worktracker captures commit since marker" || { echo "FAIL: worktracker missed commit"; fail=1; }
 echo "$wt_before" | grep -q 'a.txt'          && echo "ok: worktracker lists touched file"          || { echo "FAIL: worktracker missed file"; fail=1; }
 if [ -n "$wt_after" ]; then echo "FAIL: worktracker emitted for a future marker"; fail=1; else echo "ok: worktracker silent when nothing new"; fi
-rm -rf "$wt_repo" "$wt_empty"
+
+# The `Asked:` line is the prompt the user typed. It came from the session transcripts until
+# 2026-09-07, which carry every user-role turn, so a hook injection, a tool result, or a workflow
+# agent's own prompt arrived as the question: three snapshots in three days reconciled against text
+# the user never wrote. `history.jsonl` records only typed prompts, one per line, keyed by project.
+wt_hist="$(mktemp)"
+wt_ms="$(jq -rn '("2026-07-15T12:00:00Z" | fromdateiso8601) * 1000')"
+jq -cn --arg cwd "$wt_repo" --argjson t "$wt_ms" \
+  '{display:"why does the widget total come out wrong",project:$cwd,timestamp:$t}' > "$wt_hist"
+jq -cn --argjson t "$wt_ms" \
+  '{display:"a prompt typed in some other project",project:"/tmp/not-this-repo",timestamp:$t}' >> "$wt_hist"
+wt_asked="$(POLARIS_HISTORY_FILE="$wt_hist" bash "$WTS" "$wt_repo" "2026-07-15T00:00:00Z")"
+echo "$wt_asked" | grep -q 'why does the widget total come out wrong' \
+  && echo "ok: worktracker asks the user's typed prompt" \
+  || { echo "FAIL: worktracker did not capture the typed prompt"; fail=1; }
+echo "$wt_asked" | grep -q 'some other project' \
+  && { echo "FAIL: worktracker captured another project's prompt"; fail=1; } \
+  || echo "ok: worktracker keeps another project's prompts out"
+grep -q 'claude/projects' "$WTS" \
+  && { echo "FAIL: worktracker reads the transcripts again, which carry injected text"; fail=1; } \
+  || echo "ok: worktracker reads typed prompts, not transcripts"
+rm -rf "$wt_repo" "$wt_empty" "$wt_hist"
 
 # regression: session-start survives an empty detected-stacks array (bash 3.2 under set -u); RCA 2026-07-16
 SS="${DIR}/../hooks/session-start"
@@ -1610,6 +1631,33 @@ done
 [ "$(jq -r '.routing[-1].class' "${DIR}/../rules/patterns.json")" = "continuation" ] \
   && echo "ok: continuation is the last class tried" \
   || { echo "FAIL: continuation is not last, so it will swallow real work"; fail=1; }
+
+# A question opens nothing. `conversation` used to admit only a question whose second word was an
+# auxiliary, so "what new feature can we introduce" matched the `feature` row on the words "new
+# feature" and seeded a run with a spec phase. The harm is the seed, not the label, so the seed is
+# what this asserts.
+for c in \
+  "what new feature can we introduce in polaris, or what feature can we fix" \
+  "what should we build next" \
+  "should we build deck mode?" \
+  "how should i structure the ledger" \
+  "any ideas for the router" \
+  "thoughts on the run ledger" ; do
+  [ "$(rp "$c")" = "conversation" ] && echo "ok: routed to conversation: ${c:0:36}" \
+    || { echo "FAIL: '${c:0:36}' routed to $(rp "$c"), not conversation"; fail=1; }
+done
+rp_q="$(ep_proj '{}')"
+ep_run "$rp_q" 'what new feature can we introduce in polaris, or what feature can we fix' >/dev/null
+[ -z "$(ep_state "$rp_q" 2>/dev/null)" ] \
+  && echo "ok: a question about what to build opens no run" \
+  || { echo "FAIL: a question seeded a run: $(ep_state "$rp_q")"; fail=1; }
+rm -rf "$rp_q"
+
+# Ordering is the policy, not scoring, so the domain rows still win over the widened question
+# patterns. A question naming other teams is research; one naming a cleanup is a cleanup.
+[ "$(rp "what do other teams use for feature flags")" = "research" ] \
+  && echo "ok: a research question still routes to research" \
+  || { echo "FAIL: the widened question patterns swallowed research"; fail=1; }
 
 # Every class needs a flow and every flow a class, or one of them is unreachable.
 rp_diff="$(comm -3 <(jq -r 'keys[]' "${DIR}/../rules/flows.json" | sort) \

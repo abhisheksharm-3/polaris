@@ -7,7 +7,7 @@ set -uo pipefail
 
 project="${1:?usage: worktracker-snapshot.sh <project-dir> <since-utc>}"
 since="${2:?usage: worktracker-snapshot.sh <project-dir> <since-utc>}"
-PROJECTS="${POLARIS_JOURNAL_PROJECTS_DIR:-$HOME/.claude/projects}"
+HISTORY="${POLARIS_HISTORY_FILE:-$HOME/.claude/history.jsonl}"
 
 commits="" files="" asks=""
 
@@ -18,23 +18,20 @@ if git -C "$project" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 # Prompts asked in this project since the marker, so work that was not committed still shows.
-# `since` is UTC (matches transcript .timestamp); the -newermt pre-filter uses the day only,
-# the exact cutoff is the jq timestamp compare.
-if [ -d "$PROJECTS" ] && command -v jq >/dev/null 2>&1; then
-  since_day="${since%%T*}"
-  asks="$(find "$PROJECTS" -type f -name '*.jsonl' -newermt "$since_day 00:00" -print0 2>/dev/null \
-    | xargs -0 -r jq -rc --arg since "$since" --arg cwd "$project" '
-        select(.cwd == $cwd) |
-        select((.timestamp // "") >= $since) |
-        select(.isSidechain != true) |
-        select((.message.role // .type) == "user") |
-        ( (.message.content // "")
-          | if type=="array" then (map(select(.type=="text") | .text) | join(" "))
-            elif type=="string" then . else "" end )
-      ' 2>/dev/null \
-    | sed 's/\\n.*//' \
-    | grep -vE '^(\[Image|<task-notification|\[SYSTEM NOTIFICATION|\[Request interrupted|<command-|<fork-boilerplate|Base directory|Caveat:|You are a )' \
-    | cut -c1-120 | awk 'NF' | awk '!seen[$0]++' | head -20 | paste -sd';' - | sed 's/;/; /g')"
+# `history.jsonl` holds one record per typed prompt, with `display`, `project`, and an epoch-ms
+# `timestamp`. The earlier source was the session transcripts, which carry every user-role turn:
+# hook-injected context, tool results, and a workflow agent's own prompt all arrived as the question
+# the user asked, and three snapshots reconciled against the wrong text before this changed.
+if [ -f "$HISTORY" ] && command -v jq >/dev/null 2>&1; then
+  since_ms="$(jq -rn --arg s "$since" 'try ((($s | fromdateiso8601) * 1000) | floor) catch empty')"
+  if [ -n "$since_ms" ]; then
+    asks="$(jq -r --argjson since "$since_ms" --arg cwd "$project" '
+          select(.project == $cwd) |
+          select((.timestamp // 0) >= $since) |
+          (.display // "") | gsub("[\n\r\t]+"; " ")
+        ' "$HISTORY" 2>/dev/null \
+      | cut -c1-120 | awk 'NF' | awk '!seen[$0]++' | head -20 | paste -sd';' - | sed 's/;/; /g')"
+  fi
 fi
 
 # Nothing happened since the last reconcile: emit nothing, and the hook injects no directive.

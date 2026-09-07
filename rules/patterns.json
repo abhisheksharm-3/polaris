@@ -313,10 +313,13 @@
       "class": "conversation",
       "patterns": [
         "^(what|how|why|where|which|who|when) (does|do|is|are|did|the|this|that)",
+        "^(what|how|why|where|which|who|when)\\b.*\\b(should|shall|can|could|would|do) (we|i|you)\\b",
+        "^(should|shall) (we|i|you)\\b",
         "^explain\\b",
         "walk me through",
         "^tell me (about|how|what)",
-        "how (does|do) (it|this|that|the) work"
+        "how (does|do) (it|this|that|the) work",
+        "\\b(thoughts on|any ideas|what do you think)\\b"
       ]
     },
     {

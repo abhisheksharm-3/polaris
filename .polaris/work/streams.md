@@ -3,55 +3,6 @@
 <!-- The Polaris work tracker for this project. Surfaced at session start; updated by /track. -->
 <!-- Keep active and blocked streams at the top. Move finished ones to the Done archive. -->
 
-## plugin-audit — hold the whole plugin to the current Claude Code contract
-
-- domain: audit
-- status: active, audit approved and triaged, on the fix phase
-- state: Opened 2026-09-05 from the user's ask to audit every feature against
-  `code.claude.com/docs/llms.txt` and argue what should change. Run `see-entirelty-of-this` on the
-  audit flow; phase `audit` is recorded against
-  `.polaris/reports/2026-09-05-plugin-audit.md`. The suite passes 277/277, so none of this is a
-  test failure. Four gates were measured and do not gate: the model floor allows any full model id
-  because `model-floor.json` ranks only the three aliases, `guard-edit` blocks on `PostToolUse`
-  which the hooks reference says cannot block, `guard-commit-pr` catches only a double-quoted `-m`,
-  and `skills/ui-{new,polish,prototype}` are 116,748 bytes whose 42 referenced paths do not exist.
-  The router was measured against 800 real prompts from `~/.claude/history.jsonl` and placed 9% of
-  them; the `unknown` branch then costs 895 bytes on every prompt. SessionStart injects 62,985
-  bytes, of which the uncapped memory index is 33,475. 17 of 27 agents have never been dispatched.
-  `args.level` is read by all three workflows and passed by nothing, so every review runs at `high`.
-  The verification fan-out then found the finding that reframes the rest, and it was confirmed from
-  this session's own transcript: `session-start` emits 62,985 bytes into a documented
-  10,000-character cap, so the model gets a 2KB preview and a file path. The comment law, the whole
-  of craft.md and writing.md, the memory index and the tracker slice are all past the cut, every
-  session and every clear. That inverts the cost claim, which was wrong and is corrected in the
-  report: none of it is billed because none of it arrives. It also explains why the comment law had
-  fired in 2 sessions of ~904. A second dead gate came out of the same pass: `guard-phase:55` reads
-  `.tool_input.effort`, and the Agent tool has no `effort` parameter, so `effort-floor.json` and its
-  four assertions gate a key that never arrives.
-- next: audit approved 2026-09-07 and `triage` recorded, so the run is on `fix`. Take T0 and T1 from
-  the triage plan and nothing else: T0 is the payload split plus a size assertion, T1 is the five
-  gates. `rules/core.md` is 10,135 B and busts the cap alone, so T0 is a resident-versus-on-demand
-  split of the rules rather than a ceiling on the memory index. T2 onward want their own runs.
-- files: .polaris/reports/2026-09-05-plugin-audit.md,
-  .polaris/plans/2026-09-07-audit-triage.md, .polaris/runs/see-entirelty-of-this/state.json
-- touched: 2026-09-07 (audit approved, triage recorded, both artifacts amended once each)
-
-## worktracker-snapshot captures injected text, not the user's prompt
-
-- domain: bug
-- status: open, observed twice and not investigated
-- state: The `Asked:` line in the Stop-hook snapshot arrives full of harness payload rather than the
-  prompt. On 2026-09-05 it carried the `/effort` command stdout and the entire workflow-authoring
-  skill reference; on 2026-09-07 it carried a task-notification XML block including
-  `<task-id>`, `<result>`, and the workflow failure list. Both times the user's actual question was
-  buried or absent, so the reconcile it asks for is working from the wrong text.
-- next: read `scripts/worktracker-snapshot.sh` and find where the prompt is taken from; it appears to
-  read whatever reached the model rather than the typed prompt. `~/.claude/history.jsonl` holds the
-  typed prompt with its project and timestamp and would be the cleaner source.
-- files: scripts/worktracker-snapshot.sh, hooks/stop-capture
-- touched: 2026-09-07 (noticed during the plugin audit; not filed as an audit finding because it was
-  observed rather than measured)
-
 ## deck-mode — a slidev presentation mode driven by a description
 
 - domain: feature
@@ -398,6 +349,42 @@
   config never took effect here, because the gates were reading the worktree copy.
 
 ## Done
+
+- router-questions — an open question no longer opens a run. `conversation` admitted only a question
+  whose second word was an auxiliary, so "what new feature can we introduce in polaris, or what
+  feature can we fix" matched the `feature` row on the words "new feature" and seeded
+  `.polaris/runs/feature-0907` with a spec phase. Three patterns went into the `conversation` row in
+  `rules/patterns.json`: a wh-word followed anywhere by `(should|shall|can|could|would|do) (we|i|
+  you)`, a sentence-initial `should we`, and `thoughts on|any ideas|what do you think`. The class
+  order is untouched, because it is the policy and the research fixture "what do other teams use for
+  feature flags" depends on it. Six question shapes and the no-seed case are asserted in
+  `tests/run-tests.sh`, plus four fixtures in `tests/fixtures/routing-cases.txt`.
+- what it leaves: the domain rows above `conversation` still win, so "what should we clean up next"
+  routes to `cleanup` and seeds. Moving the row up would break the research fixture, so this is a
+  known residual rather than an oversight.
+- worktracker-snapshot — the `Asked:` line is the prompt the user typed. The source was the session
+  transcripts under `~/.claude/projects`, which carry every user-role turn, so hook-injected
+  context, tool results, and a workflow agent's own prompt arrived as the question: three snapshots
+  in three days reconciled against text the user never wrote. It now reads `~/.claude/history.jsonl`,
+  one record per typed prompt with `display`, `project`, and an epoch-ms `timestamp`, filtered by
+  project and cutoff, with `POLARIS_HISTORY_FILE` overriding the path for the suite. Proven against
+  the real file: the window since 2026-09-07T11:05:15Z came back as fifteen typed prompts and
+  nothing else. Both copies of the script carry the fix; the suite asserts they stay identical and
+  that neither reads `claude/projects` again.
+
+- plugin-audit — held the whole plugin to the current Claude Code contract, and the whole triage list
+  landed. Ten commits: `0b763de` delivered the standard and made five gates gate, `2203571` deleted
+  the three dead ui skills and stopped the install spilling machine-wide, `9c763f4` split the
+  working-life half into `plugins/polaris-work/`, `31b7197` connected the review level, kept the
+  ledger, and added `usage-facts.sh`, `c1b1270` gave the router its `ship` and `continuation`
+  classes and stopped repeating the menu, then `42a8d9a`, `4b01ab8` and `97f8af5` reconciled the
+  docs and cut 1.16.0, and `dd6323d` plus `5fc428d` bounded the workflow fan-out and validated the
+  usage-facts subcommand as 1.16.1. The run `see-entirelty-of-this` recorded `audit`, `triage`,
+  `fix`, and `verify`, and is archived under `.polaris/runs/.done/`.
+- what the audit's own fix left open: the router still places questions as work, which is the
+  `router-questions` stream, and `usage-facts.sh` is wired to nothing that reads it. Triage item 18
+  asked for `/catchup` and the review-level heuristic to read `~/.claude/usage.db`; the script
+  exists and no command calls it.
 
 - review-levels — gave `/polaris:review` four levels and bounded its fan-out, shipped as 1.11.0
   (3c2bc1b, 067a682). `workflows/review.js` carries the `LEVELS` table, the coerced-string level

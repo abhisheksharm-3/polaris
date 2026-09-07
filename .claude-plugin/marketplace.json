@@ -14,7 +14,7 @@
       "name": "polaris",
       "source": "./",
       "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, an SDLC agent fleet, a flow engine with real gates, and stack-aware enforcement.",
-      "version": "1.16.1",
+      "version": "1.16.2",
       "author": {
         "name": "Abhishek Sharma",
         "email": "abhitiku2003@gmail.com"
@@ -24,7 +24,7 @@
       "name": "polaris-work",
       "source": "./plugins/polaris-work",
       "description": "The working-life half: a dated briefing across every work source, a daily journal, OKR pace, and a manager 1:1 prepared from state you already have.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Abhishek Sharma",
         "email": "abhitiku2003@gmail.com"

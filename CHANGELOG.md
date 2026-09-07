@@ -2,6 +2,32 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.16.2 — 2026-09-07
+
+Two bugs the 1.16.0 audit found and did not fix.
+
+**An open question opened a run.** "what new feature can we introduce in polaris, or what feature
+can we fix" routed to the `feature` flow, matched on the words "new feature", and seeded a run whose
+first instruction was to write a spec. The `conversation` class sat ahead of `feature` and still
+lost, because it admitted only a question whose second word was an auxiliary: `what does`, `how do`,
+`why is`. Three patterns now cover the rest — a wh-word followed anywhere by `should|shall|can|
+could|would|do` plus `we|i|you`, a sentence-initial `should we`, and `thoughts on|any ideas|what do
+you think`. The class order is unchanged, since it is the routing policy rather than an accident: a
+question naming other teams is still `research`. The residual is that the domain rows above
+`conversation` keep winning, so "what should we clean up next" still routes to `cleanup`.
+
+**The work tracker reconciled against text the user never wrote.** `worktracker-snapshot.sh` built
+its `Asked:` line from the session transcripts, which carry every user-role turn, so hook-injected
+context, tool results and a workflow agent's own prompt arrived as the question asked. Three
+snapshots in three days came through wrong: one carried `/effort` stdout and a skill reference, one a
+task-notification block, one a security-review prompt with a four-file diff from a session whose only
+typed prompt was a question about what to build next. The source is now `~/.claude/history.jsonl`,
+one record per typed prompt with `display`, `project` and an epoch-ms `timestamp`, filtered by
+project and cutoff. Both plugins carry the fix, and the suite fails if either reads the transcripts
+again.
+
+The suite is 364 assertions.
+
 ## 1.16.1 — 2026-09-07
 
 `scripts/usage-facts.sh` checked for `~/.claude/usage.db` before it validated its subcommand, so on

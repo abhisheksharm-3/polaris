@@ -1,0 +1,54 @@
+{
+  "slug": "see-entirelty-of-this",
+  "flow": "audit",
+  "current": "",
+  "record": {
+    "audit": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-09-05-plugin-audit.md",
+      "sha256": "c9b1141692e905f82d2bc4da64a74bf34a1c6703e255375e3d6da18928a0c639",
+      "evidence": "24 findings by severity across 9 areas, each verified by a command or a fetched doc page",
+      "at": "2026-09-05T05:10:49Z",
+      "amendedAt": "2026-09-05T06:04:10Z",
+      "amendments": [
+        {
+          "at": "2026-09-05T06:04:10Z",
+          "from": "192ece65f8dd1bf8eb22a942565ca2c8af005a655969ebbd078ba4458cf3f3cf",
+          "to": "c9b1141692e905f82d2bc4da64a74bf34a1c6703e255375e3d6da18928a0c639",
+          "evidence": "the verification fan-out found the SessionStart payload is truncated at 10,000 characters, which inverts the cost finding and adds a critical correctness one; also added the effort-floor dead check, the 270-skill install, the ledger deletion, and the /init collision"
+        }
+      ],
+      "approvedAt": "2026-09-07T11:02:13Z"
+    },
+    "triage": {
+      "status": "done",
+      "artifact": ".polaris/plans/2026-09-07-audit-triage.md",
+      "sha256": "f7e7701ddbd918dee7f27810454c129ccb6385ad2eeb8d02c00ac3ad333075ef",
+      "evidence": "20 findings ordered into 6 tiers, T0 gating T1 because the standard is not resident until the payload is capped",
+      "at": "2026-09-07T11:03:42Z",
+      "amendedAt": "2026-09-07T11:03:59Z",
+      "amendments": [
+        {
+          "at": "2026-09-07T11:03:59Z",
+          "from": "3c46fd1236a0b46b7a63f05d4ee2fe2611610c02469e7bcd451743ae92f3a2a9",
+          "to": "f7e7701ddbd918dee7f27810454c129ccb6385ad2eeb8d02c00ac3ad333075ef",
+          "evidence": "the plugin's own prose gate flagged em-dash spray on line 119; rewrote it with commas"
+        }
+      ]
+    },
+    "fix": {
+      "status": "done",
+      "artifact": ".polaris/plans/2026-09-07-audit-triage.md",
+      "sha256": "",
+      "evidence": "T0 through T5 landed in six commits, 277 to 338 assertions, payload 62985 to 8656 bytes, router 9 to 38 percent coverage",
+      "at": "2026-09-07T12:09:00Z"
+    },
+    "verify": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-09-05-plugin-audit.md",
+      "sha256": "fe59ed6f010be82b2f37a88e5208433cce0af75ffb13c47fcd21716d2cfa8c7f",
+      "evidence": "verified by hand rather than by fan-out: found 2 real bugs the 338-assertion suite missed (both /oneonone cross-plugin paths dangling after the split) plus the unbounded judge fan-out; 353 assertions green in both a with-database and no-database environment; CI green on 5fc428d; v1.16.0 and v1.16.1 released",
+      "at": "2026-09-07T15:12:09Z"
+    }
+  }
+}

@@ -3,7 +3,7 @@
   "name": "polaris",
   "displayName": "Polaris",
   "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, an SDLC agent fleet, a flow engine with real gates, and stack-aware enforcement.",
-  "version": "1.16.1",
+  "version": "1.16.2",
   "author": {
     "name": "Abhishek Sharma",
     "email": "abhitiku2003@gmail.com"

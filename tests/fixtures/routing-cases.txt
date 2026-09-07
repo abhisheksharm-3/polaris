@@ -42,3 +42,7 @@ fix	change the default timeout to thirty seconds
 unknown	make it better
 unknown	handle this
 unknown	the thing with the stuff on that page
+conversation	what new feature can we introduce, or what can we fix
+conversation	should we build deck mode next
+conversation	how should i structure the ledger
+conversation	any ideas for the router
