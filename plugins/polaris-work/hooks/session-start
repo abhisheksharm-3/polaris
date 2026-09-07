@@ -10,6 +10,15 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 
+# `enabled: false` silences the plugin, here as well as at Stop. The backfill is not gated on
+# askIn: it writes a factual skeleton to the user's own journal and asks nothing of the session, so
+# it is the half that is welcome in any repo. What was not welcome was the Stop hook blocking a turn
+# in a project that never opted in, and that is gated in hooks/stop-capture.
+work_cfg="${POLARIS_WORK_CONFIG:-${HOME}/.claude/polaris-memory/work-config.json}"
+if [ -f "$work_cfg" ] && command -v jq >/dev/null 2>&1; then
+    jq -e '.enabled != false' "$work_cfg" >/dev/null 2>&1 || exit 0
+fi
+
 # Writes the factual skeleton only. The Stop hook asks for the narrative, because a SessionStart
 # directive asking for it was ignored on twelve of thirteen days.
 polaris_journal() {

@@ -13,11 +13,54 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 
 # A day older than this is not worth blocking a session over; `/journal <date>` still backfills it.
 ENRICH_WINDOW_DAYS=14
 
 command -v jq >/dev/null 2>&1 || exit 0
+
+# Whether this hook may speak, and where.
+#
+# It had no gate at all until 2026-09-07. It keys on ~/.claude/polaris-memory/journal, which is
+# user-level and has nothing to do with the project, so installing this plugin meant every repo you
+# opened had its turns blocked asking for journal narratives: a client's checkout, someone else's
+# clone, a throwaway. The root plugin's hooks all early-exit without .polaris/config.json and this
+# one had no equivalent, which is backwards, because this is the half about the user's own working
+# life rather than about the code in front of them.
+#
+# Default: ask only in a project that has a .polaris/ directory. That is the same opt-in signal the
+# root plugin uses, and it keeps a stranger's repo quiet without the user having to configure
+# anything. `askIn: "any"` restores the old reach deliberately, an explicit `projects` allowlist
+# beats both, and `enabled: false` silences the plugin entirely.
+work_cfg="${POLARIS_WORK_CONFIG:-${HOME}/.claude/polaris-memory/work-config.json}"
+work_enabled=1
+work_ask_in="polaris"
+work_projects=""
+if [ -f "$work_cfg" ]; then
+    jq -e '.enabled != false' "$work_cfg" >/dev/null 2>&1 || work_enabled=0
+    work_ask_in="$(jq -r '.askIn // "polaris"' "$work_cfg" 2>/dev/null)"
+    work_projects="$(jq -r '(.projects // [])[]' "$work_cfg" 2>/dev/null)"
+fi
+[ "$work_enabled" = 1 ] || exit 0
+
+may_ask=0
+if [ -n "$work_projects" ]; then
+    # An explicit allowlist is the user saying exactly where, so it wins over askIn.
+    while IFS= read -r allowed; do
+        [ -n "$allowed" ] || continue
+        case "${PROJECT_DIR}/" in "${allowed%/}/"*) may_ask=1; break ;; esac
+    done <<EOF
+${work_projects}
+EOF
+else
+    case "$work_ask_in" in
+        any)    may_ask=1 ;;
+        never)  may_ask=0 ;;
+        *)      [ -d "${PROJECT_DIR}/.polaris" ] && may_ask=1 ;;
+    esac
+fi
+[ "$may_ask" = 1 ] || exit 0
 
 # Slurp, so a client that writes two objects cannot make the field reads see both values joined.
 payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)"

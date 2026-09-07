@@ -1,0 +1,28 @@
+{
+  "slug": "fix-0907",
+  "flow": "fix",
+  "current": "",
+  "record": {
+    "implement": {
+      "status": "done",
+      "artifact": "",
+      "sha256": "",
+      "evidence": "",
+      "at": "2026-09-07T15:30:35Z"
+    },
+    "gate": {
+      "status": "done",
+      "artifact": "/private/tmp/claude-501/-Users-abhisheksharma-Projects-polaris/2d8dec27-0706-4e1d-a027-ea56fafe0d8e/scratchpad/gate.txt",
+      "sha256": "a07c96a1b743243de5677d597ca05624c9b071c87c90f6ce8c6b02eaae55529f",
+      "evidence": "374 assertions 0 failures; prose and code checks clean; four validators pass; one regression caught and fixed in-gate",
+      "at": "2026-09-07T15:36:20Z"
+    },
+    "ship": {
+      "status": "done",
+      "artifact": "/private/tmp/claude-501/-Users-abhisheksharma-Projects-polaris/2d8dec27-0706-4e1d-a027-ea56fafe0d8e/scratchpad/ship.txt",
+      "sha256": "f4b983ee078346ad8ba8bb4070a81dc2b25263667f4b4124a8e9755514d737b8",
+      "evidence": "v1.17.0 released, CI green on 1b3a69d",
+      "at": "2026-09-07T15:41:34Z"
+    }
+  }
+}

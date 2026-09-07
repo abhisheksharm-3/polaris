@@ -1,0 +1,8 @@
+{
+  "_": "Copied to ~/.claude/polaris-memory/work-config.json on first use. It governs whether the polaris-work hooks speak at all, and where.",
+  "enabled": true,
+  "_askIn": "Where the Stop hook may ask for a journal narrative. 'polaris' asks only in a project that has a .polaris/ directory, which is the default because a personal-productivity plugin firing in a client's repo or someone else's clone is a surprise. 'any' asks wherever you are. 'never' is the same as enabled:false for the ask but leaves the session-start backfill running.",
+  "askIn": "polaris",
+  "_projects": "An explicit allowlist of project paths, matched by prefix. When it is non-empty it wins over askIn: only these projects get the ask. Leave it empty to use askIn.",
+  "projects": []
+}

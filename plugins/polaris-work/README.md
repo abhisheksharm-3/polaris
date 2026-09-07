@@ -13,21 +13,45 @@ Install it on its own. It does not need the `polaris` plugin, and `polaris` does
 |---|---|
 | `/sweep` | A dated briefing in Notion, pulled from every work source, ranked so it reads from the top. Run it at the start and end of a day; the window is the time since the last run, capped |
 | `/oneonone` | The bi-weekly 1:1 with your manager: capture an item any time, assemble the agenda from the fortnight, record what was agreed |
-| `/journal` | A day written up across every project you touched, from your own session transcripts |
+| `/journal` | A day written up across every project you touched, from the prompts you typed |
+| `/standup` | The two-minute version: what you did, what is next, what is blocked. Nothing is written |
 
 Plus the OKR lens `/sweep` reads: per-key-result pace, behind or on track or ahead, from a ledger
 you keep in `~/.claude/polaris-memory/okr/`.
+
+## Whether it speaks, and where
+
+It does not block a turn in a project that never asked for it. `~/.claude/polaris-memory/work-config.json`,
+seeded from `templates/config.default.json`:
+
+    enabled    false silences the plugin entirely, hooks included
+    askIn      "polaris" (default) asks for a journal narrative only in a project that has a
+               .polaris/ directory; "any" asks wherever you are; "never" asks nowhere but keeps
+               the session-start backfill running
+    projects   an explicit allowlist of project paths, matched by prefix. Non-empty, it wins
+               over askIn
+
+The default exists because this plugin keys on `~/.claude/polaris-memory/`, which says nothing about
+the project in front of you. Before 2026-09-07 it had no gate at all, so installing it blocked a turn
+in every repo you opened: a client's checkout, someone else's clone, a throwaway.
 
 ## Where the state lives
 
 Everything is under `~/.claude/polaris-memory/`, which is user-level and shared across projects:
 
+    work-config.json    whether the hooks speak, and where
     journal/            one dated file per day, plus .last-journaled
     sweep/              config and the last-run timestamp
     okr/                the ledger, progress, log, and reviews
     oneonone/           the inbox, and what each agenda settled
 
 ## What it needs
+
+`/journal` and `/standup` read `~/.claude/history.jsonl`, which holds every prompt you have typed
+with its project and timestamp. The session transcripts were the earlier source and were wrong twice
+over: they carry every user-role turn, so hook context and a workflow agent's own prompt read as
+your question, and they are pruned, so on 2026-09-07 they reached back six weeks while the history
+held six months.
 
 The connectors it reads, through your claude.ai login: Notion for the briefing, plus whichever of
 Slack, Jira or Atlassian, Gmail, Google Calendar and Fathom you use. `rules/connectors.md` is the

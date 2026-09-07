@@ -6,7 +6,8 @@ command -v jq >/dev/null 2>&1 || { echo "journal-facts: jq is required" >&2; exi
 date="${1:?usage: journal-facts.sh <YYYY-MM-DD> [source]}"
 source_label="${2:-hook}"
 PROJECTS="${POLARIS_JOURNAL_PROJECTS_DIR:-$HOME/.claude/projects}"
-[ -d "$PROJECTS" ] || exit 0
+HISTORY="${POLARIS_HISTORY_FILE:-$HOME/.claude/history.jsonl}"
+[ -d "$PROJECTS" ] || [ -f "$HISTORY" ] || exit 0
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
@@ -36,6 +37,31 @@ find "$PROJECTS" -type f -name '*.jsonl' -newermt "$date 00:00" -print0 2>/dev/n
             else "" end ) ] | @tsv
     ' 2>/dev/null > "$tmp/rows.tsv"
 
+# Typed prompts, and the projects they were typed in, from history.jsonl.
+#
+# The transcripts under ~/.claude/projects are the wrong source for two reasons. They carry every
+# user-role turn, so hook-injected context, tool results and a workflow agent's own prompt all read
+# as something the user asked, and the old extraction fought that with a blocklist of known
+# prefixes. And they are pruned: on 2026-09-07 they reached back to 2026-07-24 while history.jsonl
+# held 15,946 prompts from 2026-03-12, so four of the six months this command exists to write up
+# were unreadable by it.
+#
+# history.jsonl holds one record per typed prompt with `display`, `project` (the cwd, which joins
+# straight onto the transcript rows) and an epoch-ms `timestamp`. Transcripts are still what count
+# sessions, because history.jsonl has no session boundary worth trusting.
+: > "$tmp/asks.tsv"
+if [ -f "$HISTORY" ]; then
+  day_start="$(jq -rn --arg d "$date" 'try ((($d + "T00:00:00Z") | fromdateiso8601) * 1000 | floor) catch empty')"
+  if [ -n "$day_start" ]; then
+    day_end=$(( day_start + 86400000 ))
+    jq -r --argjson a "$day_start" --argjson b "$day_end" '
+        select((.timestamp // 0) >= $a and (.timestamp // 0) < $b) |
+        select((.project // "") != "") |
+        [ .project, ((.display // "") | gsub("[\n\r\t]+"; " ")) ] | @tsv
+      ' "$HISTORY" 2>/dev/null > "$tmp/asks.tsv"
+  fi
+fi
+
 # Cross-repo GitHub activity (PRs authored or reviewed, issues involving the user) and memory written
 # that day. Both are collected before the empty check, because a day can be spent reviewing PRs and
 # recording decisions without opening a session here, and that day still has facts to report.
@@ -58,10 +84,13 @@ sweep_page="$(jq -r --arg d "$date" 'select((.lastRunAt // "") | startswith($d))
 
 # Nothing anywhere: no transcripts, no GitHub activity, no memory, no sweep briefing. That is a day
 # with no record.
-[ -s "$tmp/rows.tsv" ] || [ -n "$gh_lines" ] || [ -n "$mem" ] || [ -n "$sweep_page" ] || exit 0
+[ -s "$tmp/rows.tsv" ] || [ -s "$tmp/asks.tsv" ] || [ -n "$gh_lines" ] || [ -n "$mem" ] || [ -n "$sweep_page" ] || exit 0
 
+# A day older than the transcript window still has its prompts, so the project list is the union.
 : > "$tmp/cwds"
-[ -s "$tmp/rows.tsv" ] && cut -f1 "$tmp/rows.tsv" | sort -u > "$tmp/cwds"
+{ [ -s "$tmp/rows.tsv" ] && cut -f1 "$tmp/rows.tsv"
+  [ -s "$tmp/asks.tsv" ] && cut -f1 "$tmp/asks.tsv"
+} 2>/dev/null | awk 'NF' | sort -u > "$tmp/cwds"
 projects_list="$(while read -r c; do basename "$c"; done < "$tmp/cwds" | sort -u | paste -sd, - | sed 's/,/, /g')"
 
 printf -- '---\n'
@@ -75,12 +104,12 @@ printf '# %s\n\n' "$date"
 while read -r cwd; do
   name="$(basename "$cwd")"
   printf '## %s\n' "$name"
+  # Zero is the normal answer for a day older than the transcript window, where the prompts survive
+  # in history.jsonl and the transcripts have been pruned. Printing it would read as "no work".
   sessions="$(awk -F'\t' -v c="$cwd" '$1==c{print $2}' "$tmp/rows.tsv" | sort -u | grep -c .)"
-  printf -- '- Sessions: %s\n' "$sessions"
-  asks="$(awk -F'\t' -v c="$cwd" '$1==c && $3=="user"{print $4}' "$tmp/rows.tsv" \
-    | sed 's/\\n.*//' \
-    | grep -vE '^(\[Image|<task-notification|\[SYSTEM NOTIFICATION|\[Request interrupted|<fork-boilerplate|Base directory for this skill:|Caveat:|You are a )' \
-    | cut -c1-120 | awk 'NF' | awk '!seen[$0]++' | paste -sd';' - | sed 's/;/; /g')"
+  [ "${sessions:-0}" -gt 0 ] && printf -- '- Sessions: %s\n' "$sessions"
+  asks="$(awk -F'\t' -v c="$cwd" '$1==c{print $2}' "$tmp/asks.tsv" \
+    | cut -c1-120 | awk 'NF' | awk '!seen[$0]++' | head -25 | paste -sd';' - | sed 's/;/; /g')"
   [ -n "$asks" ] && printf -- '- Asked: %s\n' "$asks"
   if git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
     commits="$(git -C "$cwd" log --since="$date 00:00" --until="$date 23:59:59" --pretty='%h %s' 2>/dev/null | paste -sd';' - | sed 's/;/; /g')"

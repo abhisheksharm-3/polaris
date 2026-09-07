@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# SessionEnd: clear the block marker this session left behind.
+#
+# hooks/stop-capture claims a marker directory per session so it asks for the journal narrative at
+# most once, and nothing removed it. The root plugin grew the same reaper on 2026-09-07 after three
+# stale run pointers and 48 markers turned up under TMPDIR; this is the same twenty lines for the
+# one marker this plugin owns.
+#
+# Best-effort and silent. SessionEnd shares a small budget across every hook registered on it, so
+# this does one filesystem operation and nothing else.
+set -uo pipefail
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+session="$(printf '%s' "$payload" | jq -r 'if (.session_id|type)=="string" then .session_id else "" end' 2>/dev/null)"
+case "$session" in
+    ""|.|..) exit 0 ;;
+    *[!A-Za-z0-9._-]*) exit 0 ;;
+esac
+[ "${#session}" -le 128 ] || exit 0
+
+rm -rf "${TMPDIR:-/tmp}/polaris-work-journal/${session}" 2>/dev/null || true
+
+exit 0

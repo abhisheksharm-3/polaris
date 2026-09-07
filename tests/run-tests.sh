@@ -201,9 +201,13 @@ echo '{"agent_type":"backend"}' | "$INJECT" | grep -q 'No inline comments' \
   && echo "ok: inject-standard carries the comment law to a writer" || { echo "FAIL: inject-standard missed the writer"; fail=1; }
 if echo '{"agent_type":"product"}' | "$INJECT" | grep -q 'additionalContext'; then echo "FAIL: inject-standard fired for a non-code agent"; fail=1; else echo "ok: inject-standard skips non-code agents"; fi
 
-# journal-facts: buckets a day's activity by project, excludes other days
+# journal-facts: buckets a day's activity by project, excludes other days.
+#
+# POLARIS_HISTORY_FILE is set on every call below. Without it these read the developer's own
+# ~/.claude/history.jsonl, which is how the asks assertions came to pass against real prompts and a
+# day with no fixture transcript reported real project names.
 JF="${WORK}/scripts/journal-facts.sh"
-jf_out="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+jf_out="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" POLARIS_HISTORY_FILE="${DIR}/fixtures/journal/history.jsonl" bash "$JF" 2026-07-14)"
 echo "$jf_out" | grep -q '## demo'              && echo "ok: journal project section" || { echo "FAIL: journal project section"; fail=1; }
 echo "$jf_out" | grep -q 'Sessions: 2'          && echo "ok: journal session count"    || { echo "FAIL: journal session count"; fail=1; }
 echo "$jf_out" | grep -q 'add the login form'   && echo "ok: journal ask captured"      || { echo "FAIL: journal ask captured"; fail=1; }
@@ -214,17 +218,17 @@ if echo "$jf_out" | grep -q 'OTHER DAY'; then echo "FAIL: journal leaked another
 # only what was committed. mtime is set here because git does not preserve it.
 jf_mem="${DIR}/fixtures/journal/projects/-Users-test-Projects-demo/memory/fixture-note.md"
 touch -t 202607141200 "$jf_mem"
-jf_out2="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+jf_out2="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" POLARIS_HISTORY_FILE="${DIR}/fixtures/journal/history.jsonl" bash "$JF" 2026-07-14)"
 echo "$jf_out2" | grep -q 'fixture-note.md' && echo "ok: journal reports memory written that day" || { echo "FAIL: journal missed memory writes"; fail=1; }
 touch -t 202607201200 "$jf_mem"
-jf_out3="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
+jf_out3="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" POLARIS_HISTORY_FILE="${DIR}/fixtures/journal/history.jsonl" bash "$JF" 2026-07-14)"
 if echo "$jf_out3" | grep -q 'fixture-note.md'; then echo "FAIL: journal reported memory from another day"; fail=1; else echo "ok: journal memory is date-scoped"; fi
 
 # journal-facts: a day with no session but a memory write is still a day with a record. Guards the
 # early exit, which used to gate the whole file on transcripts and drop every other source. 2026-07-10
 # has no fixture transcript, so only the memory write can produce output.
 touch -t 202607101200 "$jf_mem"
-jf_out4="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-10)"
+jf_out4="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" POLARIS_HISTORY_FILE="${DIR}/fixtures/journal/history.jsonl" bash "$JF" 2026-07-10)"
 echo "$jf_out4" | grep -q 'fixture-note.md' && echo "ok: journal reports a session-less day" || { echo "FAIL: journal dropped a day with no session"; fail=1; }
 echo "$jf_out4" | grep -q 'projects: \[\]' && echo "ok: journal frontmatter empty project list" || { echo "FAIL: journal frontmatter wrong for a session-less day"; fail=1; }
 touch -t 202607141200 "$jf_mem"
@@ -1849,5 +1853,121 @@ grep -qi 'never delete a pending file you did not merge' "${DIR}/../commands/tra
 grep -q 'work/pending' "${DIR}/../.gitignore" \
   && echo "ok: pending notes are gitignored, so a clone gets the merged record only" \
   || { echo "FAIL: pending notes would be committed"; fail=1; }
+
+# --- polaris-work: an off switch, a wider journal, and a reaper ----------------------------------
+
+# Its Stop hook had no gate at all. It keys on ~/.claude/polaris-memory/journal, which is user-level
+# and says nothing about the project, so installing this plugin blocked a turn in every repo the user
+# opened: a client's checkout, someone else's clone, a throwaway. The root plugin's hooks all
+# early-exit without .polaris/config.json and this one had no equivalent, which is backwards for the
+# half that is about the user rather than the code.
+WSC="${WORK}/hooks/stop-capture"
+wg_home="$(mktemp -d)"; wg_tmp="$(mktemp -d)"
+wg_stranger="$(mktemp -d)"; wg_polaris="$(mktemp -d)"; mkdir -p "$wg_polaris/.polaris"
+mkdir -p "$wg_home/.claude/polaris-memory/journal"
+printf -- '---\nstatus: facts\n---\n' > "$wg_home/.claude/polaris-memory/journal/$(date +%F).md"
+wg() { # $1 project, $2 config json or "none"
+  if [ "$2" = "none" ]; then rm -f "$wg_home/.claude/polaris-memory/work-config.json"
+  else printf '%s' "$2" > "$wg_home/.claude/polaris-memory/work-config.json"; fi
+  rm -rf "$wg_tmp/polaris-work-journal" 2>/dev/null
+  # A silent hook emits nothing at all, and jq on empty input also emits nothing, so the two have to
+  # be told apart before the comparison rather than after it.
+  local out
+  out="$(printf '%s' '{"stop_hook_active":false,"session_id":"wg1"}' | HOME="$wg_home" TMPDIR="$wg_tmp" \
+    CLAUDE_PLUGIN_ROOT="$WORK" CLAUDE_PROJECT_DIR="$1" bash "$WSC" 2>/dev/null)"
+  if [ -z "$out" ]; then echo silent
+  elif printf '%s' "$out" | jq -e '.decision=="block"' >/dev/null 2>&1; then echo asks
+  else echo silent; fi
+}
+[ "$(wg "$wg_stranger" none)" = "silent" ] \
+  && echo "ok: polaris-work stays quiet in a project that never opted in" \
+  || { echo "FAIL: polaris-work blocks a turn in any repo, opted in or not"; fail=1; }
+[ "$(wg "$wg_polaris" none)" = "asks" ] \
+  && echo "ok: polaris-work asks in a project with .polaris/" \
+  || { echo "FAIL: polaris-work went silent where it should ask"; fail=1; }
+[ "$(wg "$wg_polaris" '{"enabled":false}')" = "silent" ] \
+  && echo "ok: enabled false silences polaris-work entirely" \
+  || { echo "FAIL: enabled false did not silence the Stop hook"; fail=1; }
+[ "$(wg "$wg_stranger" '{"askIn":"any"}')" = "asks" ] \
+  && echo "ok: askIn any restores the old reach when asked for" \
+  || { echo "FAIL: askIn any did not widen the ask"; fail=1; }
+[ "$(wg "$wg_polaris" '{"askIn":"never"}')" = "silent" ] \
+  && echo "ok: askIn never silences the ask and leaves the backfill" \
+  || { echo "FAIL: askIn never still asked"; fail=1; }
+# An explicit allowlist is the user naming exactly where, so it beats askIn in both directions.
+[ "$(wg "$wg_stranger" "$(jq -cn --arg p "$wg_stranger" '{askIn:"polaris",projects:[$p]}')")" = "asks" ] \
+  && echo "ok: an allowlisted project is asked even without .polaris/" \
+  || { echo "FAIL: the projects allowlist did not admit a project"; fail=1; }
+[ "$(wg "$wg_polaris" "$(jq -cn --arg p "$wg_stranger" '{askIn:"any",projects:[$p]}')")" = "silent" ] \
+  && echo "ok: a non-empty allowlist excludes everything outside it" \
+  || { echo "FAIL: the projects allowlist did not exclude a project"; fail=1; }
+# session-start honours the kill switch too, or the plugin is only half off.
+rm -f "$wg_home/.claude/polaris-memory/work-config.json"
+rm -rf "$wg_home/.claude/polaris-memory/journal"
+printf '%s' '{"enabled":false}' > "$wg_home/.claude/polaris-memory/work-config.json"
+HOME="$wg_home" CLAUDE_PLUGIN_ROOT="$WORK" bash "${WORK}/hooks/session-start" >/dev/null 2>&1
+[ ! -d "$wg_home/.claude/polaris-memory/journal" ] \
+  && echo "ok: enabled false stops the session-start backfill as well" \
+  || { echo "FAIL: session-start wrote a journal with the plugin disabled"; fail=1; }
+[ -f "${WORK}/templates/config.default.json" ] \
+  && echo "ok: polaris-work ships a config template" \
+  || { echo "FAIL: no config template for polaris-work"; fail=1; }
+rm -rf "$wg_home" "$wg_tmp" "$wg_stranger" "$wg_polaris"
+
+# The journal reads typed prompts from history.jsonl, not from the transcripts.
+#
+# Transcripts carry every user-role turn, so hook context and a workflow agent's own prompt read as
+# the user's question, and they are pruned: on 2026-09-07 they reached 2026-07-24 while
+# history.jsonl held 15,946 prompts from 2026-03-12. Four of six months were unreadable by the
+# command whose job is writing days up.
+JF="${WORK}/scripts/journal-facts.sh"
+jf_home="$(mktemp -d)"; jf_proj="$(mktemp -d)"; jf_work="$(mktemp -d)"
+mkdir -p "$jf_home/.claude" "$jf_proj/-Users-x-demo"
+# One typed prompt, and one transcript row that is NOT a typed prompt.
+jf_ms="$(jq -rn '((("2026-09-07T12:00:00Z") | fromdateiso8601) * 1000) | floor')"
+jq -cn --arg p "$jf_work" --argjson t "$jf_ms" \
+  '{display:"the question the user actually typed",project:$p,sessionId:"s1",timestamp:$t}' \
+  > "$jf_home/.claude/history.jsonl"
+printf '%s\n' "$(jq -cn --arg c "$jf_work" '{timestamp:"2026-09-07T01:00:00Z",cwd:$c,sessionId:"s1",message:{role:"user",content:"Review this change for security vulnerabilities."}}')" \
+  > "$jf_proj/-Users-x-demo/s1.jsonl"
+jf_out="$(POLARIS_JOURNAL_PROJECTS_DIR="$jf_proj" POLARIS_HISTORY_FILE="$jf_home/.claude/history.jsonl" \
+  HOME="$jf_home" bash "$JF" 2026-09-07 journal 2>/dev/null)"
+grep -q 'the question the user actually typed' <<<"$jf_out" \
+  && echo "ok: the journal reports the typed prompt" \
+  || { echo "FAIL: the journal did not read history.jsonl"; fail=1; }
+grep -q 'Review this change for security' <<<"$jf_out" \
+  && { echo "FAIL: the journal still reports injected transcript text as a question"; fail=1; } \
+  || echo "ok: the journal ignores a transcript turn the user never typed"
+grep -q 'tool_input.effort' "$JF" 2>/dev/null \
+  && { echo "FAIL: journal-facts still greps transcripts for prompts"; fail=1; } \
+  || echo "ok: journal-facts no longer filters transcript prompts by blocklist"
+# A day with no transcript at all still has its prompts, which is the four months it could not reach.
+rm -rf "$jf_proj"; mkdir -p "$jf_proj"
+jf_old="$(POLARIS_JOURNAL_PROJECTS_DIR="$jf_proj" POLARIS_HISTORY_FILE="$jf_home/.claude/history.jsonl" \
+  HOME="$jf_home" bash "$JF" 2026-09-07 journal 2>/dev/null)"
+grep -q 'the question the user actually typed' <<<"$jf_old" \
+  && echo "ok: a day with no surviving transcript still gets a record" \
+  || { echo "FAIL: a pruned-transcript day reports nothing"; fail=1; }
+grep -q 'Sessions: 0' <<<"$jf_old" \
+  && { echo "FAIL: a pruned-transcript day reports Sessions: 0, which reads as no work"; fail=1; } \
+  || echo "ok: a zero session count is omitted rather than printed"
+rm -rf "$jf_home" "$jf_proj" "$jf_work"
+
+# /standup, and the SessionEnd reaper.
+[ -f "${WORK}/commands/standup.md" ] \
+  && echo "ok: polaris-work ships /standup" \
+  || { echo "FAIL: no /standup command"; fail=1; }
+grep -q 'journal-facts.sh' "${WORK}/commands/standup.md" \
+  && echo "ok: /standup reads the facts extractor rather than guessing" \
+  || { echo "FAIL: /standup does not use journal-facts.sh"; fail=1; }
+jq -e '.hooks.SessionEnd | length > 0' "${WORK}/hooks/hooks.json" >/dev/null \
+  && echo "ok: polaris-work reaps its marker on SessionEnd" \
+  || { echo "FAIL: polaris-work leaves its block marker behind"; fail=1; }
+we_tmp="$(mktemp -d)"; mkdir -p "$we_tmp/polaris-work-journal/mine" "$we_tmp/polaris-work-journal/theirs"
+printf '%s' '{"session_id":"mine"}' | TMPDIR="$we_tmp" bash "${WORK}/hooks/session-end" >/dev/null 2>&1
+[ ! -d "$we_tmp/polaris-work-journal/mine" ] && [ -d "$we_tmp/polaris-work-journal/theirs" ] \
+  && echo "ok: the reaper clears its own marker and leaves another session's" \
+  || { echo "FAIL: the reaper cleared the wrong marker"; fail=1; }
+rm -rf "$we_tmp"
 
 exit $fail
