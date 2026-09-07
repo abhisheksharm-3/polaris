@@ -2,6 +2,53 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.17.0 — 2026-09-07
+
+Five bugs the 1.16.0 audit found and did not fix, three of them in code the audit had just changed.
+
+**A follow-up opened a run of its own.** `continuation` is deliberately the last class the router
+tries, so a follow-up carrying real work reaches its real class: "also push both to github" comes
+back `ship`. Right for naming the work, wrong for opening a run, because the work belongs to the
+conversation already under way. Measured over 96 real run-opening prompts from
+`~/.claude/history.jsonl`, 24 of them, a quarter, began with also/and/ok/ya/now/still. A
+continuation marker now decides whether to seed while the class still decides what the work is.
+
+**And a misrouted run nagged forever.** Routing is a regex table over natural language, so it will
+be wrong sometimes. The cost of being wrong was never the wrong name, it was `advance-flow` asking
+for a phase nobody meant to start, every turn, until someone remembered `/polaris:pause`. That
+asymmetry is why a correct route is invisible while a misroute feels like the only thing Polaris
+does, and why the felt misroute rate was 95% against a measured 45 to 60. A run that records no
+phase now drops itself after three asks and archives to `.done/`; a real run survives by recording
+its first phase.
+
+What no regex settles is filed rather than patched: `audit`, `research`, `qa`, `review` and
+`release` are ordinary domain nouns in the work being described, so "show all audit log events"
+routes to `audit`. Telling an instruction from a topic is not a pattern problem.
+
+**The work tracker had no session key, and the run ledger did.** `stop-capture` asked every session
+to reconcile `.polaris/work/streams.md`, and a checkout holds several sessions. Two did on
+2026-09-07: the second committed a copy predating the first and silently dropped two streams,
+recovered only from git history. A third lived in a working tree and is gone. `run-state.sh` had
+solved this already, keying its open-run pointer on `CLAUDE_CODE_SESSION_ID` so two conversations
+never share state; the tracker sat beside it with no key.
+
+Each session now writes `.polaris/work/pending/<session>.md`, appending, and is told not to edit
+`streams.md`. Those notes are gitignored, because they are one session's uncommitted view and
+`streams.md` is the merged record. `/polaris:track` is the merge: it reads every session's notes and
+not only its own, folds them in rather than replacing a stream, keeps both facts when two sessions
+name one stream, re-reads `streams.md` in the turn it writes it, and deletes only what it merged.
+`session-start` names the count of unmerged notes, and the count only, since injecting the bodies
+would be untrusted content the payload has no budget for.
+
+**The writing guard refused a read.** 1.16.0 widened its matcher to cover a tag and a release
+message, and a subcommand name is not a write: a list invocation matched, and the guard linted an
+unrelated heredoc in the same Bash call. It now requires both a message-bearing subcommand and a
+flag that supplies a message, so a read passes and every write form is still caught. The residual
+is that a Bash command whose own text discusses these subcommands can still match; the durable fix
+is reading the staged message rather than parsing a command line, and that is filed.
+
+374 assertions.
+
 ## 1.16.2 — 2026-09-07
 
 Two bugs the 1.16.0 audit found and did not fix.

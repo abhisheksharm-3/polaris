@@ -23,10 +23,19 @@ input="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
 cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // ""')"
 [ -n "$cmd" ] || exit 0
 
-# Only a command that actually writes a message. `git commit` alone is not enough: it also matches a
-# grep for the phrase, and refusing those is what made this hook feel broken.
+# Only a command that actually writes a message, and only when it carries one.
+#
+# `git commit` alone was never enough: it also matches a grep for the phrase, and refusing those is
+# what made the first version of this hook feel broken. Naming the subcommand is not enough either,
+# which this hook learned by refusing its own author's `git tag --list` and linting the heredoc that
+# happened to be in the same Bash call. A read is not a write. So the command has to name a
+# message-bearing subcommand AND carry a flag that supplies the message.
 case "$cmd" in
   *"git commit"*|*"git merge"*|*"git tag"*|*"gh pr create"*|*"gh pr edit"*|*"gh release create"*) : ;;
+  *) exit 0 ;;
+esac
+case "$cmd" in
+  *-m\ *|*-m\"*|*-m\'*|*--message*|*-F\ *|*--file*|*--body*|*--title*|*--notes*|*-am\ *|*-a\ -m*|*-s\ *|*--subject*) : ;;
   *) exit 0 ;;
 esac
 
