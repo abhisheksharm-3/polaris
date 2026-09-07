@@ -1,4 +1,8 @@
 {
+  "continuation": {
+    "description": "A follow-up inside work already under way. Opens nothing; the turn just answers.",
+    "phases": []
+  },
   "conversation": {
     "description": "A question about the code, not a change to it.",
     "phases": []
@@ -24,6 +28,21 @@
         "name": "implement",
         "run": "specialist"
       },
+      {
+        "name": "gate",
+        "run": "command:gate",
+        "evidence": "gate output"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "commit or PR url"
+      }
+    ]
+  },
+  "ship": {
+    "description": "A finished change to commit, push, and get merged.",
+    "phases": [
       {
         "name": "gate",
         "run": "command:gate",

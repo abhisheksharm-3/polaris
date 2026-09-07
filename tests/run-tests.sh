@@ -1557,4 +1557,83 @@ bash "$UF" nonsense >/dev/null 2>&1 \
   && { echo "FAIL: usage-facts accepted an unknown subcommand"; fail=1; } \
   || echo "ok: usage-facts rejects an unknown subcommand"
 
+# --- T3: the router, measured rather than asserted ----------------------------------------------
+
+# The classifier placed 9% of 800 real prompts from ~/.claude/history.jsonl on 2026-09-07, and the
+# unknown branch then re-emitted the whole flow table on every one of them, including every
+# follow-up in the same session. Two structural gaps, not pattern tuning: there was no ship class
+# though agent:shipper existed only inside other flows, and the router assumed every prompt opens
+# work when most are continuations.
+RP="${DIR}/../scripts/route-prompt.sh"
+rp() { printf '%s' "$1" | bash "$RP" 2>/dev/null; }
+
+# ship, the most common developer instruction, used to route nowhere.
+for c in \
+  "commit and push all changes across backend and frontend" \
+  "raise a pr from staging to main first" \
+  "push the dashboard to this repo" \
+  "commit this in scoped commits" ; do
+  [ "$(rp "$c")" = "ship" ] && echo "ok: routed to ship: ${c:0:40}" \
+    || { echo "FAIL: '${c:0:40}' routed to $(rp "$c"), not ship"; fail=1; }
+done
+
+# A bare follow-up opens nothing. This is the class that carried the waste.
+for c in \
+  "ok that was it, only ui changes?" \
+  "now come back to our previous work" \
+  "cool, do what is best and justified" \
+  "try again" ; do
+  [ "$(rp "$c")" = "continuation" ] && echo "ok: routed to continuation: ${c:0:36}" \
+    || { echo "FAIL: '${c:0:36}' routed to $(rp "$c"), not continuation"; fail=1; }
+done
+
+# But a follow-up carrying real work must reach the real class, which is why continuation is tried
+# last. Put first it swallowed these.
+[ "$(rp "also push both backend and frontend to github once done")" = "ship" ] \
+  && echo "ok: a follow-up carrying a ship still routes to ship" \
+  || { echo "FAIL: continuation swallowed a ship instruction"; fail=1; }
+[ "$(rp "continuation")" != "" ] && echo "ok: the router always answers" \
+  || { echo "FAIL: the router returned nothing"; fail=1; }
+# continuation is the last class tried, or it captures work that belongs elsewhere.
+[ "$(jq -r '.routing[-1].class' "${DIR}/../rules/patterns.json")" = "continuation" ] \
+  && echo "ok: continuation is the last class tried" \
+  || { echo "FAIL: continuation is not last, so it will swallow real work"; fail=1; }
+
+# Every class needs a flow and every flow a class, or one of them is unreachable.
+rp_diff="$(comm -3 <(jq -r 'keys[]' "${DIR}/../rules/flows.json" | sort) \
+                   <(jq -r '.routing[].class' "${DIR}/../rules/patterns.json" | sort))"
+[ -z "$rp_diff" ] \
+  && echo "ok: every routing class has a flow and every flow a class" \
+  || { echo "FAIL: routing classes and flows disagree: ${rp_diff}"; fail=1; }
+
+# The flow table goes out once per session. It was 895 bytes on every unrouted prompt, which is
+# roughly 9,900 tokens across a forty-turn session for a menu already read.
+ep_proj="$(mktemp -d)"; ep_tmp="$(mktemp -d)"
+mkdir -p "$ep_proj/.polaris"; echo '{"routing":true}' > "$ep_proj/.polaris/config.json"
+ep() { jq -cn --arg p "$1" '{prompt:$p}' | TMPDIR="$ep_tmp" CLAUDE_CODE_SESSION_ID=eptest \
+  POLARIS_SESSION=eptest-none CLAUDE_PROJECT_DIR="$ep_proj" CLAUDE_PLUGIN_ROOT="${DIR}/.." \
+  bash "${DIR}/../hooks/enhance-prompt" | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null; }
+ep1="$(ep "xyzzy frobnicate the plugh")"
+ep2="$(ep "xyzzy frobnicate the plugh again differently")"
+grep -q 'trivial:' <<<"$ep1" \
+  && echo "ok: the first unrouted prompt gets the flow table" \
+  || { echo "FAIL: the flow table was not emitted once"; fail=1; }
+grep -q 'trivial:' <<<"$ep2" \
+  && { echo "FAIL: the flow table was re-emitted in the same session"; fail=1; } \
+  || echo "ok: the flow table is not repeated in the same session"
+[ -n "$ep2" ] \
+  && echo "ok: a later unrouted prompt still gets the short pointer" \
+  || { echo "FAIL: a later unrouted prompt got nothing at all"; fail=1; }
+# A continuation gets nothing, which is the point.
+[ -z "$(ep "ok cool thanks")" ] \
+  && echo "ok: a continuation injects nothing" \
+  || { echo "FAIL: a continuation still injected context"; fail=1; }
+rm -rf "$ep_proj" "$ep_tmp"
+
+# The slug no longer carries prompt text. It was the first four words, which produced
+# email-<address>-<domain>-com as a directory under .polaris/runs.
+grep -q 'slug="\${class}-\$(date' "${DIR}/../hooks/enhance-prompt" \
+  && echo "ok: the run slug is built from the flow and the date" \
+  || { echo "FAIL: the slug is still derived from the prompt text"; fail=1; }
+
 exit $fail

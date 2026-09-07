@@ -29,7 +29,7 @@
       },
       {
         "id": "em-dash-spray",
-        "pattern": " — .* — ",
+        "pattern": " \u2014 .* \u2014 ",
         "message": "em-dash spray; use commas or periods"
       },
       {
@@ -170,6 +170,21 @@
         "catch me up",
         "what was i (doing|working on)",
         "pick up where"
+      ]
+    },
+    {
+      "class": "ship",
+      "_why": "Commit, push, open a PR, get CI green. agent:shipper existed only as a phase inside other flows, so the single most common developer instruction routed nowhere: 'commit and push frontend, ensure you are on dev branch' and 'raise a pr from login flow refactor to main' both landed in unknown on 2026-09-07.",
+      "patterns": [
+        "^(commit|push|ship)\\b",
+        "\\b(commit|push) (and (commit|push) )?(this|these|it|them|the|everything|all|both|remaining|changes|plugin|backend|frontend|dashboard)\\b",
+        "\\b(commit|push) (it|them|this|that|everything|all) (to|into|up)\\b",
+        "\\b(raise|open|create|make|cut|send) (a |an |the )?(pr|pull request|mr|merge request)\\b",
+        "\\b(pr|pull request|mr) (from|to|against|off) \\w",
+        "\\bget (ci|the build|the pipeline|tests) (green|passing|to pass)\\b",
+        "\\b(squash|rebase) and (merge|push)\\b",
+        "\\bmerge (this|it|the (pr|branch))\\b",
+        "\\bpush (both|all|everything)\\b"
       ]
     },
     {
@@ -347,6 +362,28 @@
         "\\badjust\\b",
         "\\btweak\\b",
         "make (it|the) .* (instead|rather)"
+      ]
+    },
+    {
+      "class": "continuation",
+      "_why": "A follow-up inside work already under way, and the LAST class tried rather than the first. Put first, it swallowed the follow-ups that carry real work: 'also push both backend and frontend to github' is a ship instruction wearing an 'also'. Tried last it means only what it should: nothing else matched, and this reads like a continuation rather than a new task. Measured on 800 real prompts, that moved unknown from 90.8% to 61.6% with the real classes still winning. A continuation opens nothing and says nothing; when a run is open, enhance-prompt already treats the prompt as input to it.",
+      "patterns": [
+        "^(also|and|plus|additionally|btw|by the way|oh)\\b",
+        "^(ok|okay|cool|nice|great|perfect|thanks|thank you|yes|yeah|yep|no|nope|nah|sure|right|correct|exactly)\\b",
+        "^(now|next|then|after that|finally)\\b",
+        "^(continue|carry on|keep going|go on|go ahead|proceed|resume)\\b",
+        "^(try again|again|retry|redo|once more)\\b",
+        "^(instead|rather|actually|wait|hold on|hmm)\\b",
+        "^(that|this|it|these|those) (is|was|are|were|looks|seems|still|does|did|should|needs)\\b",
+        "^(here|there) (is|are|you go)\\b",
+        "^(what|how) about\\b",
+        "^(same|similar|likewise|ditto)\\b",
+        "^(not|dont|don't|do not) (like|that|this|it)\\b",
+        "^(still|already) (broken|failing|wrong|not|the same)\\b",
+        "^(fix|change|update|add|remove) (it|this|that|them)\\b",
+        "^(revert|undo|roll back|rollback)\\b",
+        "^(and|but|so) (now|then|what|why|how|can|should)\\b",
+        "^(do|make) (it|this|that|them) (again|properly|right|the same way)\\b"
       ]
     }
   ]

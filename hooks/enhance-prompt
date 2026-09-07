@@ -52,21 +52,46 @@ The last recorded phase left ${recorded} on disk, hash-locked in the ledger. Rea
     else
         class="$(printf '%s' "$prompt" | bash "${ROOT}/scripts/route-prompt.sh" 2>/dev/null || echo unknown)"
         case "$class" in
-            conversation) : ;;
+            # A question, or a follow-up inside work already under way. Neither opens a run and
+            # neither needs a word from this hook. `continuation` is the one that mattered: measured
+            # against 800 real prompts, most of a session is follow-ups, and every one of them used
+            # to fall through to the unknown branch below and re-pay its menu.
+            conversation|continuation) : ;;
             unknown)
-                # The catalog holds the shapes that recur, and most work is not one of them. Handing
-                # the prompt back unrouted is the fragmentation this hook exists to end, so an
-                # unrecognized task gets a flow composed for it rather than a menu.
-                table="$(jq -r 'to_entries[] | select(.value.phases | length > 0) | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
-                context="Polaris found no catalog flow for this prompt.
-If it is a question, answer it and open nothing. Otherwise run /polaris:compose to build a flow for it from the installed agents and commands, then seed and announce it before starting.
-Use a catalog row instead if one actually fits:
+                # The catalog holds the shapes that recur, and most work is not one of them.
+                #
+                # The full flow table used to go out on every unrouted prompt. That was 895 bytes,
+                # it fired on 91% of real prompts, and it fired again on every follow-up in the same
+                # session, so a forty-turn session paid roughly 9,900 tokens to re-read a menu it
+                # had already seen. The table goes out once per session; after that the pointer is
+                # enough, because the model has read it.
+                seen_dir="${TMPDIR:-/tmp}/polaris-flow-table"
+                seen_key="$(printf '%s' "${CLAUDE_CODE_SESSION_ID:-nosession}" | tr -c '[:alnum:]._-' '_')"
+                mkdir -p "$seen_dir" 2>/dev/null
+                if mkdir "${seen_dir}/${seen_key}" 2>/dev/null; then
+                    table="$(jq -r 'to_entries[] | select(.value.phases | length > 0) | "  \(.key): \([.value.phases[].name] | join(" -> "))"' "${ROOT}/rules/flows.json" 2>/dev/null)"
+                    context="Polaris found no catalog flow for this prompt.
+If it is a question or a follow-up, answer it and open nothing. Otherwise run /polaris:compose to build a flow from the installed agents and commands, then seed and announce it before starting.
+Use a catalog row instead if one fits:
 ${table}"
+                else
+                    context="Polaris found no catalog flow for this prompt. Answer it if it is a question or a follow-up; otherwise /polaris:compose builds one, and the catalog is in ${ROOT}/rules/flows.json."
+                fi
                 ;;
             *)
-                slug="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]' \
-                    | tr -c '[:alnum:]' ' ' | awk '{for(i=1;i<=4&&i<=NF;i++)printf "%s%s",$i,(i<4&&i<NF?"-":"")}' | cut -c1-40)"
-                [ -n "$slug" ] || slug="run"
+                # The slug was the prompt's first four words. Real directories it produced include
+                # `see-dev-proeprly-first`, `anything-that-depends-on`, and
+                # `email-<address>-<domain>-com`: meaningless, typo-preserving, and in the last
+                # case a customer address turned into a path under .polaris/runs/, which a project
+                # may commit. The flow and the date say more and leak nothing, and a counter keeps
+                # two runs of the same flow on one day apart.
+                slug="${class}-$(date +%m%d)"
+                n=2
+                while [ -d "${PROJECT_DIR}/.polaris/runs/${slug}" ]; do
+                    slug="${class}-$(date +%m%d)-${n}"
+                    n=$((n + 1))
+                    [ "$n" -gt 50 ] && break
+                done
                 if CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" seed "$class" "$slug" >/dev/null 2>&1; then
                     phases="$(jq -r --arg f "$class" '[.[$f].phases[] | .name + (if .approve then " (stop for approval)" else "" end)] | join(" -> ")' "${ROOT}/rules/flows.json")"
                     first="$(jq -r --arg f "$class" '.[$f].phases[0] | "\(.name) via \(.run)"' "${ROOT}/rules/flows.json")"
