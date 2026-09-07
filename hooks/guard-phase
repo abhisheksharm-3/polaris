@@ -32,40 +32,39 @@ requested="$(printf '%s' "$payload" | jq -r \
 # and a dispatch can override it, so the cheapest tier was always one argument away on the work that
 # least tolerates it. A dispatch with no explicit model is left alone; the frontmatter is the policy
 # there, and refusing those would break every existing call site.
+# A model arrives as an alias, a full id, or `inherit`, and only the three aliases used to rank. Every
+# other spelling ranked -1, the `-ge 0` guard then skipped the check, and the floor was one argument
+# away from off: `claude-haiku-4-5-20251001` passed an opus floor. So resolve the spelling to a tier
+# first, and treat an unresolvable one as a refusal rather than a pass, because a model this file has
+# never heard of is exactly the case where guessing is wrong.
 asked="$(printf '%s' "$payload" | jq -r '.tool_input.model // ""' 2>/dev/null)"
-if [ -n "$asked" ] && [ -f "${ROOT}/rules/model-floor.json" ]; then
+if [ -n "$asked" ] && [ "$asked" != "inherit" ] && [ -f "${ROOT}/rules/model-floor.json" ]; then
     bare="${requested##*:}"
     floor="$(jq -r --arg a "$bare" '.floor[$a] // ""' "${ROOT}/rules/model-floor.json")"
     if [ -n "$floor" ]; then
+        tier="$(jq -r --arg m "$asked" '.aliases[$m] // ""' "${ROOT}/rules/model-floor.json")"
+        if [ -z "$tier" ]; then
+            reason="Polaris: ${bare} runs on ${floor} or better, and '${asked}' is not a model rules/model-floor.json knows, so its tier cannot be checked. Drop the model argument to take the agent's own tier, or name one of: $(jq -r '.aliases | keys | join(", ")' "${ROOT}/rules/model-floor.json"). If ${asked} is real and at or above ${floor}, add it to the aliases map."
+            jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+            exit 0
+        fi
         rank() { jq -r --arg m "$1" '.tiers | index($m) // -1' "${ROOT}/rules/model-floor.json"; }
-        want="$(rank "$asked")"; need="$(rank "$floor")"
+        want="$(rank "$tier")"; need="$(rank "$floor")"
         if [ "$want" -ge 0 ] && [ "$want" -lt "$need" ]; then
-            reason="Polaris: ${bare} runs on ${floor} or better, and this dispatch asked for ${asked}. It is the judgment work, so the tier is a floor rather than a default. Drop the model argument to take the agent's own tier, or name ${floor} or above."
+            reason="Polaris: ${bare} runs on ${floor} or better, and this dispatch asked for ${asked} (tier ${tier}). It is the judgment work, so the tier is a floor rather than a default. Drop the model argument to take the agent's own tier, or name ${floor} or above."
             jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
             exit 0
         fi
     fi
 fi
 
-# The effort floor, the companion to the model floor above and checked the same way. Thinking
-# tokens bill as output, so effort moves the output side of a dispatch the way the tier moves its
-# per-token price, and a fan-out that governs one and not the other governs half its cost. A
-# dispatch with no explicit effort is left alone, for the same reason the model check leaves one
-# alone: the session's setting is the policy there.
-effort="$(printf '%s' "$payload" | jq -r '.tool_input.effort // ""' 2>/dev/null)"
-if [ -n "$effort" ] && [ -f "${ROOT}/rules/effort-floor.json" ]; then
-    bare="${requested##*:}"
-    efloor="$(jq -r --arg a "$bare" '.floor[$a] // ""' "${ROOT}/rules/effort-floor.json")"
-    if [ -n "$efloor" ]; then
-        erank() { jq -r --arg m "$1" '.levels | index($m) // -1' "${ROOT}/rules/effort-floor.json"; }
-        ewant="$(erank "$effort")"; eneed="$(erank "$efloor")"
-        if [ "$ewant" -ge 0 ] && [ "$ewant" -lt "$eneed" ]; then
-            reason="Polaris: ${bare} thinks at ${efloor} effort or better, and this dispatch asked for ${effort}. Drop the effort argument to take the session's, or name ${efloor} or above."
-            jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
-            exit 0
-        fi
-    fi
-fi
+# There is no effort floor here any more, and there never usefully was one. This hook read
+# `.tool_input.effort`, and the Agent tool takes description, prompt, subagent_type, model, and
+# isolation: no effort parameter exists, so the key never arrived and the check never ran. Its four
+# assertions passed because they built a payload carrying a key a real dispatch cannot carry, which
+# is the failure rules/clean-code.md names as T-class: a test that cannot fail when the behaviour
+# does. `effort` is real as subagent frontmatter, so the floor moved to agents/*.md where the value
+# exists, and scripts/check-agents.sh enforces it at validation time. See rules/effort-floor.json.
 
 state="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" get 2>/dev/null || true)"
 [ -n "$state" ] || exit 0

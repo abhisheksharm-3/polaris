@@ -2,7 +2,7 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|clear|compact",
+        "matcher": "startup|resume|clear|compact|fork",
         "hooks": [
           {
             "type": "command",
@@ -79,9 +79,7 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-phase"
           }
         ]
-      }
-    ],
-    "PostToolUse": [
+      },
       {
         "matcher": "Edit|Write",
         "hooks": [
@@ -90,7 +88,9 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-edit"
           }
         ]
-      },
+      }
+    ],
+    "PostToolUse": [
       {
         "matcher": "WebFetch|mcp__.*",
         "hooks": [

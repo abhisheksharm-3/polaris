@@ -10,6 +10,7 @@ description: |
   <example>user: "Remove AI code slop" assistant: "Dispatching code-cleanup."</example>
   <example>user: "Review this before I push" assistant: "Running code-cleanup across the changed files."</example>
 model: sonnet
+effort: low
 tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 ---
 

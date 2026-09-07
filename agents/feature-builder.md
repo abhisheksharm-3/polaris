@@ -7,6 +7,7 @@ description: |
   <example>user: "Build the user profile settings page" assistant: "I'll use the feature-builder agent to implement this following the correct data flow."</example>
   <example>user: "Add a create order endpoint with optimistic updates" assistant: "Dispatching feature-builder — will fetch current Next.js/React 19 docs, then implement from types through to UI."</example>
 model: sonnet
+effort: medium
 tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, Write, Edit, NotebookEdit
 ---
 

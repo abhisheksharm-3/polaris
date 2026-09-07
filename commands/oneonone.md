@@ -117,8 +117,16 @@ skipped and named under `Coverage`.
 
 `--offline` skips this whole step, and the agenda says why the page is missing and which sections are
 thinner for it. Otherwise, in this order: `get_identity`; `list_events` over `start` to `now` plus the
-next 1:1; the window `list_meetings`, paged until exhausted; the Jira JQL. Each failure is recorded as
-"not read" and the run continues. Do not use `search_events` — it does not find the 1:1, and a time
+next 1:1; the window `list_meetings`, paged until exhausted; the Jira JQL; then Slack.
+
+Slack reuses `/sweep`'s `sources.slack` block, the same `channels` and the same `includeDMs`, plus the
+full Slack sequence in the connectors rule, because a channel read alone misses every thread reply.
+Read at most 8 channels and expand at most 20 threads, newest first, and name in one line what was
+left unread. Slack carries most of the outside-scope work `Wins` is made of and most of the arguments
+`Product thinking` counts, because neither leaves a commit. An absent `sources.slack` block is
+therefore reported as a named gap under both sections rather than passed over in silence.
+
+Each failure is recorded as "not read" and the run continues. Do not use `search_events` — it does not find the 1:1, and a time
 range over `list_events` does.
 
 ### 5. The join
@@ -170,8 +178,15 @@ call, so the probe stays inside the budget.
 
 At most 12 `get_meeting_summary` calls, in this order: the previous 1:1 first, then meetings whose
 participants include the manager or a client attendee, then most recent. Name the skipped ones in a
-one-line "not read" note. One `get_meeting_transcript`, for the resolved previous 1:1 only. A
-`recording_id` always comes from `list_meetings`; never ask the user for one. An empty or truncated
+one-line "not read" note. Up to 4 `get_meeting_transcript` calls, for the resolved 1:1s on the four
+newest dates in `state.meetings`, newest first. The most recent is read in full and is the one that
+drives `Open from last time`. The older three are read for two things only — feedback that repeats
+across meetings, and instances that belong in `Product thinking` — and contribute nothing to
+`Open from last time`, because an action from three meetings ago that was never carried forward was
+dropped on purpose and re-raising it is noise. Feedback that appears in two or more of the four is
+tagged `raised · N meetings` under `Career and feedback`; that count is the whole reason for reading
+past the last one, and a single transcript cannot show it. A `recording_id` always comes from
+`list_meetings`; never ask the user for one. An empty or truncated
 transcript means that meeting is treated as unrecorded, and the run says which recording was empty.
 
 ### 7. The question budget
@@ -182,26 +197,43 @@ window. `--no-ask` asks nothing under any condition and writes an explicit empty
 with no content. The series and recording disambiguation prompts are not questions under this budget:
 they are one-time joins, asked once per series or per meeting date, and persisted.
 
-### 8. The nine sections
+### 8. The ten sections
 
 In this order, which is the order of the agenda that went to a real manager:
 
 1. `Wins`
-2. `Top 3 they need to know`
-3. `To discuss live`
-4. `Forward deployment`
-5. `Career and feedback`
-6. `Open from last time`
-7. `OKR snapshot`
-8. `Status grid`
-9. `Outcomes`, written by `recap` and absent until then
+2. `Product thinking`
+3. `Top 3 they need to know`
+4. `To discuss live`
+5. `Forward deployment`
+6. `Career and feedback`
+7. `Open from last time`
+8. `OKR snapshot`
+9. `Status grid`
+10. `Outcomes`, written by `recap` and absent until then
 
 The order is load-bearing. The two sections the manager answers sit above the two he only reads, and
 the status grid is last because nobody reads it aloud. The meeting that actually happened reached
-sections four and five and nothing below them.
+sections five and six and nothing below them.
 
-An item appears in exactly one section. Caps: 5 wins, each with what changed, the outcome, and a
-link, with the remainder dropped rather than listed; 3 lines under `Top 3 they need to know`, each a
+`Wins` is not a delivery log. A shipped ticket, a closed sprint, a PR someone asked for: those belong
+in `Status grid`, and putting them here is the exact failure this section is written against. A win is
+work nobody asked for — a problem caught before anyone reported it, a call taken outside the role, a
+tool or a doc built because the gap was obvious, a decision owned that was not the user's to own.
+Five, each with what changed, the outcome, and a link, the remainder dropped rather than listed.
+Fewer than five real ones is written as fewer than five; padding the list back to five with delivery
+is what makes the section stop being read.
+
+`Product thinking` answers a standing piece of feedback: that the user reasons about the technical
+problem and not the product or business one. It lists every instance in the window where he did the
+second thing — a scope cut argued on user cost, a PRD input offered before it was asked for, a design
+or UX call taken and defended, a requirement questioned instead of implemented, a metric proposed.
+Each line is the instance, what it changed, and where it happened, drawn from commits, PRs, Slack,
+Jira comments, and transcripts alike. This section is uncapped, because the count is the point.
+Zero instances in the window is written as zero and named as such; a section padded to look answered
+loses the one measurement it exists to make.
+
+An item appears in exactly one section. Caps: 3 lines under `Top 3 they need to know`, each a
 sentence the manager can repeat without opening a link; 5 items under `To discuss live`, the rest
 under `Deferred to next time` and left open in the inbox.
 

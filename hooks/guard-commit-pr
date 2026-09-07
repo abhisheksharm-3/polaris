@@ -1,26 +1,94 @@
 #!/usr/bin/env bash
+# PreToolUse on Bash: hold a commit message or a PR body to the writing standard before it is made.
+#
+# The old extraction was one regex requiring a double-quoted -m, which is the narrowest of the forms
+# a message actually arrives in. Measured on 2026-09-07, five of six bypassed it: single quotes,
+# $'...', -F, --file=, and --body-file all passed banned words straight through, and the heredoc form
+# is the one a multi-paragraph message uses, so in practice the guard almost never fired on real
+# work. It also matched any Bash command containing the string "git commit", so a grep or a doc edit
+# mentioning a banned word was refused as if it were a commit.
+#
+# Now: pull the message from every form it can take, lint the union, and lint nothing else.
+#
+# ponytail: handles the forms seen in practice (quoted flags, heredocs, message files). Nested
+# quoting inside $'...' with escaped quotes is not unpacked; the upgrade path is a real shell
+# tokenizer, which is only worth it if a bypass shows up in the wild.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
 CHECK="${ROOT}/scripts/check-patterns.sh"
 
-input="$(cat)"
-cmd="$(echo "$input" | jq -r '.tool_input.command // ""')"
+command -v jq >/dev/null 2>&1 || exit 0
+input="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // ""')"
+[ -n "$cmd" ] || exit 0
+
+# Only a command that actually writes a message. `git commit` alone is not enough: it also matches a
+# grep for the phrase, and refusing those is what made this hook feel broken.
 case "$cmd" in
-  *"git commit"*|*"gh pr create"*) : ;;
+  *"git commit"*|*"git merge"*|*"git tag"*|*"gh pr create"*|*"gh pr edit"*|*"gh release create"*) : ;;
   *) exit 0 ;;
 esac
 
-# extract message text after -m / --body / --title, best-effort
-msg="$(echo "$cmd" | grep -oE '(-m|--body|--title)[= ]+"[^"]*"' | sed -E 's/(-m|--body|--title)[= ]+"//; s/"$//')"
-[ -z "$msg" ] && exit 0
+msg=""
+
+# 1. Heredoc bodies. This is the form a multi-paragraph message takes, and it was fully invisible
+#    before. Handles <<EOF, <<-EOF, and <<'EOF' with any delimiter word.
+delim="$(printf '%s' "$cmd" | sed -n "s/.*<<-\{0,1\}[\"']\{0,1\}\([A-Za-z_][A-Za-z0-9_]*\)[\"']\{0,1\}.*/\1/p" | head -1)"
+if [ -n "$delim" ]; then
+    # Matching by substring rather than by regex: the delimiter word is already known, so the open
+    # line is the one holding both "<<" and that word, and the close line is the word alone. Writing
+    # that as a quoted regex needs three levels of nested quoting and got one of them wrong, which
+    # left a quote open and broke the parse forty lines further down.
+    body="$(printf '%s\n' "$cmd" | awk -v d="$delim" '
+        !inside && index($0, "<<") > 0 && index($0, d) > 0 { inside = 1; next }
+        inside {
+            line = $0
+            gsub(/^[ \t]+|[ \t]+$/, "", line)
+            if (line == d) { inside = 0; next }
+            print
+        }
+    ')"
+    [ -n "$body" ] && msg="${msg}
+${body}"
+fi
+
+# 2. A message read from a file: -F, --file=, --body-file, --notes-file.
+while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$f" in /*|./*|../*|[A-Za-z0-9_.-]*) ;; *) continue ;; esac
+    [ -f "$f" ] && [ -r "$f" ] && msg="${msg}
+$(cat "$f")"
+done < <(printf '%s\n' "$cmd" | grep -oE '(-F|--file|--body-file|--notes-file)[= ]+[^ ]+' \
+    | sed -E 's/^(-F|--file|--body-file|--notes-file)[= ]+//' | tr -d "\"'")
+
+# 3. Inline strings after a message-bearing flag. Rather than one pattern per quoting style, which
+#    is where the nested escaping gets unreadable, fold every style into double quotes first: turn
+#    ' into " and drop the $ of a $'...' string. Then one pattern covers all three, and a bare word
+#    is a second, simpler pass. The flag list is what git and gh accept, not just -m.
+flags='-m|--message|--body|--title|--notes|-s|--subject'
+norm="$(printf '%s' "$cmd" | tr "'" '"' | sed 's/\$"/"/g')"
+while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    msg="${msg}
+${s}"
+done < <(printf '%s\n' "$norm" | grep -oE "(${flags})[= ]+\"[^\"]*\"" | sed -E "s/^(${flags})[= ]+\"//; s/\"\$//"
+          printf '%s\n' "$norm" | grep -oE "(${flags})[= ]+[A-Za-z][A-Za-z0-9_-]*" | sed -E "s/^(${flags})[= ]+//")
+
+# A command-substitution wrapper is scaffolding, not prose. Strip what the heredoc pass already took.
+msg="$(printf '%s' "$msg" | sed -E 's/\$\(cat <<-?['"'"'"]?[A-Za-z_][A-Za-z0-9_]*['"'"'"]?//g; s/^\)$//' | awk 'NF')"
+[ -n "$msg" ] || exit 0
 
 tmp="$(mktemp)"; printf '%s\n' "$msg" > "$tmp"
-out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "$CHECK" prose "$tmp" 2>/dev/null)"
+out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "$CHECK" prose "$tmp" 2>/dev/null | sed "s#^${tmp}:#message line #")"
 rm -f "$tmp"
 
 if [ -n "$out" ]; then
-  reason="Commit/PR message violates the writing standard: ${out}"
+  reason="Polaris: this commit or PR message breaks the writing standard, so it was not written.
+${out}
+
+Rewrite the flagged lines and run the command again. The full standard is in rules/writing.md, and
+scripts/check-patterns.sh prose <file> checks a draft before you commit it."
   jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
 fi
 exit 0

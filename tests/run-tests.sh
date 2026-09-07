@@ -46,6 +46,46 @@ good_payload="$(jq -n --arg c "git commit -m \"${good_msg}\"" '{tool_input:{comm
 if echo "$bad_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "ok: bad commit denied"; else echo "FAIL: bad commit not denied"; fail=1; fi
 if echo "$good_payload" | "$GUARD" | grep -q '"permissionDecision":"deny"'; then echo "FAIL: good commit denied"; fail=1; else echo "ok: good commit allowed"; fi
 
+# Every form a message arrives in, because until 2026-09-07 only the first of these was checked.
+# The extraction was one regex requiring a double-quoted -m, so five of the six forms below carried
+# banned words straight through, and the heredoc form, the one a multi-paragraph message actually
+# uses, was invisible. A single assertion on the happy path is what let that ship: the guard looked
+# tested and covered the least likely case.
+gc_denies() { jq -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}' | "$GUARD" \
+    | grep -q '"permissionDecision":"deny"'; }
+gc_msgfile="$(mktemp)"; printf '%s\n\nand a second paragraph\n' "$bad_msg" > "$gc_msgfile"
+gc_heredoc="git commit -m \"\$(cat <<'EOF'
+${bad_msg}
+
+and a second paragraph
+EOF
+)\""
+for form in \
+  "single|git commit -m '${bad_msg}'" \
+  "ansi-c|git commit -m \$'${bad_msg}'" \
+  "dash-F|git commit -F ${gc_msgfile}" \
+  "file-eq|git commit --file=${gc_msgfile}" \
+  "body-file|gh pr create --body-file ${gc_msgfile} --title ok" \
+  "gh-body|gh pr create --title ok --body \"${bad_msg}\"" ; do
+  label="${form%%|*}"; cmd="${form#*|}"
+  gc_denies "$cmd" && echo "ok: a bad message via ${label} is denied" \
+    || { echo "FAIL: ${label} bypassed the writing guard"; fail=1; }
+done
+gc_denies "$gc_heredoc" && echo "ok: a bad message in a heredoc body is denied" \
+  || { echo "FAIL: the heredoc form bypassed the writing guard"; fail=1; }
+
+# And it must stay quiet on things that are not a message. It used to lint any Bash command holding
+# the string "git commit", so a grep or a doc edit naming a banned word was refused as a commit.
+for form in \
+  "a grep|grep -rn 'seamless' docs/" \
+  "git status|git status --short" \
+  "clean plus a chained command|git commit -m 'key the ledger by session' && echo done" ; do
+  label="${form%%|*}"; cmd="${form#*|}"
+  gc_denies "$cmd" && { echo "FAIL: the guard fired on ${label}"; fail=1; } \
+    || echo "ok: the guard stays quiet on ${label}"
+done
+rm -f "$gc_msgfile"
+
 # guard-input: injection in a tool result flagged, clean stays silent
 GINPUT="${DIR}/../hooks/guard-input"
 inj_bad="$(jq -n --rawfile t "${DIR}/fixtures/injection-bad.txt" '{tool_response:$t}')"
@@ -81,26 +121,64 @@ vetos="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="prompt")] | 
 cmds="$(jq -r '[.hooks.UserPromptSubmit[].hooks[] | select(.type=="command")] | length' "${DIR}/../hooks/hooks.json")"
 [ "$cmds" = 1 ] && echo "ok: the router is the only input hook"   || { echo "FAIL: the router command hook is missing"; fail=1; }
 
-# guard-edit: warns on slop in an edited file when enabled, silent when disabled
+# guard-edit runs on PreToolUse and denies the write, so these assertions changed shape on
+# 2026-09-07 along with the hook. It ran on PostToolUse until then, where the hooks reference says
+# plainly that a hook cannot block ("the tool already ran"), so the `decision: block` it emitted was
+# read by nobody. The old assertions passed anyway, because they only checked that the string
+# appeared in stdout. That is the bug worth not repeating: assert the field the harness acts on
+# (`permissionDecision`), and assert the file is still untouched afterwards.
 GEDIT="${DIR}/../hooks/guard-edit"
 ge_on="$(mktemp -d)";  mkdir -p "${ge_on}/.polaris";  echo '{"guardEdit":true}'  > "${ge_on}/.polaris/config.json"
 ge_off="$(mktemp -d)"; mkdir -p "${ge_off}/.polaris"; echo '{"guardEdit":false}' > "${ge_off}/.polaris/config.json"
-ge_payload="$(jq -n --arg f "${DIR}/fixtures/bad-ts.ts" '{tool_input:{file_path:$f}}')"
-if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_on"  "$GEDIT" | grep -q 'additionalContext'; then echo "ok: guard-edit warns when enabled"; else echo "FAIL: guard-edit did not warn when enabled"; fail=1; fi
-if echo "$ge_payload" | CLAUDE_PROJECT_DIR="$ge_off" "$GEDIT" | grep -q 'additionalContext'; then echo "FAIL: guard-edit warned when disabled"; fail=1; else echo "ok: guard-edit silent when disabled"; fi
 
-# guard-edit: the comment law blocks the turn, other slop stays advisory, and the block gives up
-# after two strikes on the same file so a writer that cannot get it clean does not hang the session.
-ge_tmp="$(mktemp -d)"
-ge_comment="$(jq -n --arg f "${DIR}/fixtures/inline-comment.ts" --arg s comment-session '{session_id:$s,tool_input:{file_path:$f}}')"
-ge_slop="$(jq -n --arg f "${DIR}/fixtures/slop-no-comment.ts" --arg s slop-session '{session_id:$s,tool_input:{file_path:$f}}')"
-ge_run() { echo "$1" | TMPDIR="$ge_tmp" CLAUDE_PROJECT_DIR="$ge_on" "$GEDIT"; }
-ge_run "$ge_comment" | grep -q '"decision":"block"' && echo "ok: guard-edit blocks an inline comment" || { echo "FAIL: guard-edit did not block an inline comment"; fail=1; }
-if ge_run "$ge_slop" | grep -q '"decision":"block"'; then echo "FAIL: guard-edit blocked on non-comment slop"; fail=1; else echo "ok: guard-edit keeps other slop advisory"; fi
-ge_run "$ge_slop" | grep -q 'additionalContext' && echo "ok: non-comment slop still reported" || { echo "FAIL: non-comment slop not reported"; fail=1; }
-ge_run "$ge_comment" >/dev/null
-if ge_run "$ge_comment" | grep -q '"decision":"block"'; then echo "FAIL: guard-edit blocked past two strikes"; fail=1; else echo "ok: guard-edit degrades to advisory after two strikes"; fi
-rm -rf "$ge_on" "$ge_off" "$ge_tmp"
+# The content is what this hook judges now, not the file on disk: PreToolUse fires before the write,
+# so the bytes under review arrive in tool_input, from `content` for a Write and `new_string` for an
+# Edit. A payload naming a path with no content is a call this hook has nothing to say about.
+ge_write() { jq -n --arg f "$1" --arg c "$2" '{tool_name:"Write",tool_input:{file_path:$f,content:$c}}'; }
+ge_edit()  { jq -n --arg f "$1" --arg c "$2" '{tool_name:"Edit",tool_input:{file_path:$f,old_string:"x",new_string:$c}}'; }
+ge_decision() { printf '%s' "$1" | CLAUDE_PROJECT_DIR="${2:-$ge_on}" "$GEDIT" \
+    | jq -r '.hookSpecificOutput.permissionDecision // ""' 2>/dev/null; }
+
+ge_bad="$(cat "${DIR}/fixtures/inline-comment.ts")"
+ge_slopsrc="$(cat "${DIR}/fixtures/slop-no-comment.ts")"
+
+[ "$(ge_decision "$(ge_write "${ge_on}/x.ts" "$ge_bad")")" = "deny" ] \
+  && echo "ok: guard-edit denies a Write carrying an inline comment" \
+  || { echo "FAIL: guard-edit did not deny an inline comment"; fail=1; }
+[ "$(ge_decision "$(ge_edit "${ge_on}/x.ts" "$ge_bad")")" = "deny" ] \
+  && echo "ok: guard-edit denies an Edit whose new_string carries one" \
+  || { echo "FAIL: guard-edit ignored new_string"; fail=1; }
+[ ! -f "${ge_on}/x.ts" ] \
+  && echo "ok: a denied write leaves nothing on disk" \
+  || { echo "FAIL: guard-edit wrote the file it refused"; fail=1; }
+[ -z "$(ge_decision "$(ge_write "${ge_on}/x.ts" 'export const total = items.length')" )" ] \
+  && echo "ok: guard-edit passes clean content with no decision" \
+  || { echo "FAIL: guard-edit denied clean content"; fail=1; }
+
+# Non-comment slop stays advisory: it is a judgment call, and denying a write over a naming smell
+# would make the hook the thing people switch off.
+ge_slop_out="$(printf '%s' "$(ge_write "${ge_on}/y.ts" "$ge_slopsrc")" | CLAUDE_PROJECT_DIR="$ge_on" "$GEDIT")"
+printf '%s' "$ge_slop_out" | grep -q 'additionalContext' \
+  && echo "ok: non-comment slop is still reported" \
+  || { echo "FAIL: non-comment slop not reported"; fail=1; }
+printf '%s' "$ge_slop_out" | grep -q 'permissionDecision' \
+  && { echo "FAIL: advisory slop carried a permission decision"; fail=1; } \
+  || echo "ok: advisory slop carries no permission decision"
+
+[ -z "$(ge_decision "$(ge_write "${ge_off}/x.ts" "$ge_bad")" "$ge_off")" ] \
+  && echo "ok: guardEdit false turns the hook off" \
+  || { echo "FAIL: guard-edit fired with guardEdit false"; fail=1; }
+
+# It has to be registered on PreToolUse, or none of the above reaches the harness.
+jq -e '[.hooks.PreToolUse[] | select(.hooks[0].command | contains("guard-edit"))] | length == 1' \
+  "${DIR}/../hooks/hooks.json" >/dev/null \
+  && echo "ok: guard-edit is registered on PreToolUse" \
+  || { echo "FAIL: guard-edit is not on PreToolUse, where it can deny"; fail=1; }
+jq -e '[.hooks.PostToolUse[] | select(.hooks[0].command | contains("guard-edit"))] | length == 0' \
+  "${DIR}/../hooks/hooks.json" >/dev/null \
+  && echo "ok: guard-edit is no longer on PostToolUse, where it could not block" \
+  || { echo "FAIL: guard-edit is still on PostToolUse"; fail=1; }
+rm -rf "$ge_on" "$ge_off"
 
 # guard-review: a review with no over-engineering axis is sent back once, one that has it passes
 GREVIEW="${DIR}/../hooks/guard-review"
@@ -194,6 +272,64 @@ ss_dur=$(( $(date +%s) - ss_start ))
 [ "$ss_rc" -eq 0 ] && echo "ok: session-start exits 0 with no detected stack" || { echo "FAIL: session-start crashed with no stack (exit $ss_rc)"; fail=1; }
 [ "$ss_dur" -lt 10 ] && echo "ok: session-start completes under 10s" || { echo "FAIL: session-start took ${ss_dur}s (startup perf regression)"; fail=1; }
 rm -rf "$ss_home" "$ss_cwd"
+
+# The payload has to fit in the 10,000-character hook cap. Over it, Claude Code writes the whole
+# thing to a file and hands the model a 2KB preview plus the path, with exit 0 and no error, so the
+# standard silently stops arriving. That was the state from the first release until 2026-09-07, at
+# 62,985 characters, and no assertion here caught it: the block above checks exit code and duration,
+# and the ones below check content, none of which fail on a payload that never reaches the model.
+#
+# Measured against a populated tracker and memory index, because both are variable and both are what
+# pushed the real payload over. 9,000 is the assertion rather than 10,000 so the failure lands while
+# there is still room to fix it.
+ss_cap_home="$(mktemp -d)"; ss_cap_cwd="$(mktemp -d)"
+mkdir -p "$ss_cap_home/.claude/skills" "$ss_cap_home/.claude/polaris-memory" "$ss_cap_cwd/.polaris/work"
+touch "$ss_cap_home/.claude/skills/.polaris-mindrally-synced" "$ss_cap_home/.claude/skills/.polaris-companions-installed"
+echo '{}' > "$ss_cap_cwd/.polaris/config.json"
+: > "$ss_cap_home/.claude/polaris-memory/INDEX.md"
+i=0; while [ "$i" -lt 200 ]; do
+  printf -- '- [entry-%03d](entries/entry-%03d.md) — a hook sentence long enough to be realistic about what one index row costs (reference, some-project)\n' "$i" "$i" \
+    >> "$ss_cap_home/.claude/polaris-memory/INDEX.md"
+  i=$((i + 1))
+done
+printf '# Work streams\n' > "$ss_cap_cwd/.polaris/work/streams.md"
+i=0; while [ "$i" -lt 40 ]; do
+  printf '\n## stream-%02d — a realistic stream title of the length these actually reach\n\n- status: active\n- touched: 2026-09-%02d\n' \
+    "$i" $(( (i % 28) + 1 )) >> "$ss_cap_cwd/.polaris/work/streams.md"
+  i=$((i + 1))
+done
+ss_cap_out="$( cd "$ss_cap_cwd" && echo '{}' | HOME="$ss_cap_home" CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "$SS" 2>/dev/null \
+  | jq -r '.additionalContext // .hookSpecificOutput.additionalContext // ""' )"
+ss_cap_len="$(printf '%s' "$ss_cap_out" | wc -c | tr -d ' ')"
+[ "$ss_cap_len" -gt 0 ] && [ "$ss_cap_len" -le 9000 ] \
+  && echo "ok: the session-start payload fits the hook cap (${ss_cap_len} chars)" \
+  || { echo "FAIL: session-start emitted ${ss_cap_len} chars; over ~10000 the model gets a file path, not the standard"; fail=1; }
+printf '%s' "$ss_cap_out" | grep -q 'context truncated at' \
+  && { echo "FAIL: session-start hit its own truncation backstop, so content was cut"; fail=1; } \
+  || echo "ok: the payload fits without hitting the truncation backstop"
+# Truncation keeps the start of the payload, so the two rules the standard cannot do without have to
+# be inside the 2KB preview that survives even when something else goes wrong.
+printf '%s' "$ss_cap_out" | head -c 2000 | grep -q 'No inline comments' \
+  && echo "ok: the comment law is inside the surviving 2KB preview" \
+  || { echo "FAIL: the comment law is past the 2KB preview and would not survive truncation"; fail=1; }
+rm -rf "$ss_cap_home" "$ss_cap_cwd"
+
+# The rules that stopped being injected must still be named, or they are unreachable.
+for r in craft writing model-routing clean-code core-protocols; do
+  grep -q "${r}.md" "$SS" \
+    || { echo "FAIL: session-start does not name rules/${r}.md"; fail=1; }
+done
+echo "ok: session-start names the rules it stopped injecting wholesale"
+grep -qE 'cat "\$\{PLUGIN_ROOT\}/rules/(craft|writing|model-routing)\.md"' "$SS" \
+  && { echo "FAIL: session-start still injects a rule body it cannot afford"; fail=1; } \
+  || echo "ok: only core.md is resident"
+[ -f "${DIR}/../rules/core-protocols.md" ] \
+  && echo "ok: the protocols split out of core.md exist" \
+  || { echo "FAIL: rules/core-protocols.md is missing"; fail=1; }
+core_len="$(wc -c < "${DIR}/../rules/core.md" | tr -d ' ')"
+[ "$core_len" -le 7000 ] \
+  && echo "ok: rules/core.md is inside its 7000-byte budget (${core_len})" \
+  || { echo "FAIL: rules/core.md is ${core_len} bytes; it is the only resident rules file and has a budget"; fail=1; }
 
 # hardening: session-start surfaces a visible notice when the companion skill bulk is not synced.
 # Plugin marker present (skip real `claude plugin install`); git stubbed to fail (skip network clone).
@@ -1130,6 +1266,35 @@ mf reviewer haiku | grep -q 'opus' \
 [ -z "$(echo '{"tool_name":"Agent","tool_input":{"subagent_type":"reviewer"}}' | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE")" ] \
   && echo "ok: a dispatch with no model is left to the agent's frontmatter" \
   || { echo "FAIL: a dispatch with no model was refused"; fail=1; }
+# A model arrives as an alias, a full id, or `inherit`, and only the three aliases used to rank.
+# Every other spelling ranked -1 and the `-ge 0` guard then skipped the check, so the floor was one
+# argument away from off: `claude-haiku-4-5-20251001` passed an opus floor for the whole time the
+# floor shipped, and the four assertions above never noticed because they only ever passed an alias.
+for spelling in claude-haiku-4-5-20251001 claude-sonnet-5 fable; do
+  mf "reviewer" "$spelling" | grep -q '"permissionDecision":"deny"' \
+    && echo "ok: ${spelling} is refused below an opus floor" \
+    || { echo "FAIL: ${spelling} passed an opus floor unranked"; fail=1; }
+done
+[ -z "$(mf reviewer claude-opus-5)" ] \
+  && echo "ok: a full opus id is allowed at an opus floor" \
+  || { echo "FAIL: claude-opus-5 was refused at an opus floor"; fail=1; }
+# `inherit` takes the session's model, so it is not a downgrade the dispatch chose.
+[ -z "$(mf reviewer inherit)" ] \
+  && echo "ok: inherit is allowed, since it names no tier to undercut" \
+  || { echo "FAIL: inherit was refused"; fail=1; }
+# A model the table has never heard of cannot be ranked, and guessing is wrong in the one direction
+# that matters, so it is refused rather than waved through.
+mf "reviewer" "some-unreleased-model" | grep -q '"permissionDecision":"deny"' \
+  && echo "ok: an unknown model is refused rather than passed unranked" \
+  || { echo "FAIL: an unknown model passed the floor"; fail=1; }
+# Every alias must map to a tier the ranking knows, or it resolves to nothing and passes.
+mf_alias_bad="$(jq -r '.aliases | to_entries[] | select(.value as $v | ([$tiers[]] | index($v)) == null) | .key' \
+  --argjson tiers "$(jq -c '.tiers' "${DIR}/../rules/model-floor.json")" \
+  "${DIR}/../rules/model-floor.json" 2>/dev/null)"
+[ -z "$mf_alias_bad" ] \
+  && echo "ok: every model alias maps to a known tier" \
+  || { echo "FAIL: aliases map to unknown tiers: ${mf_alias_bad}"; fail=1; }
+
 # Every floor must name a real agent, or the table quietly protects nothing.
 mf_bad=""
 for a in $(jq -r '.floor | keys[]' "${DIR}/../rules/model-floor.json"); do
@@ -1138,23 +1303,52 @@ done
 [ -z "$mf_bad" ] && echo "ok: every model floor names a real agent" \
   || { echo "FAIL: model floors for agents that do not exist:${mf_bad}"; fail=1; }
 
-# The effort floor, the companion to the model floor. Thinking tokens bill as output, so a fan-out
-# that governs tier and not effort governs half its cost.
-ef() { jq -n --arg a "$1" --arg e "$2" '{tool_name:"Agent",tool_input:{subagent_type:$a,effort:$e}}' \
+# The effort floor is enforced in frontmatter, not at dispatch, since 2026-09-07.
+#
+# It was a dispatch gate here and refused nothing for its whole life: the hook read
+# `.tool_input.effort` and the Agent tool has no effort parameter, so the key never arrived. The
+# four assertions it replaced passed only because they built a payload carrying that key by hand,
+# which is a T-class test in rules/clean-code.md terms, one that cannot fail when the behaviour
+# does. The lesson is the assertion below: prove the gate refuses a *realistic* payload, and prove
+# the floor is checked somewhere the value actually exists.
+ef_real() { jq -n --arg a "$1" '{tool_name:"Agent",tool_input:{subagent_type:$a,prompt:"do the thing",description:"x"}}' \
   | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE"; }
-ef reviewer low | grep -q '"permissionDecision":"deny"' \
-  && echo "ok: a reviewer dispatched below its effort floor is refused" \
-  || { echo "FAIL: a reviewer thought at low effort"; fail=1; }
-ef reviewer low | grep -q 'high' \
-  && echo "ok: the effort refusal names the floor" \
-  || { echo "FAIL: the effort refusal does not name the floor"; fail=1; }
-[ -z "$(ef reviewer high)" ] && echo "ok: a dispatch at the effort floor is allowed" \
-  || { echo "FAIL: a dispatch at the effort floor was refused"; fail=1; }
-[ -z "$(ef shipper low)" ] && echo "ok: a mechanical agent may think at low effort" \
-  || { echo "FAIL: a low effort floor was refused its own level"; fail=1; }
-[ -z "$(echo '{"tool_name":"Agent","tool_input":{"subagent_type":"reviewer"}}' | CLAUDE_PROJECT_DIR="$MF_PROJ" "$GPHASE")" ] \
-  && echo "ok: a dispatch with no effort is left to the session" \
-  || { echo "FAIL: a dispatch with no effort was refused"; fail=1; }
+[ -z "$(ef_real reviewer)" ] \
+  && echo "ok: a dispatch shaped like a real one carries no effort key to gate on" \
+  || { echo "FAIL: guard-phase refused a realistic dispatch"; fail=1; }
+grep -v '^#' "${DIR}/../hooks/guard-phase" | grep -q 'tool_input.effort' \
+  && { echo "FAIL: guard-phase still reads an effort key the Agent tool never sends"; fail=1; } \
+  || echo "ok: guard-phase no longer gates on a field that does not exist"
+
+# Every agent declares its floor, and check-agents.sh is what holds it.
+ef_missing=""
+for a in $(jq -r '.floor | keys[]' "${DIR}/../rules/effort-floor.json"); do
+  want="$(jq -r --arg a "$a" '.floor[$a]' "${DIR}/../rules/effort-floor.json")"
+  got="$(awk 'NR==1&&/^---/{f=1;next} f&&/^---/{exit} f&&/^effort:/{print $2;exit}' "${DIR}/../agents/${a}.md" 2>/dev/null)"
+  [ "$got" = "$want" ] || ef_missing="${ef_missing} ${a}(want ${want}, got ${got:-none})"
+done
+[ -z "$ef_missing" ] \
+  && echo "ok: every agent declares the effort its floor requires" \
+  || { echo "FAIL: effort frontmatter does not match the floor:${ef_missing}"; fail=1; }
+
+# And check-agents.sh must actually fail on a violation, or the frontmatter is decoration.
+ef_probe="$(mktemp -d)"; mkdir -p "${ef_probe}/agents" "${ef_probe}/rules"
+cp "${DIR}/../rules/effort-floor.json" "${DIR}/../rules/model-floor.json" "${ef_probe}/rules/"
+sed 's/^effort: high$/effort: low/' "${DIR}/../agents/reviewer.md" > "${ef_probe}/agents/reviewer.md"
+# Capture, then grep. `set -o pipefail` is on at the top of this file, so piping a command that
+# exits non-zero into `grep -q` yields the command's status, not grep's, and the && branch never
+# runs even when the match is there. check-agents.sh exits 1 by design when it finds a violation,
+# which is exactly the case this assertion is checking for.
+ef_probe_out="$(CLAUDE_PLUGIN_ROOT="$ef_probe" bash "${DIR}/../scripts/check-agents.sh" 2>&1 || true)"
+printf '%s' "$ef_probe_out" | grep -q 'below the floor' \
+  && echo "ok: check-agents.sh fails an agent thinking below its floor" \
+  || { echo "FAIL: check-agents.sh passed an agent below its effort floor"; fail=1; }
+rm -rf "$ef_probe"
+
+# The levels list has to span what the harness accepts, or a floor can never require the top of it.
+jq -e '.levels == ["low","medium","high","xhigh","max"]' "${DIR}/../rules/effort-floor.json" >/dev/null \
+  && echo "ok: the effort levels span the documented range" \
+  || { echo "FAIL: rules/effort-floor.json does not list every effort level"; fail=1; }
 # The two floors must cover the same agents, or one of them silently protects a subset.
 diff <(jq -r '.floor|keys[]' "${DIR}/../rules/model-floor.json" | sort) \
      <(jq -r '.floor|keys[]' "${DIR}/../rules/effort-floor.json" | sort) >/dev/null 2>&1 \

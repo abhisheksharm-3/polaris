@@ -1,44 +1,70 @@
 #!/usr/bin/env bash
-# PostToolUse on Edit|Write: run the deterministic code check over the file just written.
-# An inline comment blocks the turn (the comment law in rules/core.md is not advisory); every
-# other finding is advisory context. Runs unless the project config sets guardEdit false.
+# PreToolUse on Edit|Write: run the deterministic code check over the content about to be written.
+# An inline comment denies the write; every other finding is advisory context.
+#
+# This ran on PostToolUse until 2026-09-07 and could not do its job there. The hooks reference is
+# explicit that PostToolUse cannot block ("the tool already ran"), so the `decision: block` this hook
+# emitted was read by nobody, and the comment law CLAUDE.md described as blocking was advisory for
+# the plugin's whole life. It had fired in 2 sessions out of roughly 900.
+#
+# PreToolUse honours permissionDecision, so the law is now enforceable. Two things get better in
+# the move: the bad content never reaches the file, so there is nothing to clean up after a refusal,
+# and the two-strike counter is gone. That counter existed to stop a block-loop on a file the writer
+# could not get clean; a denial that prevents the write cannot loop, because the file on disk never
+# changes and the writer is told exactly which line to drop.
+#
+# Runs unless the project config sets guardEdit false.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
 
 cfg="${CLAUDE_PROJECT_DIR:-$PWD}/.polaris/config.json"
 [ -f "$cfg" ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
 jq -e '.guardEdit != false' "$cfg" >/dev/null 2>&1 || exit 0
 
-input="$(cat)"
-file="$(echo "$input" | jq -r '.tool_input.file_path // ""')"
-[ -f "$file" ] || exit 0
-out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "${ROOT}/scripts/check-patterns.sh" code "$file" 2>/dev/null)"
+input="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // ""')"
+[ -n "$file" ] || exit 0
+
+# Only the four languages patterns.json has code rules for. Anything else has nothing to check.
+case "$file" in
+    *.ts|*.tsx|*.js|*.jsx|*.py|*.go|*.rs) ;;
+    *) exit 0 ;;
+esac
+
+# Write takes the whole file; Edit takes the replacement. Check whichever arrived, because the
+# content on disk is not yet what this call is about to make it.
+content="$(printf '%s' "$input" | jq -r '.tool_input.content // .tool_input.new_string // ""')"
+[ -n "$content" ] || exit 0
+
+# check-patterns.sh picks its rules off the extension, so the temp file has to keep it.
+tmp="$(mktemp "${TMPDIR:-/tmp}/polaris-guard-edit.XXXXXX")" || exit 0
+staged="${tmp}.${file##*.}"
+mv "$tmp" "$staged" 2>/dev/null || { rm -f "$tmp"; exit 0; }
+printf '%s\n' "$content" > "$staged"
+out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "${ROOT}/scripts/check-patterns.sh" code "$staged" 2>/dev/null \
+    | sed "s#^${staged}:#${file}:#")"
+rm -f "$staged"
 [ -z "$out" ] && exit 0
 
-# Two strikes per file per session, then the finding degrades to advisory. Blocking forever on a
-# file the writer cannot get clean would hang the turn instead of surfacing the problem.
-# ponytail: a counter file per file path; a session-scoped state dir if hooks ever need shared state.
 blocking="$(printf '%s\n' "$out" | grep 'inline-comment:' || true)"
 if [ -n "$blocking" ]; then
-  session="$(echo "$input" | jq -r '.session_id // "no-session"')"
-  strikes="${TMPDIR:-/tmp}/polaris-guard-edit/${session}"
-  mkdir -p "$strikes" 2>/dev/null
-  counter="${strikes}/$(printf '%s' "$file" | cksum | tr -d ' /')"
-  seen=$(( $(cat "$counter" 2>/dev/null || echo 0) + 1 ))
-  echo "$seen" > "$counter" 2>/dev/null
-  if [ "$seen" -le 2 ]; then
-    reason="Polaris comment law: no inline comments. Fix ${file} before continuing:
+    reason="Polaris comment law: no inline comments. This write was refused, so ${file} is unchanged.
 ${blocking}
 
-Rename the variable, extract the function, or delete the line. If the fact is one the code cannot
-carry, move it to a doc comment above the declaration. See the comments policy in rules/core.md."
-    jq -cn --arg c "$reason" \
-      '{decision:"block",reason:$c,hookSpecificOutput:{hookEventName:"PostToolUse",decision:"block",additionalContext:$c}}'
+Rename the variable, extract the function, or delete the line, then write again. If the fact is one
+the code cannot carry, move it to a doc comment above the declaration, in the language's multi-line
+doc syntax. The line numbers above are within the content you submitted. See the comments policy in
+rules/core.md."
+    jq -cn --arg r "$reason" \
+      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
     exit 0
-  fi
 fi
 
-jq -cn --arg c "Polaris: possible slop in ${file}:
-${out}" '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$c}}'
+# Advisory findings carry additionalContext and no permissionDecision on purpose. Returning "allow"
+# here would auto-approve the write and skip the user's own permission rules, which is a bigger
+# change than surfacing a naming smell is worth.
+jq -cn --arg c "Polaris: possible slop in the content for ${file}:
+${out}" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}'
 exit 0

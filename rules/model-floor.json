@@ -1,10 +1,22 @@
 {
   "_": "The minimum tier per agent, from rules/model-routing.md. A dispatch may go above a floor, never below.",
+  "_tiers": "A dispatch names a model as an alias, a full model id, or 'inherit'. Ranking only the aliases let every other spelling past the floor unranked, so `aliases` maps every accepted spelling to its tier and `tiers` orders them. 'inherit' takes the session's model and is not a downgrade a dispatch chose, so it is allowed.",
   "tiers": [
     "haiku",
     "sonnet",
     "opus"
   ],
+  "aliases": {
+    "haiku": "haiku",
+    "sonnet": "sonnet",
+    "opus": "opus",
+    "fable": "sonnet",
+    "claude-haiku-4-5": "haiku",
+    "claude-haiku-4-5-20251001": "haiku",
+    "claude-sonnet-5": "sonnet",
+    "claude-opus-5": "opus",
+    "claude-fable-5-1": "sonnet"
+  },
   "floor": {
     "product": "opus",
     "researcher": "opus",

@@ -1,9 +1,12 @@
 {
-  "_": "The minimum reasoning effort per agent, the companion to model-floor.json. A dispatch may go above a floor, never below. Thinking tokens bill as output, so this is the dial that moves the output side of the bill the way the model floor moves the per-token price.",
+  "_": "The minimum reasoning effort per agent. Declared in each agent's `effort:` frontmatter and enforced by scripts/check-agents.sh, because that is where the value exists.",
+  "_history": "This was a dispatch gate in hooks/guard-phase until 2026-09-07. The Agent tool has no `effort` parameter, so the gate read a key that never arrived and refused nothing for the whole time it shipped.",
   "levels": [
     "low",
     "medium",
-    "high"
+    "high",
+    "xhigh",
+    "max"
   ],
   "floor": {
     "product": "high",

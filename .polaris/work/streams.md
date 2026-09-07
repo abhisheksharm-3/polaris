@@ -3,6 +3,92 @@
 <!-- The Polaris work tracker for this project. Surfaced at session start; updated by /track. -->
 <!-- Keep active and blocked streams at the top. Move finished ones to the Done archive. -->
 
+## plugin-audit — hold the whole plugin to the current Claude Code contract
+
+- domain: audit
+- status: active, audit approved and triaged, on the fix phase
+- state: Opened 2026-09-05 from the user's ask to audit every feature against
+  `code.claude.com/docs/llms.txt` and argue what should change. Run `see-entirelty-of-this` on the
+  audit flow; phase `audit` is recorded against
+  `.polaris/reports/2026-09-05-plugin-audit.md`. The suite passes 277/277, so none of this is a
+  test failure. Four gates were measured and do not gate: the model floor allows any full model id
+  because `model-floor.json` ranks only the three aliases, `guard-edit` blocks on `PostToolUse`
+  which the hooks reference says cannot block, `guard-commit-pr` catches only a double-quoted `-m`,
+  and `skills/ui-{new,polish,prototype}` are 116,748 bytes whose 42 referenced paths do not exist.
+  The router was measured against 800 real prompts from `~/.claude/history.jsonl` and placed 9% of
+  them; the `unknown` branch then costs 895 bytes on every prompt. SessionStart injects 62,985
+  bytes, of which the uncapped memory index is 33,475. 17 of 27 agents have never been dispatched.
+  `args.level` is read by all three workflows and passed by nothing, so every review runs at `high`.
+  The verification fan-out then found the finding that reframes the rest, and it was confirmed from
+  this session's own transcript: `session-start` emits 62,985 bytes into a documented
+  10,000-character cap, so the model gets a 2KB preview and a file path. The comment law, the whole
+  of craft.md and writing.md, the memory index and the tracker slice are all past the cut, every
+  session and every clear. That inverts the cost claim, which was wrong and is corrected in the
+  report: none of it is billed because none of it arrives. It also explains why the comment law had
+  fired in 2 sessions of ~904. A second dead gate came out of the same pass: `guard-phase:55` reads
+  `.tool_input.effort`, and the Agent tool has no `effort` parameter, so `effort-floor.json` and its
+  four assertions gate a key that never arrives.
+- next: audit approved 2026-09-07 and `triage` recorded, so the run is on `fix`. Take T0 and T1 from
+  the triage plan and nothing else: T0 is the payload split plus a size assertion, T1 is the five
+  gates. `rules/core.md` is 10,135 B and busts the cap alone, so T0 is a resident-versus-on-demand
+  split of the rules rather than a ceiling on the memory index. T2 onward want their own runs.
+- files: .polaris/reports/2026-09-05-plugin-audit.md,
+  .polaris/plans/2026-09-07-audit-triage.md, .polaris/runs/see-entirelty-of-this/state.json
+- touched: 2026-09-07 (audit approved, triage recorded, both artifacts amended once each)
+
+## worktracker-snapshot captures injected text, not the user's prompt
+
+- domain: bug
+- status: open, observed twice and not investigated
+- state: The `Asked:` line in the Stop-hook snapshot arrives full of harness payload rather than the
+  prompt. On 2026-09-05 it carried the `/effort` command stdout and the entire workflow-authoring
+  skill reference; on 2026-09-07 it carried a task-notification XML block including
+  `<task-id>`, `<result>`, and the workflow failure list. Both times the user's actual question was
+  buried or absent, so the reconcile it asks for is working from the wrong text.
+- next: read `scripts/worktracker-snapshot.sh` and find where the prompt is taken from; it appears to
+  read whatever reached the model rather than the typed prompt. `~/.claude/history.jsonl` holds the
+  typed prompt with its project and timestamp and would be the cleaner source.
+- files: scripts/worktracker-snapshot.sh, hooks/stop-capture
+- touched: 2026-09-07 (noticed during the plugin audit; not filed as an audit finding because it was
+  observed rather than measured)
+
+## deck-mode — a slidev presentation mode driven by a description
+
+- domain: feature
+- status: active, designed and not built
+- state: Opened 2026-08-22 from the user's ask for a mode where they describe the deck they want and
+  Polaris produces it, built on sli.dev. Design is done and the artifacts are on disk but uncommitted:
+  `.polaris/specs/deck-mode.md`, `.polaris/plans/deck-mode.md` carrying 8 numbered tasks in dependency
+  order, and a new `docs/adr/` holding three ADRs that all pass the prose check. ADR 0001 scaffolds
+  slidev at run time rather than vendoring an offline copy. ADR 0002 puts decks at
+  `.polaris/decks/<date>-<slug>`. ADR 0003 makes the theme gate seven mechanical checks read from
+  source. Three decisions failed the three-gate test and stayed in the plan rather than becoming
+  ADRs, the package-manager order among them (pnpm, yarn, bun, npm, deno). The plan answers the four
+  open questions the design left, including scaffold failure: `deck-scaffold.sh` exits 3, 4, 5 and 6
+  for no manager, a Node version under the floor, and the two create failures.
+- next: the plan names three places where the design and the acceptance criteria disagree, in a
+  section of its own, and those have to be settled before task 1. Then build, starting with the
+  scaffold script. Nothing is committed; every file above is untracked.
+- files: .polaris/specs/deck-mode.md, .polaris/plans/deck-mode.md,
+  docs/adr/0001-scaffold-slidev-at-run-time.md, docs/adr/0002-decks-under-polaris.md,
+  docs/adr/0003-theme-checked-from-source.md
+- touched: 2026-08-22 (plan and three ADRs written; not built, not committed)
+
+## frontend-design-rules — a design baseline the ui agent and the stack overlays share
+
+- domain: feature
+- status: active, work in progress and stashed
+- state: A new `rules/frontend-design.md` plus edits to `agents/ui.md`, `skills/ui-polish/SKILL.md`,
+  `rules/stacks/nextjs.md` and `rules/stacks/react.md`, from the user's ask to add five rules and fix
+  two bugs alongside them. The whole changeset was stashed on 2026-08-25 as `stash@{0}`,
+  "wip: deck-mode, ui/frontend-design rules", untracked files included, to clear the tree for the
+  `/oneonone` work. The five rules and the two bugs are not recorded anywhere outside that stash.
+- next: pop `stash@{0}` and write down what the five rules and the two bugs actually are before
+  anything else touches those files, because a stash is the only record of them.
+- files: rules/frontend-design.md, agents/ui.md, skills/ui-polish/SKILL.md,
+  rules/stacks/nextjs.md, rules/stacks/react.md
+- touched: 2026-08-25 (stashed as stash@{0}, unread)
+
 ## flow-enforcement — make routing bind instead of suggest
 
 - domain: feature
@@ -288,10 +374,22 @@
 - documented 2026-08-17 in `b4df35e`: `/oneonone` had shipped with `commands/oneonone.md` and two
   scripts and no doc named it, so an installed copy gave no way to discover it. `README.md` and the
   `CLAUDE.md` command table now carry it, `oneonone-inbox.sh` and `oneonone-join.sh` included.
+- reshaped 2026-08-25 from the user's own 1:1 feedback, ahead of the live run. Two of the sections
+  were wrong for what the meeting is for. `Wins` was being filled with delivery, and the user was told
+  wins are the work nobody asked for, so the section now refuses a shipped ticket, a closed sprint or
+  an asked-for PR outright and sends them to `Status grid`. A new `Product thinking` section sits
+  second and answers the standing feedback that the user reasons about the technical problem and not
+  the product one: every instance in the window where he did the second thing, uncapped, because the
+  count is the point, and zero written as zero. The section list is ten rather than nine. Sourcing
+  widened to match, on the user's instruction: step 4 now pulls Slack after Jira, reusing `/sweep`'s
+  `sources.slack` block and the connectors-rule thread sequence at a ceiling of 8 channels and 20
+  threads, because neither an outside-scope win nor a product argument leaves a commit. Step 6 went
+  from one transcript to four, newest first, with only the newest driving `Open from last time` and
+  the older three read for repeat feedback, tagged `raised · N meetings`. Suite exit 0, prose exit 0.
 - files: .polaris/specs/oneonone-prep.md, .polaris/plans/oneonone-prep.md (not yet written),
   commands/oneonone.md, scripts/oneonone-inbox.sh, scripts/oneonone-join.sh
-- touched: 2026-08-17 (documented in README and CLAUDE.md; the live run and ship still wait on the
-  user)
+- touched: 2026-08-25 (Wins redefined, Product thinking added, Slack and four transcripts wired in;
+  the live run and ship still wait on the user)
 - decided, do not reopen: the work happens in the git worktree `.claude/worktrees/oneonone-prep` on
   branch `worktree-oneonone-prep`, at the user's request.
 - found this session, worth a fix of its own: a worktree does not isolate a Polaris run. All four
