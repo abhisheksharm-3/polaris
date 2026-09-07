@@ -7,3 +7,8 @@ Thumbs.db
 .polaris/runs/.open*
 .polaris/runs/.composed-log
 .polaris/runs/*/state.json
+
+# Per-session tracker notes, written at Stop and merged into streams.md by /polaris:track. They are
+# one session's uncommitted view, not history: a clone should not arrive holding notes it cannot
+# attribute, and streams.md is where the merged record lives.
+.polaris/work/pending/

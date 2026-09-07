@@ -3,6 +3,96 @@
 <!-- The Polaris work tracker for this project. Surfaced at session start; updated by /track. -->
 <!-- Keep active and blocked streams at the top. Move finished ones to the Done archive. -->
 
+## tracker-clobber — two sessions reconciling one file lose each other's work
+
+- domain: bug
+- status: open, root cause known and not fixed
+- state: Found 2026-09-07. `hooks/stop-capture` asks every session to reconcile
+  `.polaris/work/streams.md` on every Stop, and the run ledger is deliberately per-session so two
+  conversations run in parallel. The tracker is not. Commit 11643fb committed a copy of the file
+  that predated 5fc428d and silently dropped the `plugin-audit` and `worktracker-snapshot` streams
+  5fc428d had added; a third stream, `router-questions`, existed only in a working tree and is gone
+  entirely. Recovered the two committed ones with `git show 5fc428d:.polaris/work/streams.md`. The
+  ledger solved exactly this problem by keying on `CLAUDE_CODE_SESSION_ID`, and the tracker did not.
+- next: decide the shape before writing code. Either the reconcile appends to a per-session file
+  that a later pass merges, the way the ledger keys its pointer, or `stop-capture` re-reads and
+  patches rather than rewriting, or only one session per project is asked to reconcile at all. The
+  cheapest correct version is probably per-session append plus a merge in `/track`.
+- files: hooks/stop-capture, .polaris/work/streams.md, scripts/run-state.sh (the pattern to copy)
+- touched: 2026-09-07 (found by losing two streams to it)
+
+## router-misroutes — a regex table over natural language, and what being wrong costs
+
+- domain: bug
+- status: two thirds fixed and shipped, one third filed
+- state: Measured 2026-09-07 over 96 real run-opening prompts drawn from `~/.claude/history.jsonl`,
+  not fixtures. Three failure modes: 24 of them, a quarter, opened with also/and/ok/ya/now/still and
+  belonged to a conversation already under way; 10 were questions; and 10 landed in `audit`,
+  `research` or `qa` because the flow name is an ordinary domain noun in the work being described,
+  as in "show all audit log events" or "make deepseek the main for qa". True misroute rate is
+  roughly 45 to 60 percent, against a felt rate the user put at 95, and that gap is the finding: a
+  correct route is silent while a misroute opens a run, blocks Stop, and nags every turn until
+  someone runs /polaris:pause. The asymmetry was the bug, not the accuracy.
+  Fixed in 11643fb (questions reach `conversation`) and 98d7ed8: a continuation marker now decides
+  whether to seed while the class still decides what the work is, and a run that records no phase
+  drops itself after three asks and archives to `.done/`. 364 assertions.
+- next: the noun collision is the part no regex settles, because distinguishing "audit the codebase"
+  from "the audit log" is distinguishing an instruction from a topic. Requiring a verb plus a
+  codebase-shaped object will fail differently rather than less. This is where the triage plan's
+  open question comes due: whether prompt classification belongs in a regex table at all. Decide
+  that before adding a ninth pattern to `audit`.
+- files: rules/patterns.json, hooks/enhance-prompt, hooks/advance-flow, scripts/route-prompt.sh
+- touched: 2026-09-07 (measured, two thirds shipped, noun collision filed)
+
+## plugin-audit — hold the whole plugin to the current Claude Code contract
+
+- domain: audit
+- status: active, audit approved and triaged, on the fix phase
+- state: Opened 2026-09-05 from the user's ask to audit every feature against
+  `code.claude.com/docs/llms.txt` and argue what should change. Run `see-entirelty-of-this` on the
+  audit flow; phase `audit` is recorded against
+  `.polaris/reports/2026-09-05-plugin-audit.md`. The suite passes 277/277, so none of this is a
+  test failure. Four gates were measured and do not gate: the model floor allows any full model id
+  because `model-floor.json` ranks only the three aliases, `guard-edit` blocks on `PostToolUse`
+  which the hooks reference says cannot block, `guard-commit-pr` catches only a double-quoted `-m`,
+  and `skills/ui-{new,polish,prototype}` are 116,748 bytes whose 42 referenced paths do not exist.
+  The router was measured against 800 real prompts from `~/.claude/history.jsonl` and placed 9% of
+  them; the `unknown` branch then costs 895 bytes on every prompt. SessionStart injects 62,985
+  bytes, of which the uncapped memory index is 33,475. 17 of 27 agents have never been dispatched.
+  `args.level` is read by all three workflows and passed by nothing, so every review runs at `high`.
+  The verification fan-out then found the finding that reframes the rest, and it was confirmed from
+  this session's own transcript: `session-start` emits 62,985 bytes into a documented
+  10,000-character cap, so the model gets a 2KB preview and a file path. The comment law, the whole
+  of craft.md and writing.md, the memory index and the tracker slice are all past the cut, every
+  session and every clear. That inverts the cost claim, which was wrong and is corrected in the
+  report: none of it is billed because none of it arrives. It also explains why the comment law had
+  fired in 2 sessions of ~904. A second dead gate came out of the same pass: `guard-phase:55` reads
+  `.tool_input.effort`, and the Agent tool has no `effort` parameter, so `effort-floor.json` and its
+  four assertions gate a key that never arrives.
+- next: audit approved 2026-09-07 and `triage` recorded, so the run is on `fix`. Take T0 and T1 from
+  the triage plan and nothing else: T0 is the payload split plus a size assertion, T1 is the five
+  gates. `rules/core.md` is 10,135 B and busts the cap alone, so T0 is a resident-versus-on-demand
+  split of the rules rather than a ceiling on the memory index. T2 onward want their own runs.
+- files: .polaris/reports/2026-09-05-plugin-audit.md,
+  .polaris/plans/2026-09-07-audit-triage.md, .polaris/runs/see-entirelty-of-this/state.json
+- touched: 2026-09-07 (audit approved, triage recorded, both artifacts amended once each)
+
+## worktracker-snapshot captures injected text, not the user's prompt
+
+- domain: bug
+- status: open, observed twice and not investigated
+- state: The `Asked:` line in the Stop-hook snapshot arrives full of harness payload rather than the
+  prompt. On 2026-09-05 it carried the `/effort` command stdout and the entire workflow-authoring
+  skill reference; on 2026-09-07 it carried a task-notification XML block including
+  `<task-id>`, `<result>`, and the workflow failure list. Both times the user's actual question was
+  buried or absent, so the reconcile it asks for is working from the wrong text.
+- next: read `scripts/worktracker-snapshot.sh` and find where the prompt is taken from; it appears to
+  read whatever reached the model rather than the typed prompt. `~/.claude/history.jsonl` holds the
+  typed prompt with its project and timestamp and would be the cleaner source.
+- files: scripts/worktracker-snapshot.sh, hooks/stop-capture
+- touched: 2026-09-07 (noticed during the plugin audit; not filed as an audit finding because it was
+  observed rather than measured)
+
 ## deck-mode — a slidev presentation mode driven by a description
 
 - domain: feature

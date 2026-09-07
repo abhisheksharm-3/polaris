@@ -120,6 +120,19 @@ ${work_content}"
     fi
 fi
 
+# Unmerged tracker notes from any session, this one included. Each session writes its own notes at
+# Stop rather than editing streams.md, so notes that nobody merged are invisible until something
+# says they exist. Naming the count is enough; /polaris:track reads them.
+pending_dir="${PROJECT_DIR}/.polaris/work/pending"
+if [ -d "$pending_dir" ]; then
+    pending_n=$(ls "$pending_dir"/*.md 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${pending_n:-0}" -gt 0 ]; then
+        combined_context="${combined_context}
+
+## Unmerged tracker notes: ${pending_n} session(s) left notes in ${pending_dir}. /polaris:track merges them into streams.md."
+    fi
+fi
+
 # Name the detected stack overlays rather than pasting them. nextjs.md alone is 12,578 bytes, more
 # than the whole payload is allowed, and an overlay only matters once code in that stack is being
 # written. (Guard empty-array expansion for bash 3.2 under set -u.)

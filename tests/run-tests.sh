@@ -1780,4 +1780,74 @@ bash "${WORK}/scripts/screen-injection.sh" "${DIR}/fixtures/injection-clean.txt"
   && echo "ok: screen-injection passes a clean fixture" \
   || { echo "FAIL: screen-injection flagged a clean fixture"; fail=1; }
 
+# --- the tracker is per-session now, because one shared file loses work ----------------------------
+
+# stop-capture asked every session to reconcile .polaris/work/streams.md, and a checkout can hold
+# several sessions. On 2026-09-07 two did: the second wrote a copy predating the first's commit and
+# silently dropped two streams, recovered only with `git show <sha>:<path>`. The run ledger had
+# already solved this by keying its pointer on the session id. The tracker now does the same, and
+# /polaris:track is the merge.
+tp_home="$(mktemp -d)"; tp_tmp="$(mktemp -d)"; tp_proj="$(mktemp -d)"
+mkdir -p "$tp_home/.claude/polaris-memory/journal" "$tp_proj/.polaris/work"
+echo "2026-07-01T00:00:00Z" > "$tp_proj/.polaris/work/.last-reconciled.local"
+printf '# Work streams\n\n## live-one\n\n- touched: 2026-09-07\n' > "$tp_proj/.polaris/work/streams.md"
+( cd "$tp_proj" && git init -q . \
+  && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m "test: seed" ) >/dev/null 2>&1
+tp_out="$(printf '%s' '{"stop_hook_active":false,"session_id":"sessA"}' \
+  | HOME="$tp_home" TMPDIR="$tp_tmp" CLAUDE_PLUGIN_ROOT="${DIR}/.." CLAUDE_PROJECT_DIR="$tp_proj" \
+    bash "${DIR}/../hooks/stop-capture" 2>/dev/null | jq -r '.reason // ""')"
+
+# The ask has to name this session's own file, not the shared one.
+grep -q 'pending/sessA.md' <<<"$tp_out" \
+  && echo "ok: stop-capture asks for a per-session notes file" \
+  || { echo "FAIL: stop-capture did not name a per-session notes file"; fail=1; }
+grep -qi 'do not edit.*streams.md' <<<"$tp_out" \
+  && echo "ok: stop-capture tells the session not to touch streams.md" \
+  || { echo "FAIL: stop-capture still points a session at the shared file"; fail=1; }
+[ -d "$tp_proj/.polaris/work/pending" ] \
+  && echo "ok: the pending directory is created for the session" \
+  || { echo "FAIL: no pending directory"; fail=1; }
+# Two sessions must get two different files, which is the whole point.
+tp_out_b="$(printf '%s' '{"stop_hook_active":false,"session_id":"sessB"}' \
+  | HOME="$tp_home" TMPDIR="$tp_tmp" CLAUDE_PLUGIN_ROOT="${DIR}/.." CLAUDE_PROJECT_DIR="$tp_proj" \
+    bash "${DIR}/../hooks/stop-capture" 2>/dev/null | jq -r '.reason // ""')"
+grep -q 'pending/sessB.md' <<<"$tp_out_b" \
+  && echo "ok: a second session is given its own notes file" \
+  || { echo "FAIL: two sessions were pointed at one notes file"; fail=1; }
+# A session id that is not path-safe must be sanitised, not used raw.
+tp_out_c="$(printf '%s' '{"stop_hook_active":false,"session_id":"a.b-c_d"}' \
+  | HOME="$tp_home" TMPDIR="$tp_tmp" CLAUDE_PLUGIN_ROOT="${DIR}/.." CLAUDE_PROJECT_DIR="$tp_proj" \
+    bash "${DIR}/../hooks/stop-capture" 2>/dev/null | jq -r '.reason // ""')"
+grep -q 'pending/a.b-c_d.md' <<<"$tp_out_c" \
+  && echo "ok: a path-safe session id is used as given" \
+  || { echo "FAIL: a valid session id was mangled"; fail=1; }
+rm -rf "$tp_home" "$tp_tmp" "$tp_proj"
+
+# session-start names unmerged notes, or they rot unseen.
+tn_home="$(mktemp -d)"; tn_proj="$(mktemp -d)"
+mkdir -p "$tn_home/.claude/skills" "$tn_proj/.polaris/work/pending"
+touch "$tn_home/.claude/skills/.polaris-mindrally-synced" "$tn_home/.claude/skills/.polaris-companions-installed"
+printf '## some-stream\n\n- touched: 2026-09-07\n' > "$tn_proj/.polaris/work/pending/other.md"
+tn_out="$( cd "$tn_proj" && HOME="$tn_home" CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "${DIR}/../hooks/session-start" 2>/dev/null \
+  | jq -r '.additionalContext // .hookSpecificOutput.additionalContext // ""' )"
+grep -q 'Unmerged tracker notes: 1' <<<"$tn_out" \
+  && echo "ok: session-start names unmerged notes left by another session" \
+  || { echo "FAIL: unmerged notes are invisible at session start"; fail=1; }
+# It names the count and the path only. Injecting the bodies would be untrusted content and unbudgeted.
+grep -q 'some-stream' <<<"$tn_out" \
+  && { echo "FAIL: session-start injected pending note bodies"; fail=1; } \
+  || echo "ok: session-start names the count, not the note contents"
+rm -rf "$tn_home" "$tn_proj"
+
+# /polaris:track is the merge, and it has to say so.
+grep -q 'work/pending' "${DIR}/../commands/track.md" \
+  && echo "ok: /track reads the pending notes" \
+  || { echo "FAIL: /track does not know about the pending notes"; fail=1; }
+grep -qi 'never delete a pending file you did not merge' "${DIR}/../commands/track.md" \
+  && echo "ok: /track refuses to drop notes it did not merge" \
+  || { echo "FAIL: /track could delete unmerged notes"; fail=1; }
+grep -q 'work/pending' "${DIR}/../.gitignore" \
+  && echo "ok: pending notes are gitignored, so a clone gets the merged record only" \
+  || { echo "FAIL: pending notes would be committed"; fail=1; }
+
 exit $fail
