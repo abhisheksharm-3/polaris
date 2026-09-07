@@ -11,12 +11,15 @@ Polaris lives by its own rules. The standard it enforces on your code, it enforc
 ## Flows
 
 A flow is an ordered list of phases, each naming something Polaris already has. `rules/flows.json`
-holds eighteen of them, so adding one is a table row rather than a script.
+holds twenty of them, so adding one is a table row rather than a script. Two, `conversation` and
+`continuation`, open no phases at all: they are how a question or a follow-up stays a question or a
+follow-up rather than opening a run.
 
 | Flow | Phases |
 |---|---|
 | `trivial` | edit, gate |
 | `fix` | implement, gate, ship |
+| `ship` | gate, ship |
 | `bug` | reproduce, rootcause, fix, verify, ship |
 | `feature` | spec, design, build, ship |
 | `foggy` | recon, spec, design, build, ship |

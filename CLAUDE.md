@@ -84,7 +84,7 @@ enforces on itself.
 | `bash scripts/route-prompt.sh` | A prompt on stdin, its flow on stdout, or `unknown` |
 | `bash scripts/inventory.sh` | Every dispatchable target with its description, for the composer |
 | `bash scripts/statusline.sh` | The open run, for a `statusLine` setting |
-| `git diff --numstat \| bash scripts/review-level.sh` | The review level a changeset earns: `low`, `mid`, `high`, or empty. The only copy of those thresholds; the caller passes the answer to `workflow:review` as `args.level` |
+| `git diff --numstat \| bash scripts/review-level.sh` | The review level a changeset earns: `low`, `mid`, `high`, or empty. The only copy of those thresholds; `advance-flow` runs it and passes the answer to a `workflow:review`/`verify`/`build` phase as `args.level` |
 | `bash scripts/tracker-slice.sh <file> [max-bytes]` | The slice of the work tracker worth injecting, newest first, under a byte ceiling (default 10240) |
 | `bash scripts/check-commands.sh` | Validate command definitions in `commands/` |
 | `bash scripts/usage-facts.sh project\|agents\|models\|days\|sessions` | What work actually cost, read-only from Claude Code's own `~/.claude/usage.db`. The measurement the token work used to estimate. Needs `sqlite3`; the `agents` table is sparse, so count `subagent_type` across transcripts for per-agent totals |
@@ -114,13 +114,19 @@ reference the other's files; the suite asserts the copies are byte-identical.
   `/polaris:<name>` via the `workflows` field in `plugin.json`. `review` takes a `level` of `low`,
   `mid`, `high`, or `critical`, which picks the dimensions, the reviewer effort, and the severities
   worth confirming. `high` is the default and the ceiling is 2, 8, 14, or 28 agents
-- `rules/` — the standard: `core.md`, `clean-code.md`, `craft.md`, `writing.md`,
-  `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`, `connectors.md`,
-  `patterns.json` (prose, code, injection, and `routing` classes), `flows.json` (the flow catalog),
-  `model-floor.json` (the minimum tier per agent, enforced at dispatch), plus per-stack overlays in
-  `stacks/` mapped by `stack-map.json`
-- `scripts/` — deterministic check runners, the companion installer, and the fact extractors for
-  `/journal`, `/track`, and `/sweep`
+- `rules/` — the standard: `core.md` (the only file injected every session, under a 7,000-byte
+  budget), `core-protocols.md` (the docs protocol, skill resolution, and the surgical-versus-
+  aggressive rule, split out of core.md so the injected file fits the hook cap), `clean-code.md`,
+  `craft.md`, `writing.md`, `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`,
+  `connectors.md` (mirrored into `plugins/polaris-work/rules/`, byte-identical, since both plugins
+  read connectors and ship independently), `patterns.json` (prose, code, injection, and `routing`
+  classes, including `ship` and `continuation`), `flows.json` (the flow catalog, twenty rows),
+  `model-floor.json` (the minimum tier per agent, with an `aliases` map so a full model id resolves
+  to a tier), `effort-floor.json` (the minimum reasoning effort, enforced in agent frontmatter and
+  validated by `check-agents.sh`, not at dispatch), plus per-stack overlays in `stacks/` mapped by
+  `stack-map.json`
+- `scripts/` — deterministic check runners, the companion installer, and `usage-facts.sh` (reads
+  `~/.claude/usage.db`, read-only)
 - `output-styles/` — the Polaris writing output style
 - `templates/` — config and doc templates (e.g. `config.default.json`)
 - `docs/` — `plans/` and `specs/` for in-progress work
@@ -135,16 +141,20 @@ reference the other's files; the suite asserts the copies are byte-identical.
 - The writing standard (`rules/writing.md`) applies to ALL prose, including commit messages and PR
   bodies. Banned words and structures are enforced by the commit/PR guard hook.
 - AI attribution in commits and PRs is forbidden and blocked by the guard hook.
-- The comment law (`rules/core.md`) blocks, it does not warn: an inline comment in a file you write
-  fails the `guard-edit` hook and the edit has to be fixed before the turn continues. Doc comments
-  only, at the top of a file and above a declaration, in multi-line doc syntax.
+- The comment law (`rules/core.md`) denies, it does not warn: `guard-edit` runs on `PreToolUse`,
+  reads the content in `tool_input` before it is written, and returns `permissionDecision: "deny"`
+  for an inline comment, so the write never lands. It ran on `PostToolUse` until 2026-09-07, which
+  cannot block by design (the tool has already run); that version's `decision: "block"` was silently
+  ignored for the plugin's whole life, and the comment law had fired in 2 sessions out of roughly
+  900. Doc comments only, at the top of a file and above a declaration, in multi-line doc syntax.
 - Every review reports the over-engineering axis. `guard-review` sends back a reviewer that omits it.
 - Capture is enforced at `Stop`, not requested at `SessionStart`. `SessionStart` accepts only
   `command` and `mcp_tool` handlers, so it can inject a request but never require it, and the earlier
   design was ignored on twelve of thirteen days. `stop-capture` blocks once per session instead.
 - `/sweep`'s three scalars (`notionParentPageId`, `timezone`, `maxLookbackHours`) are `userConfig`
-  options in `plugin.json`, prompted at install and stored in user settings. `sources` has no scalar
-  form and stays in `~/.claude/polaris-memory/sweep/config.json`.
+  options in `plugins/polaris-work/.claude-plugin/plugin.json`, prompted at install and stored in
+  user settings. They moved out of the root `polaris` manifest on 2026-09-07 along with `/sweep`
+  itself. `sources` has no scalar form and stays in `~/.claude/polaris-memory/sweep/config.json`.
 - `.polaris/config.json` drives the gate, hooks, and every agent. Changing it changes enforcement.
   `"routing": false` turns off classification, seeding, and all three flow gates; absent means on.
 - A flow is data, not prose. `rules/flows.json` is the source of truth for what a flow runs, and any
@@ -154,8 +164,10 @@ reference the other's files; the suite asserts the copies are byte-identical.
   keyed by `CLAUDE_CODE_SESSION_ID`, which subagents inherit unchanged, so a gate and the agent it
   gates always read the same run. Two sessions in one repo therefore run in parallel; `seed` refuses
   a second run in the same session, and refuses a slug whose directory another session already owns.
-  A run left at the old shared `.open` path is adopted by the first session that asks. Nothing
-  reaps a pointer whose session ended, so an abandoned run stays on disk until `clear`.
+  A run left at the old shared `.open` path is adopted by the first session that asks. A
+  `SessionEnd` hook reaps this session's pointer and archives its run to `.polaris/runs/.done/`
+  rather than deleting it, so `clear` is for a run finishing normally and `SessionEnd` is the
+  backstop for one that does not.
 - An artifact edited after its phase recorded it invalidates that phase, and `run-state.sh assert`
   refuses every later one. That is the invariant a cleared session depends on, so the fix is
   `run-state.sh amend <phase> <evidence>`, not a re-seed. An amendment re-hashes the artifact, keeps
