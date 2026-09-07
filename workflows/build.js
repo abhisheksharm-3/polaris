@@ -43,6 +43,12 @@ const OUTCOME = {
 const plan = (args && args.plan) || 'the approved plan in .polaris/plans/'
 const MAX_FIXES = 3
 
+// The slice count is the multiplier nobody bounded. Every slice costs one build, two checks, and up
+// to three fix rounds of three more, so a ten-slice plan reaches a hundred agents and the only thing
+// deciding that is what the Split agent happened to return. MAX_SLICES caps it and says what it
+// dropped: the alternative is a plan that quietly spends ten times what the level implies.
+const MAX_SLICES = { low: 3, mid: 6, high: 8 }
+
 // The Check stage is two agents per slice and the fix loop is a third, so effort here multiplies by
 // slice count. A level names it rather than leaving it to the session, which is how every dispatch
 // in this file came to run at high.
@@ -65,9 +71,17 @@ const split = await agent(
   { label: 'split', phase: 'Split', agentType: 'polaris:architect', schema: SLICES, effort: rules.plan },
 )
 
-const slices = (split && split.slices) || []
-if (slices.length === 0) return { built: [], note: 'the plan produced no slices' }
-log(`${slices.length} slices`)
+const proposed = (split && split.slices) || []
+if (proposed.length === 0) return { built: [], note: 'the plan produced no slices' }
+
+const cap = MAX_SLICES[level]
+const slices = proposed.slice(0, cap)
+const deferred = proposed.slice(cap).map(s => s.name)
+if (deferred.length > 0) {
+  log(`${proposed.length} slices proposed, building ${slices.length} at level ${level}; deferred: ${deferred.join(', ')}`)
+} else {
+  log(`${slices.length} slices`)
+}
 
 // Two slices editing the same file in parallel corrupt each other, and a worktree costs real disk
 // and setup time, so isolate only the ones that actually collide.
@@ -136,9 +150,13 @@ const stuck = done.filter(s => !s.ok)
 
 return {
   slices: done.length,
+  proposed: proposed.length,
+  // Named, not swallowed, for the same reason `stuck` is: a build that reports on eight slices when
+  // the plan had twelve reads as a finished plan.
+  deferred,
   clean: done.filter(s => s.ok).map(s => s.slice),
   // Named, not swallowed. A build that reports success with a slice still failing is the one
   // outcome worse than a build that fails.
   stuck: stuck.map(s => ({ slice: s.slice, afterRounds: s.rounds, problems: s.problems })),
-  ok: stuck.length === 0,
+  ok: stuck.length === 0 && deferred.length === 0,
 }

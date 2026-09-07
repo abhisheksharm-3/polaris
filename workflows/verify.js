@@ -44,11 +44,21 @@ const extra = (args && args.context) || ''
 // Effort and the round ceiling are one dial, because rounds multiply the fan-out: every round is
 // one agent per angle, and thinking tokens bill as output. A level names both rather than leaving
 // effort to the session, which is how this workflow came to run every agent of every round at high.
+// judgeBudget is the total number of judge dispatches across every round, and it exists because
+// the finder side was bounded and the judge side was not. Rounds x angles caps the finders at 16,
+// but judges were 3 lenses per finding with no cap on findings, so one productive round could
+// dispatch 60 and a full run could reach roughly 207. That is a fan-out nobody asked for and it is
+// the workflow's own over-engineering axis pointed at itself.
+//
+// lenses is the same dial: three different lenses beat three copies, but only for a finding whose
+// verdict could change what happens next. A low-severity finding gets one reading.
 const LEVELS = {
-  low: { effort: 'low', maxRounds: 1, dry: 1, judge: 'low' },
-  mid: { effort: 'medium', maxRounds: 2, dry: 2, judge: 'medium' },
-  high: { effort: 'high', maxRounds: 4, dry: 2, judge: 'high' },
+  low: { effort: 'low', maxRounds: 1, dry: 1, judge: 'low', lenses: 1, judgeBudget: 6 },
+  mid: { effort: 'medium', maxRounds: 2, dry: 2, judge: 'medium', lenses: 2, judgeBudget: 18 },
+  high: { effort: 'high', maxRounds: 4, dry: 2, judge: 'high', lenses: 3, judgeBudget: 36 },
 }
+const LENSES = ['does this actually reproduce', 'is the reasoning sound', 'is the fix implied by it correct']
+const RANK = { high: 0, medium: 1, low: 2 }
 const askedLevel = args ? args.level : undefined
 const level = typeof askedLevel === 'string' && Object.hasOwn(LEVELS, askedLevel) ? askedLevel : 'high'
 const rules = LEVELS[level]
@@ -69,6 +79,13 @@ const seen = new Set()
 const confirmed = []
 let dryRounds = 0
 let round = 0
+let judgesSpent = 0
+
+// Severity decides how many lenses a finding earns, inside the budget. A high-severity claim is
+// what the sweep exists to catch, so it gets the full panel; a low one gets a single reading, since
+// a second opinion on a trivial finding changes nothing and costs the same as a first one on a real
+// one. Findings are judged worst-first for the same reason: the budget runs out on the cheap ones.
+const lensesFor = f => (f.severity === 'high' ? rules.lenses : f.severity === 'medium' ? Math.min(2, rules.lenses) : 1)
 
 // Loop until dry, not until a count. A fixed cap stops whether the work converged or not, and the
 // last round is where the findings the first round's noise hid finally surface. Dedup against
@@ -103,13 +120,30 @@ while (dryRounds < rules.dry && round < rules.maxRounds) {
   log(`round ${round}: ${fresh.length} new, ${confirmed.length} confirmed so far`)
 
   phase('Judge')
+
+  // Spend the budget worst-first, and say what it did not reach. A sweep that silently stops
+  // judging reads as "everything else was fine", which is the one wrong answer here.
+  const ordered = [...fresh].sort((a, b) => RANK[a.severity] - RANK[b.severity])
+  const toJudge = []
+  for (const f of ordered) {
+    const want = lensesFor(f)
+    if (judgesSpent + want > rules.judgeBudget) continue
+    judgesSpent += want
+    toJudge.push(f)
+  }
+  const unjudged = ordered.filter(f => !toJudge.includes(f))
+  if (unjudged.length > 0) {
+    log(`round ${round}: judge budget spent (${judgesSpent}/${rules.judgeBudget}); ${unjudged.length} finding(s) reported unjudged`)
+    confirmed.push(...unjudged.map(f => ({ ...f, state: 'unjudged', why: 'the judge budget for this level was spent on higher-severity findings' })))
+  }
+
   const judged = await parallel(
-    fresh.map(f => () =>
-      // Three lenses, not three copies. Redundant verifiers agree with each other; different ones
-      // catch what a single reading cannot. Each is told to refute, so surviving means surviving
-      // an attempt, not passing a glance.
+    toJudge.map(f => () =>
+      // Different lenses, not repeated copies. Redundant verifiers agree with each other; different
+      // ones catch what a single reading cannot. Each is told to refute, so surviving means
+      // surviving an attempt, not passing a glance.
       parallel(
-        ['does this actually reproduce', 'is the reasoning sound', 'is the fix implied by it correct'].map(
+        LENSES.slice(0, lensesFor(f)).map(
           lens => () =>
             agent(
               `A reviewer claims: ${f.summary}\nAt ${f.file}:${f.line}\nEvidence given: ${f.evidence}\n\n` +
@@ -126,6 +160,10 @@ while (dryRounds < rules.dry && round < rules.maxRounds) {
   )
 
   confirmed.push(...judged.filter(Boolean).filter(j => j.survives).map(j => j.finding))
+  if (judgesSpent >= rules.judgeBudget) {
+    log(`judge budget exhausted after round ${round}; stopping the sweep rather than finding what it cannot judge`)
+    break
+  }
 }
 
 if (round >= rules.maxRounds && dryRounds < rules.dry) {
@@ -137,5 +175,7 @@ return {
   rounds: round,
   converged: dryRounds >= rules.dry,
   found: seen.size,
+  judgesSpent,
+  judgeBudget: rules.judgeBudget,
   confirmed: confirmed.sort((a, b) => ['high', 'medium', 'low'].indexOf(a.severity) - ['high', 'medium', 'low'].indexOf(b.severity)),
 }

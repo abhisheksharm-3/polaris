@@ -288,7 +288,7 @@ so a paraphrase cannot pass as a verbatim commitment. Omit anything spoken that 
 credential, a salary figure, or a third party's confidence. Then run:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-patterns.sh" injection "<rendered agenda>"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/screen-injection.sh" "<rendered agenda>"
 ```
 
 as the deterministic floor under that judgment, before any write.

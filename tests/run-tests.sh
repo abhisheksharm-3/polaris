@@ -1636,4 +1636,88 @@ grep -q 'slug="\${class}-\$(date' "${DIR}/../hooks/enhance-prompt" \
   && echo "ok: the run slug is built from the flow and the date" \
   || { echo "FAIL: the slug is still derived from the prompt text"; fail=1; }
 
+# --- every workflow's fan-out has a stated ceiling ----------------------------------------------
+
+# verify.js bounded its finders and not its judges: rounds x angles capped the finders at 16, while
+# judges were 3 lenses per finding with no cap on findings, so one productive round could dispatch
+# 60 and a full run reached roughly 207. build.js had the same shape one level up, where the slice
+# count the Split agent happened to return multiplied everything after it.
+#
+# The assertion is structural rather than a live count, because dispatching agents to measure a
+# dispatch ceiling is the problem it is checking for.
+for wf in verify build; do
+  grep -q 'judgeBudget\|MAX_SLICES' "${DIR}/../workflows/${wf}.js" \
+    && echo "ok: workflows/${wf}.js states a fan-out ceiling" \
+    || { echo "FAIL: workflows/${wf}.js has no ceiling on its fan-out"; fail=1; }
+done
+# Each level must name its own budget, or one level inherits another's ceiling silently.
+for lvl in low mid high; do
+  grep -qE "${lvl}:.*judgeBudget: [0-9]+" "${DIR}/../workflows/verify.js" \
+    || { echo "FAIL: verify.js level ${lvl} names no judge budget"; fail=1; }
+  grep -qE "${lvl}: [0-9]+" "${DIR}/../workflows/build.js" \
+    || { echo "FAIL: build.js level ${lvl} names no slice cap"; fail=1; }
+done
+echo "ok: every verify and build level names its own ceiling"
+# A ceiling that drops work silently is worse than no ceiling: it reads as "nothing else was found".
+grep -q 'reported unjudged' "${DIR}/../workflows/verify.js" \
+  && echo "ok: verify.js reports what its budget did not reach" \
+  || { echo "FAIL: verify.js drops findings past its budget silently"; fail=1; }
+grep -q 'deferred' "${DIR}/../workflows/build.js" \
+  && echo "ok: build.js reports the slices it deferred" \
+  || { echo "FAIL: build.js drops slices past its cap silently"; fail=1; }
+# The judge panel must scale with severity, or the budget is spent on trivia.
+grep -q 'lensesFor' "${DIR}/../workflows/verify.js" \
+  && echo "ok: verify.js scales its judge panel by severity" \
+  || { echo "FAIL: verify.js gives every finding the same panel"; fail=1; }
+# review.js batches its confirm agents per dimension, which is what bounds it at 28. If that ever
+# becomes per-finding, the ceiling documented in CLAUDE.md stops being true.
+grep -q 'confirm:\${r.dimension}' "${DIR}/../workflows/review.js" \
+  && echo "ok: review.js confirms per dimension, which is what bounds it" \
+  || { echo "FAIL: review.js no longer batches confirmation per dimension"; fail=1; }
+
+# --- the split left two dangling cross-plugin references ----------------------------------------
+
+# /oneonone called worktracker-snapshot.sh and check-patterns.sh through ${CLAUDE_PLUGIN_ROOT},
+# which after the split resolves to polaris-work, where neither existed. Two plugins ship
+# independently, so neither can reach the other's files, and a path that resolves to nothing fails
+# only when a user runs the command.
+for ref in $(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[a-zA-Z0-9/._-]+' \
+    "${WORK}"/commands/*.md "${WORK}"/scripts/*.sh "${WORK}"/hooks/* 2>/dev/null \
+    | sed 's|\${CLAUDE_PLUGIN_ROOT}/||' | sort -u); do
+  [ -e "${WORK}/${ref}" ] \
+    || { echo "FAIL: polaris-work names ${ref}, which is not in that plugin"; fail=1; }
+done
+echo "ok: every path polaris-work names resolves inside polaris-work"
+# And the same in the other direction.
+for ref in $(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[a-zA-Z0-9/._-]+' \
+    "${DIR}/../commands"/*.md "${DIR}/../scripts"/*.sh "${DIR}/../hooks"/* 2>/dev/null \
+    | sed 's|\${CLAUDE_PLUGIN_ROOT}/||' | sort -u); do
+  [ -e "${DIR}/../${ref}" ] \
+    || { echo "FAIL: polaris names ${ref}, which is not in that plugin"; fail=1; }
+done
+echo "ok: every path polaris names resolves inside polaris"
+
+# worktracker-snapshot.sh is mirrored rather than shared, so it drifts unless something fails.
+cmp -s "${DIR}/../scripts/worktracker-snapshot.sh" "${WORK}/scripts/worktracker-snapshot.sh" \
+  && echo "ok: worktracker-snapshot.sh is identical in both plugins" \
+  || { echo "FAIL: worktracker-snapshot.sh has drifted between the plugins"; fail=1; }
+
+# polaris-work carries the eight injection phrases rather than all of patterns.json, because that
+# file also holds prose, code and routing classes it has no use for. The list still has to match.
+si_repo="$(jq -r '.injection.phrases[]' "${DIR}/../rules/patterns.json" | sort)"
+si_work="$(sed -n '/^phrases=(/,/^)/p' "${WORK}/scripts/screen-injection.sh" \
+  | sed '1d;$d' | sed -E 's/^[[:space:]]*"//; s/"$//' | sed 's/\\"/"/g' | sort)"
+[ "$si_repo" = "$si_work" ] \
+  && echo "ok: polaris-work screens the same injection phrases as patterns.json" \
+  || { echo "FAIL: the injection phrase lists have drifted between the plugins"; fail=1; }
+# It must agree with check-patterns on the fixtures, or it is a screen in name only.
+bash "${CHECK}" injection "${DIR}/fixtures/injection-bad.txt" >/dev/null 2>&1; si_a=$?
+bash "${WORK}/scripts/screen-injection.sh" "${DIR}/fixtures/injection-bad.txt" >/dev/null 2>&1; si_b=$?
+[ "$si_a" = "$si_b" ] && [ "$si_b" = 1 ] \
+  && echo "ok: screen-injection flags what check-patterns flags" \
+  || { echo "FAIL: screen-injection disagrees on a flagged fixture (${si_a} vs ${si_b})"; fail=1; }
+bash "${WORK}/scripts/screen-injection.sh" "${DIR}/fixtures/injection-clean.txt" >/dev/null 2>&1 \
+  && echo "ok: screen-injection passes a clean fixture" \
+  || { echo "FAIL: screen-injection flagged a clean fixture"; fail=1; }
+
 exit $fail

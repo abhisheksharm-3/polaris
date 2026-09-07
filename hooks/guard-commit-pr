@@ -66,13 +66,13 @@ done < <(printf '%s\n' "$cmd" | grep -oE '(-F|--file|--body-file|--notes-file)[=
 #    is where the nested escaping gets unreadable, fold every style into double quotes first: turn
 #    ' into " and drop the $ of a $'...' string. Then one pattern covers all three, and a bare word
 #    is a second, simpler pass. The flag list is what git and gh accept, not just -m.
-flags='-m|--message|--body|--title|--notes|-s|--subject'
+flags='-[a-zA-Z]*m|--message|--body|--title|--notes|-s|--subject'
 norm="$(printf '%s' "$cmd" | tr "'" '"' | sed 's/\$"/"/g')"
 while IFS= read -r s; do
     [ -n "$s" ] || continue
     msg="${msg}
 ${s}"
-done < <(printf '%s\n' "$norm" | grep -oE "(${flags})[= ]+\"[^\"]*\"" | sed -E "s/^(${flags})[= ]+\"//; s/\"\$//"
+done < <(printf '%s\n' "$norm" | grep -oE "(${flags})[= ]*\"[^\"]*\"" | sed -E "s/^(${flags})[= ]*\"//; s/\"\$//"
           printf '%s\n' "$norm" | grep -oE "(${flags})[= ]+[A-Za-z][A-Za-z0-9_-]*" | sed -E "s/^(${flags})[= ]+//")
 
 # A command-substitution wrapper is scaffolding, not prose. Strip what the heredoc pass already took.
