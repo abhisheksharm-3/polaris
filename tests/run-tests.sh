@@ -1468,4 +1468,93 @@ rl_garbage="$(printf 'garbage\n' | bash "$RL")"; rl_code=$?
   && echo "ok: malformed numstat rates nothing and exits 0" \
   || { echo "FAIL: malformed numstat did not exit clean and empty"; fail=1; }
 
+
+# --- T4: the wiring that existed and was not connected -------------------------------------------
+
+# advance-flow names the review level. The three workflows read args.level to pick 2, 8, 14 or 28
+# agents, scripts/review-level.sh computes it, and nothing joined them until 2026-09-07, so every
+# run took the widest default and the four-level matrix was dead configuration.
+af_proj="$(mktemp -d)"; mkdir -p "$af_proj/.polaris"; echo '{"routing":true}' > "$af_proj/.polaris/config.json"
+( cd "$af_proj" && git init -q . && printf 'a\nb\nc\n' > f.ts && git add -A \
+  && git -c user.email=t@t -c user.name=t commit -qm "test: seed" ) >/dev/null 2>&1
+printf 'a\nb\nc\nd\n' > "$af_proj/f.ts"
+POLARIS_SESSION=aftest CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" seed review af-probe >/dev/null 2>&1
+af_tmp="$(mktemp -d)"
+af_out="$(jq -cn '{session_id:"aftest",stop_hook_active:false}' \
+  | TMPDIR="$af_tmp" POLARIS_SESSION=aftest CLAUDE_PROJECT_DIR="$af_proj" CLAUDE_PLUGIN_ROOT="${DIR}/.." \
+    bash "${DIR}/../hooks/advance-flow" | jq -r '.reason' 2>/dev/null)"
+grep -q 'args.level' <<<"$af_out" \
+  && echo "ok: advance-flow names args.level for a workflow phase" \
+  || { echo "FAIL: advance-flow did not pass the review level"; fail=1; }
+grep -qE "args.level = \"(low|mid|high)\"" <<<"$af_out" \
+  && echo "ok: the level it names is one review.js accepts" \
+  || { echo "FAIL: advance-flow named a level the workflow does not accept"; fail=1; }
+# A non-workflow phase must not carry the hint, or it becomes noise on every turn.
+POLARIS_SESSION=aftest CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" clear >/dev/null 2>&1
+POLARIS_SESSION=aftest2 CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" seed cleanup af-probe2 >/dev/null 2>&1
+af_out2="$(jq -cn '{session_id:"aftest2",stop_hook_active:false}' \
+  | TMPDIR="$af_tmp" POLARIS_SESSION=aftest2 CLAUDE_PROJECT_DIR="$af_proj" CLAUDE_PLUGIN_ROOT="${DIR}/.." \
+    bash "${DIR}/../hooks/advance-flow" | jq -r '.reason' 2>/dev/null)"
+grep -q 'args.level' <<<"$af_out2" \
+  && { echo "FAIL: advance-flow named a level on an agent phase"; fail=1; } \
+  || echo "ok: advance-flow names no level on a non-workflow phase"
+
+# clear archives the ledger instead of deleting it. rm -rf destroyed every phase record, hash,
+# approval and amendment at the moment the run became a complete history of itself.
+POLARIS_SESSION=aftest2 CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" clear >/dev/null 2>&1
+[ -f "$af_proj/.polaris/runs/.done/af-probe2/state.json" ] \
+  && echo "ok: clear archives the ledger under .done" \
+  || { echo "FAIL: clear destroyed the run ledger"; fail=1; }
+[ ! -d "$af_proj/.polaris/runs/af-probe2" ] \
+  && echo "ok: clear frees the active run directory" \
+  || { echo "FAIL: clear left the run in place"; fail=1; }
+# A reused slug must not overwrite the archive.
+POLARIS_SESSION=aftest3 CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" seed cleanup af-probe2 >/dev/null 2>&1
+POLARIS_SESSION=aftest3 CLAUDE_PROJECT_DIR="$af_proj" bash "${DIR}/../scripts/run-state.sh" clear >/dev/null 2>&1
+[ -d "$af_proj/.polaris/runs/.done/af-probe2-2" ] \
+  && echo "ok: a reused slug is suffixed rather than overwriting its archive" \
+  || { echo "FAIL: a second run of the same slug overwrote the archive"; fail=1; }
+rm -rf "$af_proj" "$af_tmp"
+
+# session-end reaps the pointer CLAUDE.md documented as never reaped, and keeps the ledger.
+se_proj="$(mktemp -d)"; se_tmp="$(mktemp -d)"
+mkdir -p "$se_proj/.polaris/runs/stale" "$se_tmp/polaris-advance-flow/reap1-stale-x-open"
+echo 'stale' > "$se_proj/.polaris/runs/.open-reap1"
+echo '{"slug":"stale","flow":"review","current":"review","record":{}}' > "$se_proj/.polaris/runs/stale/state.json"
+jq -cn '{session_id:"reap1"}' | TMPDIR="$se_tmp" CLAUDE_PROJECT_DIR="$se_proj" \
+  CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "${DIR}/../hooks/session-end" >/dev/null 2>&1
+[ ! -f "$se_proj/.polaris/runs/.open-reap1" ] \
+  && echo "ok: session-end reaps the run pointer" \
+  || { echo "FAIL: session-end left the pointer behind"; fail=1; }
+[ -f "$se_proj/.polaris/runs/.done/stale/state.json" ] \
+  && echo "ok: session-end archives the run rather than discarding it" \
+  || { echo "FAIL: session-end lost the ledger of an abandoned run"; fail=1; }
+[ ! -d "$se_tmp/polaris-advance-flow/reap1-stale-x-open" ] \
+  && echo "ok: session-end clears this session's block markers" \
+  || { echo "FAIL: session-end left block markers behind"; fail=1; }
+# Another session's pointer is none of its business.
+echo 'other' > "$se_proj/.polaris/runs/.open-someone-else"
+jq -cn '{session_id:"reap1"}' | TMPDIR="$se_tmp" CLAUDE_PROJECT_DIR="$se_proj" \
+  CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "${DIR}/../hooks/session-end" >/dev/null 2>&1
+[ -f "$se_proj/.polaris/runs/.open-someone-else" ] \
+  && echo "ok: session-end leaves another session's pointer alone" \
+  || { echo "FAIL: session-end reaped a pointer it does not own"; fail=1; }
+jq -e '.hooks.SessionEnd | length > 0' "${DIR}/../hooks/hooks.json" >/dev/null \
+  && echo "ok: session-end is registered on SessionEnd" \
+  || { echo "FAIL: session-end is not wired"; fail=1; }
+rm -rf "$se_proj" "$se_tmp"
+
+# usage-facts reads Claude Code's own database and must never write to it or fail without it.
+UF="${DIR}/../scripts/usage-facts.sh"
+uf_missing="$(POLARIS_USAGE_DB=/nonexistent/usage.db bash "$UF" project 2>&1)"; uf_rc=$?
+[ "$uf_rc" -eq 0 ] && [ -z "$uf_missing" ] \
+  && echo "ok: usage-facts is silent and clean with no database" \
+  || { echo "FAIL: usage-facts errored without a database (rc=$uf_rc)"; fail=1; }
+grep -q 'mode=ro' "$UF" && grep -q -- '-readonly' "$UF" \
+  && echo "ok: usage-facts opens the database read-only" \
+  || { echo "FAIL: usage-facts could write to Claude Code's usage database"; fail=1; }
+bash "$UF" nonsense >/dev/null 2>&1 \
+  && { echo "FAIL: usage-facts accepted an unknown subcommand"; fail=1; } \
+  || echo "ok: usage-facts rejects an unknown subcommand"
+
 exit $fail

@@ -50,6 +50,30 @@ phase="$(printf '%s' "$state" | jq -r .current)"
 target="$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" target 2>/dev/null || true)"
 status="$(printf '%s' "$state" | jq -r --arg p "$phase" '.record[$p].status // ""')"
 
+# The three fan-out workflows read args.level to pick how many agents they dispatch: review runs 2,
+# 8, 14 or 28. scripts/review-level.sh computes that from the diff, and until 2026-09-07 nothing
+# connected the two, so every run took the `high` default and the whole four-level matrix was dead
+# configuration. A workflow cannot shell out, and this hook is the one place that knows a workflow
+# phase is about to start, so the level is computed here and named in the instruction.
+level_hint=""
+case "$target" in
+    workflow:review|workflow:verify|workflow:build)
+        lvl="$(cd "$PROJECT_DIR" 2>/dev/null && git diff --numstat 2>/dev/null \
+            | bash "${ROOT}/scripts/review-level.sh" 2>/dev/null || true)"
+        if [ -z "$lvl" ]; then
+            lvl="$(cd "$PROJECT_DIR" 2>/dev/null && git diff --numstat HEAD~1 2>/dev/null \
+                | bash "${ROOT}/scripts/review-level.sh" 2>/dev/null || true)"
+        fi
+        if [ -n "$lvl" ]; then
+            level_hint="
+The changeset rates '${lvl}', so pass it: args.level = \"${lvl}\". That is what decides the fan-out, and without it the workflow runs its widest default over a diff that may not need it. A human asking for the deepest pass names 'critical' instead."
+        else
+            level_hint="
+There is no diff to rate, so the workflow would take its widest default. Rate the changeset before dispatching: git diff --numstat | bash ${ROOT}/scripts/review-level.sh, and pass the answer as args.level."
+        fi
+        ;;
+esac
+
 if [ "$status" = "done" ]; then
     instructions="Polaris run '${slug}' (${flow} flow): phase '${phase}' is recorded and stops for a human. Present its artifact and its evidence, then stop and wait. When the human approves, run: scripts/run-state.sh approve ${phase}"
 else
@@ -57,9 +81,10 @@ else
         | jq -r '[.record[] | select(.status=="done" and ((.artifact // "") != ""))] | sort_by(.at) | (last // {}) | .artifact // ""' 2>/dev/null)"
     if [ -n "$recorded" ] && [ -f "$recorded" ] \
         && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" assert "$phase" >/dev/null 2>&1; then
-        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Every phase before '${phase}' is recorded and hash-checked, and every approval those phases ask for is stamped, so this conversation holds nothing the ledger does not. Do not start '${phase}' in this turn: tell the user run '${slug}' stays open, ${recorded} stays on disk, and they may run /clear now before starting '${phase}'; the next prompt is told both. This is a recommendation, not a requirement. Without a clear, run '${phase}' then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target}${level_hint} and has not been recorded. Every phase before '${phase}' is recorded and hash-checked, and every approval those phases ask for is stamped, so this conversation holds nothing the ledger does not. Do not start '${phase}' in this turn: tell the user run '${slug}' stays open, ${recorded} stays on disk, and they may run /clear now before starting '${phase}'; the next prompt is told both. This is a recommendation, not a requirement. Without a clear, run '${phase}' then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
     else
-        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target} and has not been recorded. Run it, then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
+        instructions="Polaris run '${slug}' (${flow} flow) is on phase '${phase}', which runs ${target}${level_hint}
+It has not been recorded. Run it, then record it: scripts/run-state.sh record ${phase} <artifact> <evidence>. If this flow is wrong for the task, say so and run /polaris:pause."
     fi
 fi
 

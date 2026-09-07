@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# SessionEnd: reap what this session left behind.
+#
+# Two things accumulated with nothing to clean them. A run pointer at .polaris/runs/.open-<session>
+# outlives the session that opened it, and CLAUDE.md said so as a known gap: "Nothing reaps a pointer
+# whose session ended, so an abandoned run stays on disk until clear." Three such pointers were on
+# disk when this hook was written, the oldest five weeks old, and each one permanently burns its slug
+# because seed refuses a slug whose directory exists. The block markers under TMPDIR are the same
+# shape: 48 of them, accumulating since the end of August.
+#
+# The run itself is archived, not deleted. A session that ends mid-run has usually not finished the
+# work, and the ledger is the record of what it did finish, so this moves it where /catchup can find
+# it rather than discarding it. Only the pointer goes, which is what frees the slug.
+#
+# Best-effort throughout, and silent. SessionEnd shares a small time budget across every hook on it,
+# so this does the two cheap filesystem operations and nothing else.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+session="$(printf '%s' "$payload" | jq -r 'if (.session_id|type)=="string" then .session_id else "" end' 2>/dev/null)"
+case "$session" in
+    ""|.|..) exit 0 ;;
+    *[!A-Za-z0-9._-]*) exit 0 ;;
+esac
+[ "${#session}" -le 128 ] || exit 0
+
+runs="${PROJECT_DIR}/.polaris/runs"
+pointer="${runs}/.open-${session}"
+
+# An open run is archived under .done/ so the slug is free and the history survives.
+if [ -f "$pointer" ]; then
+    slug="$(tr -d '\n' < "$pointer" 2>/dev/null || true)"
+    case "$slug" in
+        ""|.|..|*[!A-Za-z0-9._-]*) rm -f "$pointer" ;;
+        *)
+            if [ -d "${runs}/${slug}" ]; then
+                mkdir -p "${runs}/.done" 2>/dev/null
+                dest="${runs}/.done/${slug}"
+                if [ -e "$dest" ]; then
+                    n=2
+                    while [ -e "${dest}-${n}" ]; do n=$((n + 1)); done
+                    dest="${dest}-${n}"
+                fi
+                mv "${runs}/${slug}" "$dest" 2>/dev/null || true
+            fi
+            rm -f "$pointer"
+            ;;
+    esac
+fi
+
+# This session's block markers, which exist only to make each gate fire once per session.
+for d in polaris-advance-flow polaris-stop-capture polaris-work-journal polaris-guard-edit polaris-guard-review; do
+    base="${TMPDIR:-/tmp}/${d}"
+    [ -d "$base" ] || continue
+    rm -rf "${base:?}/${session}" 2>/dev/null || true
+    for m in "${base}/${session}-"*; do
+        [ -e "$m" ] && rm -rf "$m" 2>/dev/null || true
+    done
+done
+
+exit 0

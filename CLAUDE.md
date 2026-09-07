@@ -87,6 +87,7 @@ enforces on itself.
 | `git diff --numstat \| bash scripts/review-level.sh` | The review level a changeset earns: `low`, `mid`, `high`, or empty. The only copy of those thresholds; the caller passes the answer to `workflow:review` as `args.level` |
 | `bash scripts/tracker-slice.sh <file> [max-bytes]` | The slice of the work tracker worth injecting, newest first, under a byte ceiling (default 10240) |
 | `bash scripts/check-commands.sh` | Validate command definitions in `commands/` |
+| `bash scripts/usage-facts.sh project\|agents\|models\|days\|sessions` | What work actually cost, read-only from Claude Code's own `~/.claude/usage.db`. The measurement the token work used to estimate. Needs `sqlite3`; the `agents` table is sparse, so count `subagent_type` across transcripts for per-agent totals |
 | `bash scripts/ensure-companions.sh` | Idempotent companion-plugin installer (no-op after first run) |
 | `bash scripts/worktracker-snapshot.sh <project-dir> <since-utc>` | What changed in one project since a timestamp, for the tracker to classify |
 
@@ -108,7 +109,7 @@ reference the other's files; the suite asserts the copies are byte-identical.
   to existed
 - `hooks/` — `session-start`, `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
   `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
-  `guard-command`, and `advance-flow`, all wired in `hooks.json`
+  `guard-command`, `advance-flow`, and `session-end` (reaps the run pointer and the block markers), all wired in `hooks.json`
 - `workflows/` — the three phases that fan out: `verify`, `review`, `build`. Shipped as
   `/polaris:<name>` via the `workflows` field in `plugin.json`. `review` takes a `level` of `low`,
   `mid`, `high`, or `critical`, which picks the dimensions, the reviewer effort, and the severities

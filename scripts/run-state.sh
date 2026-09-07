@@ -121,7 +121,24 @@ cmd_clear() {
         local n; n="$(grep -cxF "$sig" "${RUNS}/.composed-log" 2>/dev/null || echo 0)"
         [ "$n" -ge 3 ] && echo "this shape has run ${n} times; consider adding it to rules/flows.json: ${sig}" >&2
     fi
-    rm -rf "${RUNS:?}/${slug}" "$OPEN"
+    # Archive rather than delete. `rm -rf` here destroyed every phase record, artifact hash,
+    # approval timestamp and amendment at the exact moment the run became a complete history of
+    # itself, which is the one dataset Polaris generates about its own operation. Keeping it is what
+    # lets a later pass answer which flows finish, which stall, and where approvals actually sit.
+    mkdir -p "${RUNS}/.done" 2>/dev/null
+    if [ -d "${RUNS}/${slug}" ]; then
+        dest="${RUNS}/.done/${slug}"
+        # A slug can be reused across runs, so an existing archive entry is suffixed rather than
+        # overwritten. Counting up beats a timestamp: run-state.sh has no clock it can trust in a
+        # test, and the order only has to be stable.
+        if [ -e "$dest" ]; then
+            n=2
+            while [ -e "${dest}-${n}" ]; do n=$((n + 1)); done
+            dest="${dest}-${n}"
+        fi
+        mv "${RUNS}/${slug}" "$dest" 2>/dev/null || rm -rf "${RUNS:?}/${slug}"
+    fi
+    rm -f "$OPEN"
     echo "$slug"
 }
 
