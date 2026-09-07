@@ -88,6 +88,33 @@ It has not been recorded. Run it, then record it: scripts/run-state.sh record ${
     fi
 fi
 
+# A run that records nothing is a misroute, and it should drop itself rather than nag forever.
+#
+# Routing is a regex table over natural language, so it will always be wrong sometimes: measured
+# over 96 real run-opening prompts, a quarter opened on a follow-up and a tenth on a question. The
+# cost of being wrong is not the wrong name, it is this hook asking for a phase nobody meant to
+# start, every turn, until someone remembers /polaris:pause. That asymmetry is why a correct route
+# is invisible and a misroute feels like the only thing Polaris does.
+#
+# So: count the asks for a run that has recorded nothing, and after REAP_AFTER of them, clear it and
+# say so once. A real run survives trivially, because recording its first phase resets the count to
+# irrelevant. Nothing is lost either way, since clear archives to .done/ rather than deleting.
+REAP_AFTER=3
+recorded_count="$(printf '%s' "$state" | jq -r '.record | length' 2>/dev/null || echo 0)"
+if [ "${recorded_count:-0}" = 0 ]; then
+    nag_dir="${TMPDIR:-/tmp}/polaris-unrecorded/${session}-${slug}"
+    mkdir -p "$nag_dir" 2>/dev/null
+    nags=$(( $(ls "$nag_dir" 2>/dev/null | wc -l | tr -d ' ') + 1 ))
+    : > "${nag_dir}/${nags}" 2>/dev/null
+    if [ "$nags" -ge "$REAP_AFTER" ]; then
+        if CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" clear >/dev/null 2>&1; then
+            rm -rf "$nag_dir" 2>/dev/null
+            jq -cn --arg r "Polaris dropped run '${slug}': it was opened on this prompt's classification as ${flow} and recorded no phase in ${REAP_AFTER} turns, which is what a misroute looks like. The ledger is archived under .polaris/runs/.done/. Nothing else to do; carry on with the work."                 '{hookSpecificOutput:{hookEventName:"Stop",additionalContext:$r}}'
+            exit 0
+        fi
+    fi
+fi
+
 # Claim the transition before emitting. A second stop on the same phase loses the race and stays
 # silent, so the user can always end the turn by ending it twice.
 marker="${TMPDIR:-/tmp}/polaris-advance-flow"

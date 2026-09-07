@@ -51,6 +51,27 @@ The last recorded phase left ${recorded} on disk, hash-locked in the ledger. Rea
         fi
     else
         class="$(printf '%s' "$prompt" | bash "${ROOT}/scripts/route-prompt.sh" 2>/dev/null || echo unknown)"
+
+        # A prompt that opens with a continuation marker never seeds, whatever else it matched.
+        #
+        # `continuation` is the last class route-prompt.sh tries, so a follow-up carrying real work
+        # reaches its real class: "also push both to github" comes back `ship`, not `continuation`.
+        # That was the right call for naming the work and the wrong one for opening a run. Measured
+        # over 96 real run-opening prompts, 24 of them, a quarter, began with also/and/ok/ya/now/
+        # still, and every one belonged to a conversation already under way. Seeding there gives the
+        # session a second ledger for work the first one owns, and a Stop hook that nags for a phase
+        # nobody meant to start.
+        #
+        # So the marker decides whether to seed and the class still decides what the work is. The
+        # model does the work either way; it just does not get a new run and a new gate for it.
+        case "$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')" in
+            also\ *|and\ *|plus\ *|btw\ *|oh\ *|ok\ *|okay\ *|cool\ *|nice\ *|thanks\ *|\
+            ya\ *|yeah\ *|yep\ *|no\ *|nope\ *|nah\ *|sure\ *|right\ *|\
+            now\ *|next\ *|then\ *|still\ *|instead\ *|actually\ *|wait\ *|\
+            continue*|carry\ on*|keep\ going*|go\ ahead*|proceed*|try\ again*|\
+            man\ *|dude\ *|so\ *|hmm\ *)
+                class="continuation" ;;
+        esac
         case "$class" in
             # A question, or a follow-up inside work already under way. Neither opens a run and
             # neither needs a word from this hook. `continuation` is the one that mattered: measured
