@@ -2,6 +2,57 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.16.0 — 2026-09-07
+
+An audit of every feature against the current Claude Code documentation, then its findings.
+
+**The standard was never being delivered.** `session-start` emitted 62,985 characters into a
+10,000-character cap. Over the cap Claude Code writes the payload to a file and hands the model a
+2KB preview plus the path, with exit 0 and no error, so everything past the comments policy had been
+on disk and out of context on every session, every clear, and every compact since the plugin
+shipped. The comment law had fired in 2 sessions out of roughly 900 because it was never there.
+`rules/core.md` now holds the resident standard alone, under a 7,000-byte budget the suite enforces,
+ordered comment law first and laziness ladder second because truncation keeps the start of a file.
+The procedural half moved to `rules/core-protocols.md`; craft, writing, model-routing, clean-code,
+the stack overlays, the memory index and the tracker slice became paths and digests. The payload is
+8,656 characters.
+
+**Five gates were reporting enforcement they could not perform.** `guard-edit` ran on `PostToolUse`,
+which cannot block, and now runs on `PreToolUse` reading the content from `tool_input`, so a refused
+write never reaches the file. The model floor ranked three aliases, so `claude-haiku-4-5-20251001`,
+`fable` and `inherit` all passed an opus floor. The effort floor read a `tool_input.effort` the Agent
+tool does not have and refused nothing for its whole life; it moved to agent frontmatter, where the
+value exists. `guard-commit-pr` matched one quoting style, so five of six forms bypassed it including
+the heredoc a multi-paragraph message uses. `SessionStart` did not match `resume` or `fork`.
+
+**The router placed 9% of 800 real prompts.** There is now a `ship` class and flow, since
+`agent:shipper` existed only inside other flows, and a `continuation` class tried last so a follow-up
+opens nothing without swallowing the follow-ups that carry work. Unknown falls to 62.0%. The flow
+table goes out once per session rather than 895 bytes on every prompt, and run slugs come from the
+flow and the date rather than the prompt's first four words, which had turned a customer email
+address into a committed path.
+
+**Deletions.** `skills/ui-new`, `ui-polish` and `ui-prototype`, 116,748 bytes of copies of companion
+skills `agents/ui.md` already preloads, none of which could run: 0 of 42 referenced paths existed.
+`ensure-companions.sh` installed 270 skills into the user-global `~/.claude/skills` against the 43
+the plugin names, and now installs 50. Both plugin dependencies are gone, because a dependency has
+no optional form and one that would not resolve disabled Polaris entirely.
+
+**The working-life half is its own plugin.** `plugins/polaris-work/` ships `/sweep`, `/oneonone`,
+`/journal` and the OKR lens as a second marketplace entry. It was 46% of the command prose and all
+three install-time questions, while being about your job rather than about code.
+
+**Wiring that existed and was not connected.** `args.level` decides whether a review dispatches 2
+agents or 28, and nothing passed it, so every run took the widest default; `advance-flow` now rates
+the changeset and names it. `run-state.sh clear` destroyed the run ledger at the moment it became a
+complete record, and now archives it. `SessionEnd` had no hook, so nothing reaped an abandoned run
+pointer. `scripts/usage-facts.sh` reads `~/.claude/usage.db`, 904 sessions and 66,815 turns of real
+token counts that nothing in Polaris had opened.
+
+The README told new users to run `/init`, which is Claude Code's own and writes no
+`.polaris/config.json`, leaving the routing, both phase gates and the flow driver silently off. Six
+rules files claimed to be injected every session and only one is. Tests go 277 to 338.
+
 ## 1.15.0 — 2026-08-22
 
 Two Polaris sessions in one repo no longer refuse each other. The run ledger kept its open-run
