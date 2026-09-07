@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "polaris-work",
+  "displayName": "Polaris Work",
+  "description": "The working-life half of Polaris: a dated briefing across every work source, a daily journal, OKR pace, and a manager 1:1 prepared from state you already have.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Abhishek Sharma",
+    "email": "abhitiku2003@gmail.com"
+  },
+  "homepage": "https://github.com/abhisheksharm-3/polaris",
+  "repository": "https://github.com/abhisheksharm-3/polaris",
+  "license": "MIT",
+  "keywords": [
+    "briefing",
+    "standup",
+    "okr",
+    "one-on-one",
+    "journal",
+    "notion",
+    "connectors"
+  ],
+  "userConfig": {
+    "notionParentPageId": {
+      "type": "string",
+      "title": "Sweep Notion parent page",
+      "description": "Page id or url that /sweep writes each dated briefing under. One value for every project.",
+      "required": false
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Your timezone",
+      "description": "IANA name used to bound each day for /sweep and /journal, for example Asia/Kolkata."
+    },
+    "maxLookbackHours": {
+      "type": "number",
+      "title": "Sweep maximum lookback (hours)",
+      "description": "Ceiling on how far back /sweep pulls when it has not run in a while.",
+      "default": 168,
+      "min": 1,
+      "max": 720
+    }
+  }
+}

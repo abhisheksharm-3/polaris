@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# SessionStart for polaris-work: fill in any day the journal has not recorded yet.
+#
+# Writes the factual skeleton only. The Stop hook asks for the narrative, because a SessionStart
+# directive asking for it was ignored on twelve of thirteen days, and SessionStart accepts only
+# command and mcp_tool handlers so it can inject a request but never require one.
+#
+# Best-effort throughout: a journal that cannot be written must never cost the session.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+# Writes the factual skeleton only. The Stop hook asks for the narrative, because a SessionStart
+# directive asking for it was ignored on twelve of thirteen days.
+polaris_journal() {
+    local jdir="${HOME}/.claude/polaris-memory/journal"
+    local facts="${PLUGIN_ROOT}/scripts/journal-facts.sh"
+    [ -x "$facts" ] || return 0
+    mkdir -p "$jdir" 2>/dev/null || return 0
+    local marker="$jdir/.last-journaled"
+
+    local today yesterday
+    today="$(date +%F)"
+    yesterday="$(date -v-1d +%F 2>/dev/null || date -d 'yesterday' +%F)"
+    if [ ! -f "$marker" ]; then echo "$yesterday" > "$marker"; return 0; fi   # first run: seed, no backfill
+
+    local d
+    d="$(cat "$marker" 2>/dev/null || echo "$yesterday")"
+    while [ "$d" \< "$yesterday" ]; do
+        d="$(date -v+1d -jf %F "$d" +%F 2>/dev/null || date -d "$d + 1 day" +%F)"
+        local out; out="$("$facts" "$d" hook 2>/dev/null || true)"
+        if [ -n "$out" ]; then printf '%s\n' "$out" > "$jdir/$d.md"; fi
+        echo "$d" > "$marker"
+    done
+}
+polaris_journal || true
+
+exit 0

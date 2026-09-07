@@ -172,31 +172,10 @@ if [ ! -f "${HOME}/.claude/skills/.polaris-mindrally-synced" ]; then
 <important-reminder>⚠️ Polaris companion skills are not installed, so agents run without their preloaded domain skills. Ensure git and the claude CLI are available, then run: bash \"${PLUGIN_ROOT}/scripts/ensure-companions.sh\" --force</important-reminder>"
 fi
 
-# --- Daily journal: next-session lookback (best-effort; never blocks a session) ---
-# Writes the factual skeleton only. The Stop hook asks for the narrative, because a SessionStart
-# directive asking for it was ignored on twelve of thirteen days.
-polaris_journal() {
-    local jdir="${HOME}/.claude/polaris-memory/journal"
-    local facts="${PLUGIN_ROOT}/scripts/journal-facts.sh"
-    [ -x "$facts" ] || return 0
-    mkdir -p "$jdir" 2>/dev/null || return 0
-    local marker="$jdir/.last-journaled"
+# The daily-journal backfill used to run here. It moved to the polaris-work plugin on 2026-09-07
+# along with /journal, /sweep and /oneonone: the journal is a record of the user's working day, not
+# of this project's code, and an SDLC plugin should not write to ~/.claude/polaris-memory/journal.
 
-    local today yesterday
-    today="$(date +%F)"
-    yesterday="$(date -v-1d +%F 2>/dev/null || date -d 'yesterday' +%F)"
-    if [ ! -f "$marker" ]; then echo "$yesterday" > "$marker"; return 0; fi   # first run: seed, no backfill
-
-    local d
-    d="$(cat "$marker" 2>/dev/null || echo "$yesterday")"
-    while [ "$d" \< "$yesterday" ]; do
-        d="$(date -v+1d -jf %F "$d" +%F 2>/dev/null || date -d "$d + 1 day" +%F)"
-        local out; out="$("$facts" "$d" hook 2>/dev/null || true)"
-        if [ -n "$out" ]; then printf '%s\n' "$out" > "$jdir/$d.md"; fi
-        echo "$d" > "$marker"
-    done
-}
-polaris_journal || true
 
 # The backstop. Everything above is budgeted, but the memory digest and the tracker digest are built
 # from project and user data, so the payload is not fixed at authoring time. Over the cap the

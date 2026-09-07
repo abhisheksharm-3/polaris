@@ -18,7 +18,7 @@ the user having to think about it; `/remember` is the manual override for a fact
   by `name`.
 - `journal/<YYYY-MM-DD>.md` — one dated entry per day, covering every project touched that day.
   `journal/.last-journaled` marks the last day recorded. Written by the session-start lookback and
-  by `/journal`; kept indefinitely.
+  by `/journal`, which ships in the polaris-work plugin; kept indefinitely.
 
 ## Types
 

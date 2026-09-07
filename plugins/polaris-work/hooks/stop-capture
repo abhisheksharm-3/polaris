@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Stop for polaris-work: require the journal narrative that a SessionStart directive cannot force.
+#
+# SessionStart accepts only command and mcp_tool handlers, so it can inject a request and hope;
+# twelve of thirteen journal days stayed at `status: facts` under that design. Stop honours
+# decision:block, so the follow-up becomes mandatory. Blocks at most once per session, and only when
+# there is real work.
+#
+# The invariant that matters: never block unless it can prove it will not block again this session.
+# The marker is a directory because mkdir is atomic and does not follow symlinks; when it cannot be
+# created, for any reason, this hook stays silent rather than risk blocking every turn.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+# A day older than this is not worth blocking a session over; `/journal <date>` still backfills it.
+ENRICH_WINDOW_DAYS=14
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+# Slurp, so a client that writes two objects cannot make the field reads see both values joined.
+payload="$(cat | jq -s '.[0] // {}' 2>/dev/null)"
+[ -n "$payload" ] || exit 0
+
+case "$(printf '%s' "$payload" | jq -r '.stop_hook_active // false' 2>/dev/null)" in
+    true|True|TRUE|1) exit 0 ;;
+esac
+
+session="$(printf '%s' "$payload" | jq -r 'if (.session_id|type)=="string" then .session_id else "" end' 2>/dev/null)"
+case "$session" in
+    ""|.|..) exit 0 ;;
+    *[!A-Za-z0-9._-]*) exit 0 ;;
+esac
+[ "${#session}" -le 128 ] || exit 0
+
+instructions=""
+
+# --- Journal days still at the factual skeleton ---
+jdir="${HOME}/.claude/polaris-memory/journal"
+cutoff="$(date -v-${ENRICH_WINDOW_DAYS}d +%F 2>/dev/null || date -d "${ENRICH_WINDOW_DAYS} days ago" +%F 2>/dev/null || echo "")"
+pending=""
+pending_count=0
+if [ -d "$jdir" ]; then
+    for f in "$jdir"/*.md; do
+        [ -f "$f" ] || continue
+        day="$(basename "$f" .md)"
+        # Only a dated filename is a journal day. This also keeps a name carrying a space or a newline
+        # out of the word-split list below, where it would have been counted as several phantom days.
+        case "$day" in
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *) continue ;;
+        esac
+        [ -n "$cutoff" ] && [ "$day" \< "$cutoff" ] && continue
+        # Bounded scan: an unterminated frontmatter block otherwise reads the whole file, and a large
+        # journal file turned that into a multi-second stall at session end.
+        # The status is set in END, not by `exit 0` in a rule: awk runs END on its way out, so an
+        # `exit 1` there would override the rule's status and every file would read as not pending.
+        awk 'NR==1&&!/^---/{exit} NR>40{exit} NR>1&&/^---/{exit}
+             NR>1&&/^status:[[:space:]]*facts[[:space:]]*$/{ok=1;exit}
+             END{exit !ok}' "$f" || continue
+        pending="${pending} ${day}"
+        pending_count=$((pending_count + 1))
+    done
+fi
+if [ "$pending_count" -gt 0 ]; then
+    shown="$(printf '%s' "$pending" | tr ' ' '\n' | awk 'NF' | head -5 | paste -sd, - | sed 's/,/, /g')"
+    instructions="${instructions}Polaris journal: ${pending_count} day(s) in ${jdir} are still status: facts, so the day was recorded but never written up: ${shown}. For each, read that day's session transcripts, rewrite the file as a prose narrative that preserves every listed fact, and set status: narrative. Summarize intent and actions; do not copy transcript text or file contents, and redact any secret that appears in a prompt. Days older than ${ENRICH_WINDOW_DAYS} days are not listed here; backfill those with /journal <date>.
+
+"
+fi
+
+
+[ -n "$instructions" ] || exit 0
+
+instructions="${instructions}Do this work now, then stop."
+
+mkdir -p -m 700 "${TMPDIR:-/tmp}/polaris-work-journal" 2>/dev/null
+mkdir -m 700 "${TMPDIR:-/tmp}/polaris-work-journal/${session}" 2>/dev/null || exit 0
+
+jq -cn --arg r "$(printf '%s' "$instructions" | head -c 9000)" '{decision:"block",reason:$r}'
+exit 0

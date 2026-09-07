@@ -1,6 +1,6 @@
 {
   "name": "polaris-marketplace",
-  "description": "Polaris plugin marketplace",
+  "description": "Polaris: the SDLC plugin, and the working-life plugin beside it",
   "owner": {
     "name": "Abhishek Sharma",
     "email": "abhitiku2003@gmail.com"
@@ -12,9 +12,19 @@
   "plugins": [
     {
       "name": "polaris",
-      "description": "An all-in-one project operating system for Claude Code: standard, gate, SDLC agent fleet, orchestration cycle, and memory.",
-      "version": "1.15.0",
       "source": "./",
+      "description": "An all-in-one project operating system for Claude Code: one quality standard, a callable gate, an SDLC agent fleet, a flow engine with real gates, and stack-aware enforcement.",
+      "version": "1.15.0",
+      "author": {
+        "name": "Abhishek Sharma",
+        "email": "abhitiku2003@gmail.com"
+      }
+    },
+    {
+      "name": "polaris-work",
+      "source": "./plugins/polaris-work",
+      "description": "The working-life half: a dated briefing across every work source, a daily journal, OKR pace, and a manager 1:1 prepared from state you already have.",
+      "version": "0.1.0",
       "author": {
         "name": "Abhishek Sharma",
         "email": "abhitiku2003@gmail.com"

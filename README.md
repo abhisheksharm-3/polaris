@@ -85,9 +85,19 @@ Local development:
 claude --plugin-dir ./polaris
 ```
 
-Companions install with Polaris: `superpowers` and `frontend-design` as native plugin dependencies,
-and the rest (karpathy, ponytail, the daymade skills, and the Mindrally stack-skill library) synced
-on first run. See `companions.json` for the full manifest.
+Companions are recommended, not required. `superpowers` and `frontend-design` are named at session
+start when they are absent, and the rest (karpathy, ponytail, the daymade skills, and the skills
+`rules/stack-map.json` resolves to) sync on first run. Neither is a plugin dependency: a dependency
+has no optional form, so one that would not resolve would disable Polaris entirely. See
+`companions.json`.
+
+## Two plugins
+
+This repo ships two. `polaris` is the software lifecycle: the standard, the gate, the agent fleet,
+the flow engine. `polaris-work` is the working life beside it: `/sweep`, `/oneonone`, `/journal`,
+and the OKR lens, documented in `plugins/polaris-work/README.md`.
+
+They are independent. Install either alone.
 
 ## Setup
 
@@ -124,9 +134,6 @@ now says so.
 | `/handoff [feature\|audit]` | Generate a handoff doc from real repo state, into `.polaris/` |
 | `/track` | Reconcile this session into the cross-session work tracker |
 | `/catchup` | Morning briefing across memory, the work tracker, and connectors |
-| `/sweep` | Deep start-of-day/end-of-day sweep of every source into a dated Notion briefing |
-| `/journal [date]` | Write or regenerate one day's journal from every source: sessions, git, GitHub, Jira, Slack threads and DMs, mail, meetings, memory |
-| `/oneonone` | Prepare the recurring 1:1 with your manager: capture items between meetings, assemble the agenda from the fortnight, record what was agreed |
 | `/research`, `/onboard`, `/explain` | Standalone modes: what to build next, onboard a developer, explain how code works |
 | `/enhance <prompt>` | Judge a prompt and, only if vague, enrich it with project context |
 | `/synthesize <task>` | Compose an ephemeral agent from the skill registries when no fleet agent fits |
@@ -269,23 +276,18 @@ Use them well:
 
 **Use `/catchup`** at the start of a session for a briefing across your memory, the work tracker, and
 connectors. **Use `/track`** to fold the current session into the cross-session work tracker so no
-thread is lost. **Use `/journal [date]`** to write the record of a day. **Use `/remember`** and
-**`/recall`** to write and read durable facts in global memory.
+thread is lost. **Use `/remember`** and **`/recall`** to write and read durable facts in global
+memory.
 
 Use them well:
 
 - Run `/catchup` first thing. It tells you where every parallel thread stood when you left it.
-- Run `/sweep` at a start-of-day or end-of-day block when you need the exhaustive version: it pulls
-  Gmail, Slack, Jira, Fathom, and Calendar in full, tiers every task and buried signal, and writes a
-  dated Notion page so nothing is dropped. `/catchup` is the fast skim; `/sweep` is the deep, durable
-  sweep.
 - Run `/track` when you switch threads or end a session, so the tracker stays current on its own.
-- `/journal` writes one dated file per day to `~/.claude/polaris-memory/journal/`, covering every
-  project you touched plus the connected record (Jira, Slack, GitHub, Gmail, Calendar, Fathom). The
-  first session of a new day journals the previous one on its own, so run it by hand only to
-  regenerate a day or to write today's before you stop.
 - Use `/remember` for decisions and constraints that outlive one session, not for things the code
   already records.
+- For the exhaustive daily version, `/sweep` and `/journal` live in the `polaris-work` plugin.
+  `/catchup` is the fast skim over this project; `/sweep` is the deep, durable pass over every
+  source. See `plugins/polaris-work/README.md`.
 
 ### Get more from any prompt
 

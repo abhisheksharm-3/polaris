@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# The working-life half is a second plugin in this repo since 2026-09-07, so its scripts, commands
+# and rules live under plugins/polaris-work. One suite still covers both: they ship separately but
+# they are developed together, and a forked suite is one that stops being run.
+WORK="${DIR}/../plugins/polaris-work"
 CHECK="${DIR}/../scripts/check-patterns.sh"
 fail=0
 
@@ -198,7 +202,7 @@ echo '{"agent_type":"backend"}' | "$INJECT" | grep -q 'No inline comments' \
 if echo '{"agent_type":"product"}' | "$INJECT" | grep -q 'additionalContext'; then echo "FAIL: inject-standard fired for a non-code agent"; fail=1; else echo "ok: inject-standard skips non-code agents"; fi
 
 # journal-facts: buckets a day's activity by project, excludes other days
-JF="${DIR}/../scripts/journal-facts.sh"
+JF="${WORK}/scripts/journal-facts.sh"
 jf_out="$(POLARIS_JOURNAL_PROJECTS_DIR="${DIR}/fixtures/journal/projects" bash "$JF" 2026-07-14)"
 echo "$jf_out" | grep -q '## demo'              && echo "ok: journal project section" || { echo "FAIL: journal project section"; fail=1; }
 echo "$jf_out" | grep -q 'Sessions: 2'          && echo "ok: journal session count"    || { echo "FAIL: journal session count"; fail=1; }
@@ -239,12 +243,22 @@ grep -q 'search prs' "$jf_calls" && echo "ok: journal-facts queries GitHub for /
 rm -rf "$jf_bin"
 
 # every command that reads connectors follows the shared rule, so the Slack thread fix cannot drift
-for c in journal sweep catchup; do
+for c in catchup; do
   grep -q 'rules/connectors.md' "${DIR}/../commands/${c}.md" \
+    && echo "ok: ${c} cites the connectors rule" || { echo "FAIL: ${c} does not cite rules/connectors.md"; fail=1; }
+done
+for c in journal sweep; do
+  grep -q 'rules/connectors.md' "${WORK}/commands/${c}.md" \
     && echo "ok: ${c} cites the connectors rule" || { echo "FAIL: ${c} does not cite rules/connectors.md"; fail=1; }
 done
 grep -q 'slack_read_thread' "${DIR}/../rules/connectors.md" \
   && echo "ok: connectors rule expands Slack threads" || { echo "FAIL: connectors rule lost the thread step"; fail=1; }
+
+# connectors.md exists in both plugins because both read connectors and neither can reference the
+# other's files. A mirrored file drifts unless something fails when it does.
+cmp -s "${DIR}/../rules/connectors.md" "${WORK}/rules/connectors.md" \
+  && echo "ok: the connectors rule is identical in both plugins" \
+  || { echo "FAIL: rules/connectors.md has drifted between polaris and polaris-work"; fail=1; }
 
 # worktracker-snapshot: commits after the marker are captured, a future marker yields nothing
 WTS="${DIR}/../scripts/worktracker-snapshot.sh"
@@ -397,7 +411,7 @@ c3="$([ -s "$ec_home/calls" ] && echo yes || echo no)"
 rm -rf "$ec_home" "$ec_bin"
 
 # sweep-window: window resolution, first-run fallback, and lookback cap
-SW="${DIR}/../scripts/sweep-window.sh"
+SW="${WORK}/scripts/sweep-window.sh"
 sw_state="$(mktemp)"
 echo '{"lastRunAt":"2026-07-20T03:30:00Z"}' > "$sw_state"
 sw1="$(bash "$SW" --now 2026-07-20T12:30:00Z --state "$sw_state" --max-lookback-hours 168)"
@@ -430,7 +444,7 @@ echo "$sw8" | jq -e '.start=="2026-07-27T00:00:00Z" and .trueGapHours==168' >/de
 rm -f "$sw_state"
 
 # oneonone-join: the structural 1:1 test, the forward bracket, and the claiming pass
-OJ="${DIR}/../scripts/oneonone-join.sh"
+OJ="${WORK}/scripts/oneonone-join.sh"
 oj_ev="${DIR}/fixtures/oneonone-events.json"
 oj_mt="${DIR}/fixtures/oneonone-meetings.json"
 oj_pair='[.[] | select(.recording_id==166154353 or .recording_id==166058462)]'
@@ -479,7 +493,7 @@ echo "$oj9" | jq -e '.lagMinutes==47' >/dev/null \
   && echo "ok: oneonone-join measures the ingest lag when created is present" || { echo "FAIL: oneonone-join lag arithmetic ($oj9)"; fail=1; }
 
 # oneonone-inbox: capture, read, and consume, against an isolated HOME
-OI="${DIR}/../scripts/oneonone-inbox.sh"
+OI="${WORK}/scripts/oneonone-inbox.sh"
 oi_home="$(mktemp -d)"
 oi() { HOME="$oi_home" bash "$OI" "$@"; }
 oi_file="$oi_home/.claude/polaris-memory/oneonone/inbox.md"
@@ -532,7 +546,7 @@ oi restore --date 2026-01-01 >/dev/null 2>&1; oi_rc=$?
 rm -rf "$oi_home"
 
 # okr-pace: behind, ahead, on-track, flag, and near-zero-elapsed
-OP="${DIR}/../scripts/okr-pace.sh"
+OP="${WORK}/scripts/okr-pace.sh"
 op_prog="$(mktemp)"
 cat > "$op_prog" <<'JSON'
 { "periodStart": "2026-04-01",
@@ -581,6 +595,13 @@ sc_run() {
   printf '%s' "$2" | HOME="$sc_home" TMPDIR="$sc_tmp" \
     CLAUDE_PLUGIN_ROOT="${DIR}/.." CLAUDE_PROJECT_DIR="$1" bash "$SC" 2>/dev/null
 }
+# The journal ask moved to the polaris-work plugin on 2026-09-07, so the day-scanning assertions run
+# against that hook. They are the same assertions: what changed is which plugin owns the behaviour.
+SCW="${WORK}/hooks/stop-capture"
+scw_run() {
+  printf '%s' "$2" | HOME="$sc_home" TMPDIR="$sc_tmp" \
+    CLAUDE_PLUGIN_ROOT="$WORK" CLAUDE_PROJECT_DIR="$1" bash "$SCW" 2>/dev/null
+}
 
 sc_a="$(sc_run "$sc_home/proj" '{"stop_hook_active":true,"session_id":"a"}')"
 [ -z "$sc_a" ] && echo "ok: stop-capture honors stop_hook_active" \
@@ -597,18 +618,27 @@ printf '%s' "$sc_b" | jq -e '.decision=="block"' >/dev/null 2>&1 \
   && echo "ok: stop-capture emits parseable block JSON" \
   || { echo "FAIL: stop-capture JSON unparseable or not a block"; fail=1; }
 sc_reason="$(printf '%s' "$sc_b" | jq -r '.reason' 2>/dev/null)"
-grep -qE '^Polaris journal: 1 day' <<<"$sc_reason" \
-  && echo "ok: stop-capture counts exactly the one pending day" \
-  || { echo "FAIL: stop-capture miscounted pending days"; fail=1; }
-grep -q "$sc_today" <<<"$sc_reason" \
-  && echo "ok: stop-capture names the status:facts day" \
-  || { echo "FAIL: stop-capture missed the status:facts day"; fail=1; }
-grep -q '2026-07-20' <<<"$sc_reason" \
-  && { echo "FAIL: stop-capture named an already-narrative day"; fail=1; } \
-  || echo "ok: stop-capture skips a narrative day"
-grep -q "$sc_old" <<<"$sc_reason" \
-  && { echo "FAIL: stop-capture asked for a day past the enrich window"; fail=1; } \
-  || echo "ok: stop-capture leaves a day past the window to /journal"
+grep -q 'journal' <<<"$sc_reason" \
+  && { echo "FAIL: the SDLC stop-capture still asks for journal work"; fail=1; } \
+  || echo "ok: the SDLC stop-capture leaves the journal to polaris-work"
+
+scw_b="$(scw_run "$sc_home/proj" '{"stop_hook_active":false,"session_id":"wb"}')"
+scw_reason="$(printf '%s' "$scw_b" | jq -r '.reason' 2>/dev/null)"
+grep -qE '^Polaris journal: 1 day' <<<"$scw_reason" \
+  && echo "ok: polaris-work counts exactly the one pending day" \
+  || { echo "FAIL: polaris-work miscounted pending days"; fail=1; }
+grep -q "$sc_today" <<<"$scw_reason" \
+  && echo "ok: polaris-work names the status:facts day" \
+  || { echo "FAIL: polaris-work missed the status:facts day"; fail=1; }
+grep -q '2026-07-20' <<<"$scw_reason" \
+  && { echo "FAIL: polaris-work named an already-narrative day"; fail=1; } \
+  || echo "ok: polaris-work skips a narrative day"
+grep -q "$sc_old" <<<"$scw_reason" \
+  && { echo "FAIL: polaris-work asked for a day past the enrich window"; fail=1; } \
+  || echo "ok: polaris-work leaves a day past the window to /journal"
+printf '%s' "$scw_b" | jq -e '.decision=="block"' >/dev/null 2>&1 \
+  && echo "ok: polaris-work emits parseable block JSON" \
+  || { echo "FAIL: polaris-work JSON unparseable or not a block"; fail=1; }
 grep -q 'not-a-date' <<<"$sc_reason" \
   && { echo "FAIL: stop-capture treated a non-dated filename as a day"; fail=1; } \
   || echo "ok: stop-capture ignores a non-dated journal filename"

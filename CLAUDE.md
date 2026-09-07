@@ -88,12 +88,15 @@ enforces on itself.
 | `bash scripts/tracker-slice.sh <file> [max-bytes]` | The slice of the work tracker worth injecting, newest first, under a byte ceiling (default 10240) |
 | `bash scripts/check-commands.sh` | Validate command definitions in `commands/` |
 | `bash scripts/ensure-companions.sh` | Idempotent companion-plugin installer (no-op after first run) |
-| `bash scripts/journal-facts.sh <YYYY-MM-DD> [source]` | One day's activity as factual markdown, bucketed by project. Needs `jq`; skips the GitHub calls when the source is `hook` |
 | `bash scripts/worktracker-snapshot.sh <project-dir> <since-utc>` | What changed in one project since a timestamp, for the tracker to classify |
-| `bash scripts/sweep-window.sh --now <iso> [--state <file>]` | The `/sweep` pull window as JSON (since-last-run, 24h first-run fallback, 7-day cap) |
-| `bash scripts/okr-pace.sh --now <iso> --progress <file>` | Per-KR OKR pace (behind/on-track/ahead) as JSON, for the `/sweep` OKR lens |
-| `bash scripts/oneonone-inbox.sh` | The 1:1 inbox: numbering, the five-per-agenda cap, and the consumed/open split, for `/oneonone` |
-| `bash scripts/oneonone-join.sh series\|claim` | Resolve the manager 1:1 from calendar structure and join an instance to its Fathom recording |
+
+## Two plugins
+
+This repo is a marketplace with two plugins. `polaris` at the root is the software lifecycle.
+`plugins/polaris-work/` is the working-life half: `/sweep`, `/oneonone`, `/journal`, the OKR lens,
+and their scripts and hooks. They ship independently and share this repo, one test suite, and one
+release. `rules/connectors.md` is mirrored into both because both read connectors and neither can
+reference the other's files; the suite asserts the copies are byte-identical.
 
 ## Architecture
 

@@ -17,11 +17,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 
-# A day older than this is not worth blocking a session over; `/journal <date>` still backfills it.
-# This replaced a per-day attempt counter: keeping that count in a file meant parsing a number out of
-# user-editable text, and one malformed word in it took the whole hook down under `set -u`.
-ENRICH_WINDOW_DAYS=14
-
 command -v jq >/dev/null 2>&1 || exit 0
 
 # Slurp, so a client that writes two objects cannot make the field reads see both values joined. That
@@ -47,39 +42,9 @@ esac
 instructions=""
 data=""
 
-# --- Journal days still at the factual skeleton ---
-jdir="${HOME}/.claude/polaris-memory/journal"
-cutoff="$(date -v-${ENRICH_WINDOW_DAYS}d +%F 2>/dev/null || date -d "${ENRICH_WINDOW_DAYS} days ago" +%F 2>/dev/null || echo "")"
-pending=""
-pending_count=0
-if [ -d "$jdir" ]; then
-    for f in "$jdir"/*.md; do
-        [ -f "$f" ] || continue
-        day="$(basename "$f" .md)"
-        # Only a dated filename is a journal day. This also keeps a name carrying a space or a newline
-        # out of the word-split list below, where it would have been counted as several phantom days.
-        case "$day" in
-            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
-            *) continue ;;
-        esac
-        [ -n "$cutoff" ] && [ "$day" \< "$cutoff" ] && continue
-        # Bounded scan: an unterminated frontmatter block otherwise reads the whole file, and a large
-        # journal file turned that into a multi-second stall at session end.
-        # The status is set in END, not by `exit 0` in a rule: awk runs END on its way out, so an
-        # `exit 1` there would override the rule's status and every file would read as not pending.
-        awk 'NR==1&&!/^---/{exit} NR>40{exit} NR>1&&/^---/{exit}
-             NR>1&&/^status:[[:space:]]*facts[[:space:]]*$/{ok=1;exit}
-             END{exit !ok}' "$f" || continue
-        pending="${pending} ${day}"
-        pending_count=$((pending_count + 1))
-    done
-fi
-if [ "$pending_count" -gt 0 ]; then
-    shown="$(printf '%s' "$pending" | tr ' ' '\n' | awk 'NF' | head -5 | paste -sd, - | sed 's/,/, /g')"
-    instructions="${instructions}Polaris journal: ${pending_count} day(s) in ${jdir} are still status: facts, so the day was recorded but never written up: ${shown}. For each, read that day's session transcripts, rewrite the file as a prose narrative that preserves every listed fact, and set status: narrative. Summarize intent and actions; do not copy transcript text or file contents, and redact any secret that appears in a prompt. Days older than ${ENRICH_WINDOW_DAYS} days are not listed here; backfill those with /journal <date>.
-
-"
-fi
+# The journal-enrichment ask lived here and moved to the polaris-work plugin on 2026-09-07 with
+# /journal itself. What stays is the work this project generated: the tracker reconcile and the
+# memory pass. Both are about the code; the journal is about the user's day.
 
 # --- Work tracker: what this project did since the last reconcile ---
 wdir="${PROJECT_DIR}/.polaris/work"
@@ -141,8 +106,11 @@ fi
 
 [ -n "$instructions" ] || exit 0
 
-# Memory rides along with journal or tracker work. That is the honest trigger: this hook has no
-# signal for "something memorable happened", only for a session that demonstrably did something.
+# Memory rides along with the tracker reconcile. That is the honest trigger: this hook has no signal
+# for "something memorable happened", only for a session that demonstrably changed this project. The
+# journal ask it used to also ride on moved to the polaris-work plugin, so in a project with a clean
+# tracker window this hook now stays silent, which is the correct trade: a session that changed
+# nothing has nothing to record.
 instructions="${instructions}Polaris memory: save what this session established that is worth keeping, following ${PLUGIN_ROOT}/rules/memory.md. The bar is high: a durable fact about the user, their projects, or how they want work done, that is not already recorded and not derivable from the code or git history. Check ~/.claude/polaris-memory/INDEX.md and grep the entry bodies first, and update an existing entry rather than adding a near-duplicate. If nothing clears the bar, save nothing and say so in one line.
 
 Do this work now, then stop."
