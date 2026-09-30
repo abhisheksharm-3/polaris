@@ -1,0 +1,36 @@
+{
+  "slug": "audit-0930",
+  "flow": "audit",
+  "current": "",
+  "record": {
+    "audit": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-09-30-design-engine-audit.md",
+      "sha256": "a50cfcf26c9f51038a42fc1306f4e8d64e239a9318fcb8844f140f36782a52f7",
+      "evidence": "5 high, 6 medium, 3 low; 5 sources dispositioned; 9-step rework proposed",
+      "at": "2026-09-30T10:04:25Z",
+      "approvedAt": "2026-09-30T10:06:21Z"
+    },
+    "triage": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-09-30-design-engine-audit.md",
+      "sha256": "a50cfcf26c9f51038a42fc1306f4e8d64e239a9318fcb8844f140f36782a52f7",
+      "evidence": "fix order = the 9 rework steps; decisions: opus for ux+critique, ui sonnet/high; taste distilled + companion plugin; huashu removed",
+      "at": "2026-09-30T10:06:21Z"
+    },
+    "fix": {
+      "status": "done",
+      "artifact": "CHANGELOG.md",
+      "sha256": "",
+      "evidence": "design engine rebuilt per the 9 rework steps + first-class additions (feature experience phase, /polaris:design, inject-design SessionStart); suite, check-agents, check-flows, check-commands all exit 0; mutation test fails the new tests as intended",
+      "at": "2026-09-30T10:25:00Z"
+    },
+    "verify": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-09-30-design-engine-verify.md",
+      "sha256": "945390b54c1075afb07df3d517c51fe0a8b1a51ab7bf32f69bcf38c79aaae4a9",
+      "evidence": "7 hold, 1 holds with caveats, 1 broken; all three fixes applied and suite exits 0",
+      "at": "2026-09-30T10:37:00Z"
+    }
+  }
+}

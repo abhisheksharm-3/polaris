@@ -46,3 +46,15 @@ conversation	what new feature can we introduce, or what can we fix
 conversation	should we build deck mode next
 conversation	how should i structure the ledger
 conversation	any ideas for the router
+design	make the landing page look less generic
+design	redesign the dashboard
+design	polish the ui of the pricing page
+design	the app looks ugly, fix the design
+design	build the settings page from this screenshot
+design	create a design system for this project, something like linear
+design	restyle the settings screen
+conversation	how does the design system work?
+feature	add a landing page endpoint
+bug	the landing page crashes on load
+bug	the design system tests are failing
+fix	fix the redesign branch merge conflict

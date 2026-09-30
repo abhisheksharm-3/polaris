@@ -3,7 +3,8 @@
     { "name": "claude-plugins-official", "add": "claude plugin marketplace add claude-plugins-official" },
     { "name": "karpathy-skills", "source": "multica-ai/andrej-karpathy-skills", "add": "claude plugin marketplace add multica-ai/andrej-karpathy-skills" },
     { "name": "daymade-skills", "source": "daymade/claude-code-skills", "license": "MIT", "add": "claude plugin marketplace add daymade/claude-code-skills" },
-    { "name": "ponytail", "source": "DietrichGebert/ponytail", "license": "MIT", "add": "claude plugin marketplace add DietrichGebert/ponytail" }
+    { "name": "ponytail", "source": "DietrichGebert/ponytail", "license": "MIT", "add": "claude plugin marketplace add DietrichGebert/ponytail" },
+    { "name": "taste-skill", "source": "Leonxlnx/taste-skill", "license": "MIT", "add": "claude plugin marketplace add Leonxlnx/taste-skill" }
   ],
   "plugins": [
     { "name": "superpowers", "marketplace": "claude-plugins-official", "why": "process spine: brainstorming, planning, systematic debugging, verification" },
@@ -12,7 +13,8 @@
     { "name": "skill-creator", "marketplace": "daymade-skills", "why": "scaffolds skills; the engine behind dynamic agent synthesis (H)" },
     { "name": "qa-expert", "marketplace": "daymade-skills", "why": "autonomous QA execution for the tester fleet" },
     { "name": "prompt-optimizer", "marketplace": "daymade-skills", "why": "EARS prompt enhancement (subsystem F)" },
-    { "name": "ponytail", "marketplace": "ponytail", "why": "the minimalism laziness ladder; code writers apply it before writing (see rules/core.md)" }
+    { "name": "ponytail", "marketplace": "ponytail", "why": "the minimalism laziness ladder; code writers apply it before writing (see rules/core.md)" },
+    { "name": "taste-skill", "marketplace": "taste-skill", "why": "on-demand design presets and the full taste skill; rules/design.md distills its core, so nothing preloads it" }
   ],
   "optionalCompanions": {
     "note": "Declared but NOT auto-installed (deliberately absent from plugins[]). These are heavy or project-specific; opt in per project when you want them rather than pushing them into every session.",
@@ -23,6 +25,13 @@
         "license": "MIT",
         "why": "component registry + CLI + MCP for building UI from shadcn primitives; the ui agent's ui-ux-pro-max skill already references the shadcn MCP",
         "optIn": "run `npx shadcn@latest init` in a project, or add the shadcn MCP server"
+      },
+      {
+        "name": "getdesign",
+        "source": "voltagent/awesome-design-md",
+        "license": "MIT",
+        "why": "70+ brand DESIGN.md seeds in the Stitch format rules/design.md adopts; the ux agent's direction mode runs it on demand",
+        "optIn": "nothing to install: `npx getdesign@latest add <slug>` writes ./DESIGN.md"
       }
     ]
   },
@@ -33,7 +42,7 @@
     "why": "the stack skill library the stack-resolution protocol routes to (240+ skills)"
   },
   "namedSkills": {
-    "ui": ["impeccable", "ui-ux-pro-max", "huashu-design", "design-taste-frontend"],
+    "ui": ["impeccable", "ui-ux-pro-max"],
     "research": ["deep-research"],
     "note": "resolved through the registries when not already present locally"
   },
@@ -41,14 +50,14 @@
     "note": "Every skill an agent names in its `skills:` frontmatter that is not a local skills/ dir. The source of truth check-commands.sh validates against, so a mistyped or undeclared skill token fails the suite. Provided by the plugins, the skill bulk, and the registries above.",
     "skills": [
       "accessibility-a11y", "api-development", "ci-cd-best-practices", "clean-architecture",
-      "cypress", "data-analyst", "deep-research", "design-taste-frontend", "docker",
+      "cypress", "data-analyst", "deep-research", "docker",
       "frontend-design", "git-workflow", "github-workflow", "graphql", "grpc-development",
-      "huashu-design", "impeccable", "jwt-security", "kubernetes", "microservices",
+      "jwt-security", "kubernetes", "microservices",
       "mongodb-development", "monitoring-guidelines", "nodejs-development", "oauth-implementation",
       "observability-guidelines", "pandas-best-practices", "performance-optimization", "playwright",
       "playwright-cli", "postgresql-best-practices", "prisma", "pytorch", "react-query",
       "security-best-practices", "sql-best-practices", "stripe", "systematic-debugging",
-      "technical-writing", "terraform", "testing", "typescript", "ui-ux-pro-max", "ux-design",
+      "technical-writing", "terraform", "testing", "typescript", "ux-design",
       "zustand-state-management"
     ]
   },

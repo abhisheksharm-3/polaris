@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# SessionStart: put rules/design-core.md in context every session, as session-start does core.md.
+# A separate hook because each hook output has its own 10,000-character cap and session-start's
+# payload already runs near it; sharing one would push the comment law toward truncation.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
+RULE="${ROOT}/rules/design-core.md"
+
+command -v jq >/dev/null 2>&1 || exit 0
+[ -f "$RULE" ] || exit 0
+
+jq -cn --rawfile c "$RULE" \
+  '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'

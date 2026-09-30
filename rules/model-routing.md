@@ -8,8 +8,8 @@ model.
 
 | Task class | Model |
 |---|---|
-| Breaking and adversarial QA, interview and intake, planning, spec, architecture, threat model, review, RCA, adversarial verification | Opus |
-| Code writing (implementation) | Sonnet |
+| Breaking and adversarial QA, interview and intake, planning, spec, architecture, design direction and visual critique, threat model, review, RCA, adversarial verification | Opus |
+| Code writing (implementation, including UI) | Sonnet |
 | Genuinely trivial one-off tasks (mechanical edits, formatting, single-fact lookups) | Haiku |
 
 Rules:

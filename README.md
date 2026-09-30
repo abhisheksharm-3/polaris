@@ -21,8 +21,9 @@ follow-up rather than opening a run.
 | `fix` | implement, gate, ship |
 | `ship` | gate, ship |
 | `bug` | reproduce, rootcause, fix, verify, ship |
-| `feature` | spec, design, build, ship |
-| `foggy` | recon, spec, design, build, ship |
+| `feature` | spec, experience, design, build, ship |
+| `design` | direction, build, critique, polish, gate |
+| `foggy` | recon, spec, experience, design, build, ship |
 | `spike` | spike, decide |
 | `review` | review, verify |
 | `audit` | audit, triage, fix, verify |
@@ -120,6 +121,7 @@ now says so.
 | Command | What it does |
 |---|---|
 | `/flow <task>` | The full build cycle: idea to a reviewed, tested, shipped PR, with human gates at spec, design, and plan, and capped verify loops |
+| `/design <task>` | The design cycle: direction into `DESIGN.md`, build, a critique from real screenshots, polish, and the gate |
 | `/recon <effort>` | Chart a large, foggy effort as a shared decision map of open questions, before any spec or code |
 | `/polaris:debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
 | `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
@@ -306,11 +308,35 @@ resolve the stack skills and fresh docs, run the gate before done), wiring the r
 carrying a model tier.
 
 - **Product and research:** product, researcher
-- **Architecture and design:** architect, api-designer, data-modeler, security-architect, ux, ui
+- **Architecture:** architect, api-designer, data-modeler, security-architect
+- **Design:** ux (the design lead: direction, `DESIGN.md`, flows, critique), ui (builds and renders)
 - **Implementation:** frontend-logic, backend, integrations, infra, data-engineer, feature-builder
 - **Review and QA:** reviewer, verifier, tester, e2e, perf, bug-fixer
 - **Docs, ship, and ops:** tech-writer, shipper, devops, sre
 - **Quality and audit:** code-cleanup, audit-refactor, prod-audit
+
+## The design engine
+
+Design is held to the same bar as code. `rules/design-core.md` is injected every session by its own
+`SessionStart` hook, beside `rules/core.md`, and reaches the ui and ux subagents through
+`inject-standard`. The full standard is `rules/design.md`: an authority order, the design read and
+three dials (variance, motion, density), the baseline, the AI tells, the redesign protocol, and the
+rule that UI is not done until it has been rendered at 375, 768, and 1440 px and looked at.
+
+- **`DESIGN.md` is the contract.** The repo-root file, in the Google Stitch format collected by
+  [awesome-design-md](https://github.com/voltagent/awesome-design-md). The ux agent seeds it from a
+  brand (`npx getdesign@latest add linear`), a live site (`extract-design-system`), or the brief.
+- **Every user-facing feature gets design.** The `feature` flow runs ux's `experience` phase right
+  after the spec, and the `design` flow runs direction, build, a screenshot critique, and polish.
+- **Build and review see the pixels.** A ui slice in `workflow:build` gets a ux critique beside the
+  reviewer and tester. `workflow:review` adds a design dimension whenever the diff touches a UI file.
+- **The mechanical part is mechanical.** A `ui` class in `rules/patterns.json` catches
+  `transition: all`, disabled zoom, blocked paste, clickable divs, and `100vh`.
+  `rules/design-interface.md` vendors [Vercel's Web Interface Guidelines](https://vercel.com/design/guidelines)
+  for the rest.
+- **Skills load on demand.** The ui agent preloads `frontend-design` only. `mockup-to-code` builds
+  from a screenshot and compares renders until it matches. [taste-skill](https://github.com/Leonxlnx/taste-skill)
+  is a companion for style presets; its core is distilled into `rules/design.md`.
 
 ## The standard and its enforcement
 

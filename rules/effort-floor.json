@@ -24,7 +24,7 @@
     "bug-fixer": "medium",
     "backend": "medium",
     "frontend-logic": "medium",
-    "ui": "medium",
+    "ui": "high",
     "integrations": "medium",
     "infra": "medium",
     "devops": "medium",
@@ -33,7 +33,7 @@
     "tech-writer": "medium",
     "sre": "medium",
     "perf": "medium",
-    "ux": "medium",
+    "ux": "high",
     "code-cleanup": "low",
     "shipper": "low"
   }

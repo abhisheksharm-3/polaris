@@ -128,41 +128,13 @@ export function useCreateUserMutation() {
 - No orphan files — every file is imported somewhere
 - JSDoc on all exported hooks and utility functions
 
-## Frontend design baseline
+## Frontend design
 
-Typography:
-- Never use Inter as the primary font in premium UI. Prefer Geist, Outfit, or Cabinet Grotesk.
-- Never use serif fonts on dashboards or data-dense interfaces.
-- No emojis in UI. Use high-quality SVG icons.
+The design standard is `rules/design.md`, and it is framework-agnostic. Read it, the project's
+`DESIGN.md`, and `rules/design-interface.md` before writing a component. What is React-specific:
 
-Color and layout:
-- No "AI purple" gradients or neon glows as a default aesthetic.
-- No generic card overuse in data-dense interfaces.
-- Full-height sections use `min-h-[100dvh]`, not `min-h-screen` (mobile collapse).
-
-Animation performance:
-- Animate only `transform` and `opacity`, never `width`, `height`, `top`, `left`.
-- Spring physics over linear or bounce easing.
-- `useMotionValue` and `useTransform` over React state for continuous animations.
-- Never mix GSAP and Framer Motion in the same component tree.
-
-Motion craft:
-- Motion has a job: show cause and effect, or spatial continuity. If a movement does not clarify
-  what changed or where something went, cut it. Decoration that moves is still decoration.
-- Duration by size and role: ~150–250ms for state feedback, ~300–500ms for entering or leaving; the
-  larger the element, the longer it takes. Past ~500ms reads as slow.
-- Easing by direction: ease-out for entering (fast, then settle), ease-in for leaving; reserve
-  ease-in-out for continuous loops. Linear reads mechanical — never for UI.
-- Origin matters: a menu grows from the control it belongs to, not from screen center. Motion starts
-  where the interaction happened.
-- Stagger a list or grid by ~20–40ms per item so a group reads as a sequence, not a single pop.
-- Interruptible, always: a user action mid-animation redirects it; it never queues behind it. Honor
-  `prefers-reduced-motion` by cutting non-essential motion and making essential changes instant.
-
-Anti-patterns to never produce:
-- Purple gradients as a default aesthetic
-- Decorative emoji icons
-- Circular cards with left border accents
-- SVG-drawn product photography (use real images)
-- Centered hero sections when the content is asymmetric
-- Generic "loading..." skeletons without a branded style
+- Continuous animation (drag, scroll-linked, pointer-follow) runs on `useMotionValue` and
+  `useTransform`, not React state, so it never re-renders per frame.
+- Spring physics for interactive motion; never mix GSAP and Framer Motion in one component tree.
+- A presentational component takes data and callbacks. Fetching and business logic belong to the
+  frontend-logic agent.

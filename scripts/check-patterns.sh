@@ -28,6 +28,15 @@ scan_prose() {
   done
 }
 
+scan_rules() {
+  local file="$1" lang="$2"
+  jq -c --arg l "$lang" '.code[$l][]? // empty' "$PATTERNS" | while read -r rule; do
+    pat=$(echo "$rule" | jq -r '.pattern'); id=$(echo "$rule" | jq -r '.id'); msg=$(echo "$rule" | jq -r '.message')
+    unless=$(echo "$rule" | jq -r '.unless // "^$"')
+    grep -nE "$pat" "$file" 2>/dev/null | grep -vE "^[0-9]+:.*(${unless})" | while IFS=: read -r ln _; do echo "$file:$ln: $id: $msg"; done
+  done
+}
+
 scan_code() {
   local file="$1" lang=""
   case "$file" in
@@ -36,11 +45,11 @@ scan_code() {
     *.go)                   lang=go;;
     *.rs)                   lang=rust;;
   esac
-  [ -n "$lang" ] || return 0
-  jq -c --arg l "$lang" '.code[$l][]? // empty' "$PATTERNS" | while read -r rule; do
-    pat=$(echo "$rule" | jq -r '.pattern'); id=$(echo "$rule" | jq -r '.id'); msg=$(echo "$rule" | jq -r '.message')
-    grep -nE "$pat" "$file" 2>/dev/null | while IFS=: read -r ln _; do echo "$file:$ln: $id: $msg"; done
-  done
+  [ -n "$lang" ] && scan_rules "$file" "$lang"
+  case "$file" in
+    *.tsx|*.jsx|*.vue|*.svelte|*.astro|*.html|*.css|*.scss) scan_rules "$file" ui;;
+  esac
+  return 0
 }
 
 scan_injection() {

@@ -2,6 +2,43 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.18.0 — 2026-09-30
+
+The design engine, rebuilt so design has the standing development has. The audit behind it is
+`.polaris/reports/2026-09-30-design-engine-audit.md`: no flow had a design phase, "redesign the
+dashboard" routed to `unknown`, nobody looked at rendered UI, and the ui agent preloaded about
+150 KB of five skills that disagreed, one of them under a personal-use license.
+
+**Design is injected every session.** `rules/design-core.md` (2 KB) reaches every session through
+a new `inject-design` SessionStart hook, and the ui and ux subagents through `inject-standard`. It
+has its own hook because core.md's payload already sits at 8,800 of the 10,000-character cap.
+
+**`DESIGN.md` is the contract.** Every UI agent reads the repo-root `DESIGN.md` first, in the
+Google Stitch format that awesome-design-md collects. The ux agent seeds it from a brand
+(`npx getdesign@latest add <slug>`), a live site, or the brief. The full standard is
+`rules/design.md`: authority order, the design read and three dials distilled from taste-skill, the
+baseline, the AI tells, the redesign protocol, and the rule that UI is done only once rendered at
+375, 768, and 1440 px and looked at.
+
+**Flows.** A new `design` flow: direction, build, critique, polish, gate, opened by `/polaris:design`
+or by routing on redesign, polish, mockup, landing-page, and design-system prompts. The `feature`
+and `foggy` flows run the ux agent's approved `experience` phase straight after the spec.
+
+**Build and review see the pixels.** A slice the ui agent builds gets a ux critique from real
+screenshots beside the reviewer and tester. Review adds a `design` dimension whenever the diff
+touches a UI file. The tester breaks layouts at three widths, in dark mode, and at 200% zoom.
+
+**Mechanical checks.** A `ui` pattern class flags `transition: all`, disabled zoom, blocked paste,
+clickable divs without a role, and `100vh` without a `100dvh` fallback, in tsx, jsx, vue, svelte,
+astro, html, css, and scss. A removed outline stays in the judgment pass: its focus replacement is
+usually on the next line of a multi-line class list, where a line-based check cannot see it. `rules/design-interface.md` vendors Vercel's Web Interface
+Guidelines at a pinned commit for the judgment pass.
+
+**Agents and skills.** ux is the design lead on opus at high effort; ui stays on sonnet at high
+effort and preloads `frontend-design` only. The duplicated baseline left `agents/ui.md` and
+`rules/stacks/react.md`. New skill `mockup-to-code` builds from a supplied image and compares
+renders until it matches. taste-skill is a companion plugin; `huashu-design` is no longer named.
+
 ## 1.17.0 — 2026-09-07
 
 Five bugs the 1.16.0 audit found and did not fix, three of them in code the audit had just changed.

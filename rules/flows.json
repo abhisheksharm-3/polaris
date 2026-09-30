@@ -96,6 +96,12 @@
         "evidence": "spec with acceptance criteria"
       },
       {
+        "name": "experience",
+        "run": "agent:ux",
+        "approve": true,
+        "evidence": "UX spec and DESIGN.md, or 'no user-facing surface'"
+      },
+      {
         "name": "design",
         "run": "agent:architect",
         "approve": true,
@@ -113,6 +119,37 @@
       }
     ]
   },
+  "design": {
+    "description": "Visual or interaction design: a redesign, a polish pass, a design system, a screen from a mockup.",
+    "phases": [
+      {
+        "name": "direction",
+        "run": "agent:ux",
+        "approve": true,
+        "evidence": "DESIGN.md with the design read and dials, plus the UX spec"
+      },
+      {
+        "name": "build",
+        "run": "agent:ui",
+        "evidence": "the change, rendered and screenshotted at 375, 768, 1440"
+      },
+      {
+        "name": "critique",
+        "run": "agent:ux",
+        "evidence": "screenshot findings against DESIGN.md and the interface rules, or none"
+      },
+      {
+        "name": "polish",
+        "run": "agent:ui",
+        "evidence": "each critique finding fixed and re-rendered"
+      },
+      {
+        "name": "gate",
+        "run": "command:gate",
+        "evidence": "gate output"
+      }
+    ]
+  },
   "foggy": {
     "description": "A large effort with more open questions than answers.",
     "phases": [
@@ -127,6 +164,12 @@
         "run": "agent:product",
         "approve": true,
         "evidence": "spec with acceptance criteria"
+      },
+      {
+        "name": "experience",
+        "run": "agent:ux",
+        "approve": true,
+        "evidence": "UX spec and DESIGN.md, or 'no user-facing surface'"
       },
       {
         "name": "design",

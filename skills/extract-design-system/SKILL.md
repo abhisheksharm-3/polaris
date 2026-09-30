@@ -3,9 +3,8 @@ description: >
   Use to reverse-engineer a design system from a live or public website — pull its
   color, typography, spacing, radius, and shadow into a DESIGN.md token set. Trigger
   when the user wants to match an existing brand or site, seed a new project's tokens
-  from a reference URL, or answer "what tokens does this site use". For generating a
-  design system from product reasoning (no reference site) use ui-ux-pro-max; for extracting
-  tokens from THIS project's own code use impeccable's `extract` command instead.
+  from a reference URL, or answer "what tokens does this site use". For a named brand, the
+  ux agent's `npx getdesign` seed is faster; for a screenshot or mockup use mockup-to-code.
 ---
 
 <!-- Source: github.com/arvindrk/extract-design-system (MIT). The extraction engine is an
@@ -15,7 +14,8 @@ description: >
 
 Turn a live URL into a starter token set. The engine is the `extract-design-system` npm CLI (it
 drives a headless browser via Playwright); this skill runs it on demand and maps its output into
-Polaris's DESIGN.md format so `ui-ux-pro-max` and the `ui` agent can build against it.
+the repo-root `DESIGN.md`, in the Stitch format `rules/design.md` describes, which every UI agent
+reads first.
 
 ## Prerequisite
 
@@ -42,10 +42,11 @@ screenshot — a fabricated palette is worse than none.
    **radius**, and **shadow**. Name tokens by role (`--color-surface`, `--space-4`), not by value.
 4. Flag what the tool cannot infer (semantic color roles, dark-mode pairs, motion) as `TODO` in
    DESIGN.md rather than leaving a raw dump. Extraction seeds a system; a human still decides intent.
-5. Hand the DESIGN.md to `ui-ux-pro-max` or the `ui` agent to build against.
+5. Add the `## Dials` section from the design read, and hand `DESIGN.md` to the direction phase for
+   approval before anything builds against it.
 
 ## Boundary
 
 This reads a live site's *rendered* result, so it captures what a page ships, not the source's
-intent. Treat the output as a first draft to refine, never as the final system. For a project's own
-code, impeccable's `extract` is the better path; for a from-scratch system, use `ui-ux-pro-max`.
+intent. Treat the output as a first draft to refine, never as the final system. A site the user
+does not own is a reference to adapt, never a brand to clone.

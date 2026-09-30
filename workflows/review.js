@@ -57,6 +57,7 @@ const DIMENSIONS = [
   { key: 'maintainability', agent: 'polaris:reviewer', ask: 'what the next reader will misunderstand, and what will rot' },
   { key: 'tests', agent: 'polaris:tester', ask: 'behavior the tests do not cover, and tests that assert the bug' },
   { key: 'accessibility', agent: 'polaris:ux', ask: 'keyboard, contrast, labels, focus, and states a screen reader cannot see' },
+  { key: 'design', agent: 'polaris:ux', ask: 'drift from DESIGN.md (a hardcoded value that should be a token), breaks of rules/design-interface.md, AI tells from rules/design.md, and states or breakpoints the change leaves undesigned' },
   // Mandatory, and the reason guard-review sends back a review that omits it. Every other
   // dimension asks whether the code is right; only this one asks whether it should exist.
   { key: 'over-engineering', agent: 'polaris:reviewer', ask: 'what should not exist at all: an abstraction with one user, a config nobody sets, a dependency a few lines replace' },
@@ -67,7 +68,7 @@ const THREE_LENSES = ['does this actually reproduce', 'is the reasoning sound', 
 
 const LEVELS = {
   low: { keys: ['correctness', 'over-engineering'], effort: 'low', confirm: [], lenses: ONE_LENS },
-  mid: { keys: ['correctness', 'over-engineering', 'security', 'tests'], effort: 'medium', confirm: ['high'], lenses: ONE_LENS },
+  mid: { keys: ['correctness', 'over-engineering', 'security', 'tests', 'design'], effort: 'medium', confirm: ['high'], lenses: ONE_LENS },
   high: { effort: 'high', confirm: ['high', 'medium'], lenses: ONE_LENS },
   critical: { effort: 'high', confirm: ['high', 'medium', 'low'], lenses: THREE_LENSES },
 }
@@ -83,7 +84,13 @@ if (asked === '') {
 
 const level = typeof asked === 'string' && Object.hasOwn(LEVELS, asked) ? asked : 'high'
 const rules = LEVELS[level]
-const dims = DIMENSIONS.filter(d => !rules.keys || rules.keys.includes(d.key))
+// The design dimension is first-class for any change a user will see and absent for one they will
+// not: a migration or a handler has no layout to judge, and a reviewer sent to find one pads. With
+// no diff to read, it cannot tell, so it runs.
+const UI_FILE = /^\+\+\+ b\/.*\.(tsx|jsx|vue|svelte|astro|html|css|scss)$/m
+const evidenceDiff = args && typeof args.evidence === 'string' ? args.evidence : ''
+const touchesUI = evidenceDiff.trim() === '' || UI_FILE.test(evidenceDiff) || /DESIGN\.md/.test(evidenceDiff)
+const dims = DIMENSIONS.filter(d => !rules.keys || rules.keys.includes(d.key)).filter(d => d.key !== 'design' || touchesUI)
 if (asked !== undefined && level !== asked) log(`review level ${JSON.stringify(asked)} not recognized; running high`)
 
 // The evidence pack: the diff is built once by the caller and interpolated into every reviewer

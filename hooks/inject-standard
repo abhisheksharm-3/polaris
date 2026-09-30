@@ -7,6 +7,22 @@ set -uo pipefail
 input="$(cat)"
 agent="$(echo "$input" | jq -r '.agent_type // ""')"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DESIGN_CORE="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}/rules/design-core.md"
+
+# The design core reaches the agents that write or judge UI, the way SessionStart gives it to the
+# main session. ux is design-only, so it gets this and not the code standard below.
+design=""
+case "$agent" in
+  *:ui|ui|*:ux|ux|*feature-builder*) [ -f "$DESIGN_CORE" ] && design="$(cat "$DESIGN_CORE")" ;;
+esac
+case "$agent" in
+  *:ux|ux)
+    [ -n "$design" ] || exit 0
+    jq -cn --arg c "$design" '{hookSpecificOutput:{hookEventName:"SubagentStart",additionalContext:$c}}'
+    exit 0 ;;
+esac
+
 case "$agent" in
   *backend*|*ui*|*frontend-logic*|*feature-builder*|*bug-fixer*|*integrations*|*data-engineer*|\
   *infra*|*code-cleanup*|*reviewer*|*verifier*|*tester*|*e2e*|*perf*|*devops*|*sre*) ;;
@@ -35,6 +51,10 @@ Full text in rules/core.md. The named smells you will be reviewed against, and s
 report, are in rules/clean-code.md: names (N1-N7), functions (F1-F4), general (G1-G36), tests
 (T1-T9). Read it before you write code, along with the stack overlay in rules/stacks/.
 CONTEXT
+
+[ -n "$design" ] && context="${context}
+
+${design}"
 
 jq -cn --arg c "$context" \
   '{hookSpecificOutput:{hookEventName:"SubagentStart",additionalContext:$c}}'

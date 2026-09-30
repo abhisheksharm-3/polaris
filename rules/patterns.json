@@ -147,6 +147,35 @@
         "pattern": "\\S[ \\t]+//",
         "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration"
       }
+    ],
+    "ui": [
+      {
+        "id": "transition-all",
+        "pattern": "transition:[[:space:]]*all\\b|\\btransition-all\\b",
+        "message": "never transition all properties; list them (rules/design-interface.md)"
+      },
+      {
+        "id": "zoom-disabled",
+        "pattern": "user-scalable[[:space:]]*=[[:space:]]*\"?no|maximum-scale[[:space:]]*=[[:space:]]*\"?1(\\.0)?([^.0-9]|$)",
+        "message": "do not disable pinch zoom"
+      },
+      {
+        "id": "paste-blocked",
+        "pattern": "onPaste[^}]*preventDefault",
+        "message": "never block paste"
+      },
+      {
+        "id": "div-click",
+        "pattern": "<(div|span)\\b[^>]*[[:space:]]on(Click|click)=",
+        "message": "a clickable div or span; use <button> for actions and <a> for navigation",
+        "unless": "role="
+      },
+      {
+        "id": "viewport-height",
+        "pattern": "\\b100vh\\b|(^|[[:space:]\"'`])(min-)?h-screen([[:space:]\"'`]|$)",
+        "message": "100vh clips behind mobile browser chrome; use 100dvh (min-h-[100dvh])",
+        "unless": "100dvh|supports-"
+      }
     ]
   },
   "injection": {
@@ -320,6 +349,24 @@
         "^tell me (about|how|what)",
         "how (does|do) (it|this|that|the) work",
         "\\b(thoughts on|any ideas|what do you think)\\b"
+      ]
+    },
+    {
+      "class": "design",
+      "_why": "Visual and interaction design work. Tried after bug and conversation, so a broken screen is a bug and a question about the design system stays a question. Until 2026-09-30 'redesign the dashboard' and 'polish the UI' routed to unknown and 'the app looks ugly' to fix, a single-file change nobody looked at.",
+      "patterns": [
+        "(^|, |and )re-?design (the|this|our|my|a|an)\\b",
+        "\\b(restyle|re-?skin|facelift)\\b",
+        "\\b(ui|page|screen|layout|design|site|website|app|landing|dashboard|header|hero|footer|nav|navbar|form|component)s? (looks?|feels?) (so |too |really |very )?(generic|ugly|dated|cheap|boring|templated|bland|amateur|like ai)",
+        "(less|more) (generic|polished|premium|modern|professional|beautiful)",
+        "\\bpolish (the |this |our )?(ui|design|look|page|screen|landing)",
+        "\\b(ui|ux|visual|design) (polish|overhaul|refresh|pass|revamp|audit|critique)",
+        "(create|build|set up|setup|extract|define|make) (a |the |our |my )?design ?system",
+        "\\bdesign\\.md\\b",
+        "(from|match|like) (this|the|a|my) (screenshot|mockup|figma|image|dribbble)",
+        "(build|implement|recreate|code|convert) .*(screenshot|mockup|figma)",
+        "(fix|improve|rework) the (design|look|styling|visuals?|typography|color scheme)( |$|,)",
+        "make (it|this|the [a-z ]+) look "
       ]
     },
     {

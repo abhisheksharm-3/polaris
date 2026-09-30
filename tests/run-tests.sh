@@ -937,7 +937,7 @@ echo "acceptance criteria" > "$ep_rec/spec.md"
 CLAUDE_PROJECT_DIR="$ep_rec" bash "$EP_RS" record spec "$ep_rec/spec.md" "12 criteria" >/dev/null
 CLAUDE_PROJECT_DIR="$ep_rec" bash "$EP_RS" approve spec >/dev/null
 ep_out="$(ep_run "$ep_rec" 'carry on')"
-grep -q 'ep-recover' <<<"$ep_out" && grep -q 'design' <<<"$ep_out" \
+grep -q 'ep-recover' <<<"$ep_out" && grep -q "phase 'experience'" <<<"$ep_out" \
   && echo "ok: enhance-prompt names the run and the phase after a clear" \
   || { echo "FAIL: enhance-prompt did not name run and phase ($ep_out)"; fail=1; }
 grep -q 'spec.md' <<<"$ep_out" \
@@ -1160,11 +1160,11 @@ am record spec "$am_tmp/spec.md" "the first draft" >/dev/null 2>&1
 am approve spec >/dev/null 2>&1
 am_before="$(jq -r '.record.spec.approvedAt' "$am_tmp/.polaris/runs/amend-demo/state.json")"
 printf 'first\nsecond\n' > "$am_tmp/spec.md"
-am assert design >/dev/null 2>&1 \
+am assert experience >/dev/null 2>&1 \
   && { echo "FAIL: assert passed over an artifact edited after approval"; fail=1; } \
   || echo "ok: an edited artifact invalidates the phase that claimed it"
 am amend spec "what the build found" >/dev/null 2>&1
-am assert design >/dev/null 2>&1 \
+am assert experience >/dev/null 2>&1 \
   && echo "ok: an amendment restores the phase it re-hashed" \
   || { echo "FAIL: assert still refuses after an amendment"; fail=1; }
 [ "$(jq -r '.record.spec.approvedAt' "$am_tmp/.polaris/runs/amend-demo/state.json")" = "$am_before" ] \
@@ -1222,7 +1222,7 @@ const dims = [...s.matchAll(new RegExp("\\{ key: " + q + "([a-z-]+)" + q, "g"))]
 const block = s.slice(s.indexOf("const LEVELS"))
 const levels = [...block.slice(0, block.indexOf("\n}")).matchAll(/^  ([a-z]+): \{(.*)$/gm)]
 const bad = []
-if (dims.length !== 7) bad.push("DIMENSIONS holds " + dims.length + " keys, expected 7")
+if (dims.length !== 8) bad.push("DIMENSIONS holds " + dims.length + " keys, expected 8")
 if (levels.length !== 4) bad.push("LEVELS holds " + levels.length + " rows, expected 4")
 for (const [, name, body] of levels) {
   const m = body.match(/keys: \[([^\]]*)\]/)
@@ -1969,5 +1969,74 @@ printf '%s' '{"session_id":"mine"}' | TMPDIR="$we_tmp" bash "${WORK}/hooks/sessi
   && echo "ok: the reaper clears its own marker and leaves another session's" \
   || { echo "FAIL: the reaper cleared the wrong marker"; fail=1; }
 rm -rf "$we_tmp"
+
+# Design is first-class, so it is tested the way the code standard is. Until 2026-09-30 no flow had a
+# design phase, "redesign the dashboard" routed nowhere, and the ui agent preloaded ~150 KB of five
+# skills that disagreed, one of them under a personal-use license.
+# The ui pattern class: each greppable interface anti-pattern is caught by its own id, and the
+# `unless` escape keeps an outline removed beside its focus-visible replacement from being flagged.
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad-ui.tsx"
+expect_exit 1 "$CHECK" code "${DIR}/fixtures/bad-ui.html"
+expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean-ui.tsx"
+expect_exit 0 "$CHECK" code "${DIR}/fixtures/clean-ui-edges.tsx"
+ui_out="$("$CHECK" code "${DIR}/fixtures/bad-ui.tsx" "${DIR}/fixtures/bad-ui.html" || true)"
+for id in transition-all zoom-disabled paste-blocked div-click viewport-height; do
+  grep -q ": ${id}:" <<<"$ui_out" || { echo "FAIL: ui pattern '${id}' did not fire on its fixture"; fail=1; }
+done
+echo "ok: every ui pattern fires on its fixture"
+# The design flow runs direction before build and a critique after it, and the feature flow gives
+# ux its own approved phase straight after the spec, before architecture.
+jq -e '.design.phases | map(.name) == ["direction","build","critique","polish","gate"]' "${DIR}/../rules/flows.json" >/dev/null \
+  && jq -e '.design.phases[0].approve == true' "${DIR}/../rules/flows.json" >/dev/null \
+  && echo "ok: the design flow is direction, build, critique, polish, gate" \
+  || { echo "FAIL: the design flow lost a phase or its direction approval"; fail=1; }
+for f in feature foggy; do
+  jq -e --arg f "$f" '.[$f].phases | map(.name) as $n | ($n | index("experience")) == (($n | index("spec")) + 1)' \
+    "${DIR}/../rules/flows.json" >/dev/null \
+    && jq -e --arg f "$f" '.[$f].phases[] | select(.name == "experience") | .run == "agent:ux" and .approve == true' \
+      "${DIR}/../rules/flows.json" >/dev/null \
+    || { echo "FAIL: the ${f} flow has no approved ux experience phase after spec"; fail=1; }
+done
+echo "ok: feature and foggy give ux an approved phase after the spec"
+# The design core is injected every session by its own hook, inside its own budget, so it can never
+# push core.md's payload past the cap.
+dc_len="$(wc -c < "${DIR}/../rules/design-core.md" | tr -d ' ')"
+[ "$dc_len" -le 3000 ] && echo "ok: rules/design-core.md is inside its 3000-byte budget (${dc_len})" \
+  || { echo "FAIL: rules/design-core.md is ${dc_len} bytes, over its 3000-byte budget"; fail=1; }
+jq -e '.hooks.SessionStart[].hooks[] | select(.command | test("inject-design"))' "${DIR}/../hooks/hooks.json" >/dev/null \
+  && echo '{}' | CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "${DIR}/../hooks/inject-design" \
+    | jq -e '.hookSpecificOutput.additionalContext | test("DESIGN.md is the contract")' >/dev/null \
+  && echo "ok: SessionStart injects the design core" \
+  || { echo "FAIL: the design core is not injected at SessionStart"; fail=1; }
+is_ctx() { printf '{"agent_type":"%s"}' "$1" | CLAUDE_PLUGIN_ROOT="${DIR}/.." bash "${DIR}/../hooks/inject-standard" \
+  | jq -r '.hookSpecificOutput.additionalContext // ""'; }
+grep -q 'core design standard' <<<"$(is_ctx polaris:ui)" && grep -q 'comment law' <<<"$(is_ctx polaris:ui)" \
+  && grep -q 'core design standard' <<<"$(is_ctx polaris:ux)" && ! grep -q 'comment law' <<<"$(is_ctx polaris:ux)" \
+  && ! grep -q 'core design standard' <<<"$(is_ctx polaris:backend)" \
+  && echo "ok: ui gets both standards, ux the design one, backend the code one" \
+  || { echo "FAIL: inject-standard routes the design core to the wrong agents"; fail=1; }
+# No agent preloads a design skill library: the standard is rules/design.md, companions load on
+# demand. And nothing ships a skill whose license forbids commercial use.
+grep -qE '^skills: frontend-design$' "${DIR}/../agents/ui.md" \
+  && echo "ok: the ui agent preloads frontend-design only" \
+  || { echo "FAIL: the ui agent preloads more than frontend-design"; fail=1; }
+grep -rlq 'huashu-design' "${DIR}/../agents" "${DIR}/../companions.json" \
+  && { echo "FAIL: a personal-use-licensed skill is named by an agent or companions.json"; fail=1; } \
+  || echo "ok: no personal-use-licensed skill ships"
+# The build and review workflows see design: a ui slice gets a ux critique, and review holds a design
+# dimension that sits out a changeset with no UI file in it.
+grep -q "agentType: 'polaris:ux'" "${DIR}/../workflows/build.js" && grep -q 'isVisual(slice)' "${DIR}/../workflows/build.js" \
+  && echo "ok: a ui slice in the build gets a ux critique" \
+  || { echo "FAIL: the build workflow does not critique ui slices"; fail=1; }
+rv_ui="$(node -e '
+const re = /^\+\+\+ b\/.*\.(tsx|jsx|vue|svelte|astro|html|css|scss)$/m
+const src = require("fs").readFileSync(process.argv[1], "utf8")
+const m = src.match(/const UI_FILE = (\/.*\/m)$/m)
+if (!m || m[1] !== re.toString()) { process.stdout.write("UI_FILE changed"); process.exit(0) }
+const ok = re.test("+++ b/src/Card.tsx") && !re.test("+++ b/src/api/handler.ts")
+process.stdout.write(ok ? "ok" : "wrong")
+' "${DIR}/../workflows/review.js")"
+[ "$rv_ui" = "ok" ] && echo "ok: review selects the design dimension for a ui diff and skips it for a backend one" \
+  || { echo "FAIL: review's design gate is wrong ($rv_ui)"; fail=1; }
 
 exit $fail

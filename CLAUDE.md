@@ -103,24 +103,29 @@ reference the other's files; the suite asserts the copies are byte-identical.
 
 - `agents/` — the SDLC agent fleet (product, architect, backend, reviewer, tester, shipper, …)
 - `commands/` — slash-command entry points (`/flow`, `/polaris:debug`, `/gate`, `/audit`, `/compose`, …)
-- `skills/` — bundled skills (quality-gate, playwright-e2e, extract-design-system,
+- `skills/` — bundled skills (quality-gate, playwright-e2e, extract-design-system, mockup-to-code,
   merge-conflicts). The three ui-* skills were deleted on 2026-09-07: they were copies of the
   companion skills `agents/ui.md` already preloads, and none of the 42 reference paths they routed
   to existed
-- `hooks/` — `session-start`, `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
+- `hooks/` — `session-start`, `inject-design` (the design core, its own `SessionStart` hook so it
+  never crowds core.md's cap), `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
   `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
   `guard-command`, `advance-flow`, and `session-end` (reaps the run pointer and the block markers), all wired in `hooks.json`
 - `workflows/` — the three phases that fan out: `verify`, `review`, `build`. Shipped as
   `/polaris:<name>` via the `workflows` field in `plugin.json`. `review` takes a `level` of `low`,
   `mid`, `high`, or `critical`, which picks the dimensions, the reviewer effort, and the severities
-  worth confirming. `high` is the default and the ceiling is 2, 8, 14, or 28 agents
-- `rules/` — the standard: `core.md` (the only file injected every session, under a 7,000-byte
-  budget), `core-protocols.md` (the docs protocol, skill resolution, and the surgical-versus-
+  worth confirming. `high` is the default and the ceiling is 2, 10, 16, or 32 agents. The `design`
+  dimension runs only when the diff touches a UI file, so a backend diff stays at 2, 8, 14, or 28.
+  `build` adds a ux critique to every slice the `ui` agent builds
+- `rules/` — the standard: `core.md` (injected every session, under a 7,000-byte budget),
+  `design-core.md` (the design counterpart, injected every session by `inject-design`, under 3,000
+  bytes), `design.md` (the full design standard and the `DESIGN.md` contract), `design-interface.md`
+  (Vercel's Web Interface Guidelines, vendored at a pinned commit), `core-protocols.md` (the docs protocol, skill resolution, and the surgical-versus-
   aggressive rule, split out of core.md so the injected file fits the hook cap), `clean-code.md`,
   `craft.md`, `writing.md`, `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`,
   `connectors.md` (mirrored into `plugins/polaris-work/rules/`, byte-identical, since both plugins
-  read connectors and ship independently), `patterns.json` (prose, code, injection, and `routing`
-  classes, including `ship` and `continuation`), `flows.json` (the flow catalog, twenty rows),
+  read connectors and ship independently), `patterns.json` (prose, code with a `ui` class for markup and styles, injection, and `routing`
+  classes, including `ship` and `continuation`), `flows.json` (the flow catalog, twenty-one rows),
   `model-floor.json` (the minimum tier per agent, with an `aliases` map so a full model id resolves
   to a tier), `effort-floor.json` (the minimum reasoning effort, enforced in agent frontmatter and
   validated by `check-agents.sh`, not at dispatch), plus per-stack overlays in `stacks/` mapped by
@@ -180,4 +185,8 @@ reference the other's files; the suite asserts the copies are byte-identical.
   `UserPromptSubmit` used to, and it is gone: it spent a model call on every prompt, could not read
   `.polaris/config.json` to be switched off, and its false stops each cost a real turn. The test
   suite asserts no prompt-type input hook comes back.
+- Design is first-class. `DESIGN.md` at a project's root is its design contract, and every UI agent
+  reads it first. The `feature` flow's `experience` phase (ux) comes before the architect's phase,
+  which is still named `design` because open runs and tests key on it; the `design` flow is the
+  visual one. `huashu-design` is deliberately not a companion: its license is personal-use only.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

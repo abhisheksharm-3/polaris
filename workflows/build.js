@@ -89,6 +89,20 @@ const counts = {}
 slices.forEach(s => (s.touches || []).forEach(f => (counts[f] = (counts[f] || 0) + 1)))
 const collides = s => (s.touches || []).some(f => counts[f] > 1)
 
+// A UI slice is judged by eye as well as by code review and QA: the reviewer reads source and the
+// tester drives behavior, and neither sees a layout that renders broken at 375px or reads as a
+// template. The critique is the ux agent in critique mode, on the rendered screens.
+const isVisual = s => /(^|:)ui$/.test(s.agent)
+const critique = slice => () =>
+  agent(
+    `Critique the rendered UI of the slice "${slice.name}" (${slice.scope}) in critique mode: screenshot it ` +
+      `at 375, 768, and 1440 wide, light and dark, and judge it against DESIGN.md, rules/design.md, and ` +
+      `rules/design-interface.md. Report only real problems, each with its fix. If it cannot be rendered, ` +
+      `set ok to true and begin the summary with UNRENDERED: a missing dev server is not a defect a fix ` +
+      `round can repair, and the build reports the slice as unverified instead.`,
+    { label: `critique:${slice.name}`, phase: 'Check', agentType: 'polaris:ux', schema: OUTCOME, effort: rules.check },
+  )
+
 // Pipeline: a slice goes to review the moment it is built, rather than waiting for the slowest
 // implementer. Each slice carries its own fix loop, so one stubborn slice does not stall the rest.
 const built = await pipeline(
@@ -114,6 +128,7 @@ const built = await pipeline(
     // clean in three rounds is a plan problem, and looping on it hides that behind spend.
     while (rounds < MAX_FIXES) {
       const checks = await parallel([
+        ...(isVisual(slice) ? [critique(slice)] : []),
         () =>
           agent(
             `Review the slice "${slice.name}" (${slice.scope}). Report only real defects, with file and line, ` +
@@ -129,7 +144,8 @@ const built = await pipeline(
       ])
 
       problems = checks.filter(Boolean).filter(c => !c.ok).flatMap(c => c.problems || [c.summary])
-      if (problems.length === 0) return { slice: slice.name, ok: true, rounds, build: build && build.summary }
+      const unrendered = checks.some(c => c && c.ok && /^UNRENDERED/.test(c.summary || ''))
+      if (problems.length === 0) return { slice: slice.name, ok: true, rounds, unrendered, build: build && build.summary }
 
       rounds += 1
       log(`${slice.name}: ${problems.length} problems, fix round ${rounds}`)
@@ -137,7 +153,13 @@ const built = await pipeline(
         `Fix these in the slice "${slice.name}", at the root cause rather than the symptom:\n` +
           problems.map(p => `- ${p}`).join('\n') +
           `\n\nRun the quality gate before reporting.`,
-        { label: `fix:${slice.name}:${rounds}`, phase: 'Check', agentType: 'polaris:bug-fixer', schema: OUTCOME, effort: rules.fix },
+        {
+          label: `fix:${slice.name}:${rounds}`,
+          phase: 'Check',
+          agentType: isVisual(slice) ? 'polaris:ui' : 'polaris:bug-fixer',
+          schema: OUTCOME,
+          effort: rules.fix,
+        },
       )
     }
 
@@ -155,6 +177,9 @@ return {
   // the plan had twelve reads as a finished plan.
   deferred,
   clean: done.filter(s => s.ok).map(s => s.slice),
+  // A ui slice whose critique could not render passed on code review and QA alone. Named so the
+  // report never presents an unseen design as a checked one.
+  unrendered: done.filter(s => s.unrendered).map(s => s.slice),
   // Named, not swallowed. A build that reports success with a slice still failing is the one
   // outcome worse than a build that fails.
   stuck: stuck.map(s => ({ slice: s.slice, afterRounds: s.rounds, problems: s.problems })),

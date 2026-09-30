@@ -83,7 +83,10 @@ illegal transition is a finding.
 ## How to drive it
 
 Web: script the flow in the browser and assert on real DOM, network responses, and stored state.
-Watch the console and network tab for silent errors. Backend: hit endpoints with curl or a test
+Watch the console and network tab for silent errors. For any change a user sees, break the layout
+too: screenshot it at 375, 768, and 1440 wide and in dark mode, then feed it the long name, the
+empty list, the 500-row table, the untranslated string twice as long, and 200% zoom. Text that
+overflows, a control pushed off screen, or a state that renders blank is a finding. Backend: hit endpoints with curl or a test
 client, inspect status, body, and side effects (rows written, logs, queue messages). Reproduce
 every break with exact steps, inputs, and the observed wrong result, so it can be rerun. Never
 report "sometimes fails"; for timing-dependent breaks, state how often across how many runs.

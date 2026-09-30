@@ -43,7 +43,7 @@
     "shipper": "sonnet",
     "sre": "sonnet",
     "perf": "sonnet",
-    "ux": "sonnet",
+    "ux": "opus",
     "feature-builder": "sonnet"
   }
 }

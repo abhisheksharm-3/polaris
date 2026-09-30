@@ -224,6 +224,10 @@ Rules:
 
 ### 2f. UI Components (`src/features/[feature]/components/`)
 
+Wire the data into components here; the visual design is the ui agent's. When the feature has a
+screen, build the data-bound shell and hand the look to `ui`, which builds to the project's
+`DESIGN.md` and `rules/design.md` and renders it. Do not style past the existing tokens.
+
 ```typescript
 // 'use client' only because this component has interactivity
 'use client';
