@@ -2,6 +2,61 @@
 
 All notable changes to Polaris. Dates are release dates; the format follows semantic versioning.
 
+## 1.19.0 — 2026-10-07
+
+Specialists, testing, and root cause, each moved from prose to an engine. The audit behind it is
+`.polaris/reports/2026-10-07-specialists-and-testing-audit.md`, with cited research in
+`2026-10-07-testing-research.md` and `2026-10-07-root-cause-research.md`.
+
+**Flows follow the change.** A spec declares `Surfaces: ui, api, data, auth, integration`, and a phase
+with `when` runs only for a surface the change touches; the ledger records the skip. The feature
+flow gains api-designer's `contract`, data-modeler's `schema`, and security-architect's
+`threat-model`, and a backend change no longer stops for ux. A spec with no `Surfaces:` line skips
+nothing.
+
+**Specialists nothing reached now have flows.** `migration`, `readiness`, `perf`, `integration`,
+`platform`, and `testing` join the catalog (27 rows); `qa` gains `pin`. 13 of 21 domain prompts used
+to route to unknown or a generic feature; all now land, pinned by fixtures. New agents: mobile, with a
+stack overlay for Expo, React Native, SwiftUI, and Flutter, and test-engineer.
+
+**Testing has judgment.** `rules/testing.md` (38 sources) and an injected `rules/testing-core.md`:
+name the break before writing a test, prefer a type to a test, test the class of a bug only when it
+can recur, prove each test fails, delete change detectors, select CI by rule. The per-bug test reflex
+is gone from `/debug`, bug-fixer, and the T rules, and the suite refuses its phrasings coming back.
+Review's tests dimension asks what is missing and what should not exist. A `test` pattern class
+blocks `.only`, fixed sleeps, and tautologies; a `migration` class flags drops, renames, and type
+changes as advisories that print without failing.
+
+**Root cause, for every issue.** `rules/root-cause.md` widens the rule from bugs to every issue, with
+the contributor model, fix altitude, a ten-question patch test, and the incident-only mitigation.
+Fix phases ask for the cause and its class as evidence; the ledger stores what is written and does
+not judge it, so the verify phase and review are what check it. What is enforced in code:
+`guard-tests` refuses removing or commenting out assertions, adding a skip or `.only`, or rewriting a
+test through the shell, without a waiver logged in this session,
+and a lint or type suppression with no reason fails the pattern check.
+
+**No cheaper bypass.** `guard-bypass` refuses skipping hooks or CI, including abbreviated and quoted
+flags, `bash -c`, line continuations, hook-runner variables, a `hooksPath` outside the project's
+hook directory, and GitLab's `ci.skip`. It is a speed bump over shell syntax, not a wall; branch
+protection with required checks is the wall, and the `platform` flow sets it up. A
+`ci` pattern class blocks a swallowed check. The reaper stamps a dropped run abandoned in its
+archive and sends real work back into a flow instead of saying carry on. The core rule says it
+plainly.
+
+**Polaris's own suite** is 14 suites with a `--changed` mode that runs only what a diff touches, and
+fails on a base it cannot resolve; 22 assertions without a nameable break were deleted. The router,
+which runs on every prompt, is one `jq` pass over the first 4,000 characters instead of a grep per
+pattern: 0.4 s to about 0.01 s, and a 160 KB pasted log that used to block a prompt for over two
+minutes now routes in 15 ms.
+
+**Verify is smaller.** At `high` it was stopped at 40 agents on this release's own diff, with round 1
+having already found every finding the judges confirmed. It is now 2 rounds and 2 lenses, at most 28
+agents; a split vote is reported as `split` instead of dropped; and it reads the diff once from
+`args.evidence` as review does. The design and testing cores
+share one `inject-cores` hook.
+
+**Fixed along the way.** A pattern starting with `-` was read by grep as an option and never checked.
+
 ## 1.18.0 — 2026-09-30
 
 The design engine, rebuilt so design has the standing development has. The audit behind it is

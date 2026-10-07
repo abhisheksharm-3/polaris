@@ -18,6 +18,8 @@
     "reviewer": "high",
     "verifier": "high",
     "tester": "high",
+    "test-engineer": "high",
+    "mobile": "high",
     "prod-audit": "high",
     "audit-refactor": "high",
     "e2e": "medium",

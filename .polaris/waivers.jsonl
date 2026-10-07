@@ -1,0 +1,1 @@
+{"file":"tests/suites/testing.sh","reason":"a change detector by rules/testing.md 1.1: it fails only if four exact deleted sentences return, not on any bug; the bug rule itself is carried by rules/testing.md and the review tests dimension","session":"62d26495-a7d1-4a0f-b9ae-17e6bbb7469d","at":"2026-10-07T19:00:26Z"}

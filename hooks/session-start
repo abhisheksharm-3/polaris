@@ -78,7 +78,6 @@ combined_context="${combined_context}
 - rules/clean-code.md, rules/stacks/<stack>.md: writing or reviewing code
 - rules/core-protocols.md: stack work, resolving a skill, a cleanup pass
 - rules/craft.md: a design tradeoff is open
-- rules/design.md, rules/design-interface.md, the project's DESIGN.md: any UI, UX, or visual work
 - rules/writing.md: prose, a commit message, a PR body. Banned words are enforced by
   scripts/check-patterns.sh, so run the check rather than reciting the list
 - rules/model-routing.md: choosing a model or effort for a dispatch

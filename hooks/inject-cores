@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# SessionStart: put the design and testing cores in context every session, beside core.md, so design
+# and test judgment have the standing code has. Its own hook because each hook output has its own
+# 10,000-character cap and session-start's payload already runs near it; together the two cores are
+# under half of this hook's cap.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}"
+
+command -v jq >/dev/null 2>&1 || exit 0
+context=""
+for rule in design-core testing-core; do
+  [ -f "${ROOT}/rules/${rule}.md" ] && context="${context}$(cat "${ROOT}/rules/${rule}.md")
+
+"
+done
+[ -n "$context" ] || exit 0
+
+jq -cn --arg c "$context" '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'

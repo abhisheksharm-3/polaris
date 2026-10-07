@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# PreToolUse on Edit|Write: refuse an edit that removes assertions from an existing test file until a
+# reason is recorded with `run-state.sh waive <file> "<why the test is wrong>"`.
+#
+# Editing the test is the cheapest way to turn a red run green, and the way Claude models cheat: in
+# ImpossibleBench over 79% of Claude's cheating modified the tests, and read-only tests took it to
+# near zero (rules/root-cause.md, [S28]). A prompt alone does not hold. A test is sometimes wrong, so
+# the edit is not forbidden; it costs one sentence, in a log a reviewer reads.
+#
+# ponytail: counts assertion calls by regex in old and new text. A test deleted with rm, or an
+# assertion rewritten into a weaker one of the same count, is not caught; the upgrade path is a
+# diff-aware check in the review's tests dimension.
+set -uo pipefail
+
+command -v jq >/dev/null 2>&1 || exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+input="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
+tool="$(printf '%s' "$input" | jq -r '.tool_name // ""')"
+
+is_test() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    *.test.*|*.spec.*|*_test.go|*_test.py|*_spec.rb|test_*.py|*/test_*.py|*tests.swift|*test.java|*test.kt|*tests.cs|\
+    */__tests__/*|*/tests/*|*/test/*|*/spec/*|tests/*|test/*|spec/*|__tests__/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# The files a shell command writes to, one per line: the target of > and >>, tee's operands, the file
+# operands of an in-place sed or perl, and the destination of cp or mv. A test that is only read, or
+# run with its output redirected elsewhere, is not among them. A function rather than inline, because
+# bash 3.2 cannot parse a case statement inside a command substitution.
+write_targets() {
+  local seg last
+  printf '%s' "$1" | grep -oE '>>?[[:space:]]*[^[:space:]&|;<>]+' | sed -E 's/^>>?[[:space:]]*//'
+  printf '%s' "$1" | tr ';&|' '\n\n\n' | while IFS= read -r seg || [ -n "$seg" ]; do
+    set -f; set -- $seg; set +f
+    [ $# -gt 0 ] || continue
+    case "$1" in
+      tee) shift; for last in "$@"; do case "$last" in -*) ;; *) echo "$last" ;; esac; done ;;
+      sed|gsed|perl)
+        printf '%s' "$seg" | grep -qE '[[:space:]](-[a-zA-Z]*i|--in-place)' || continue
+        shift; for last in "$@"; do echo "$last"; done ;;
+      cp|mv) for last in "$@"; do :; done; echo "$last" ;;
+    esac
+  done
+}
+
+# Through the shell, an in-place rewrite of a test is the route a refused Edit takes next. Its effect
+# cannot be counted, so it needs the same waiver; Edit is the path where a change that removes
+# nothing goes straight through.
+file=""; shell_rewrite=0
+if [ "$tool" = "Bash" ]; then
+  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // ""')"
+  targets="$(write_targets "$cmd")"
+  while IFS= read -r tok; do
+    tok="${tok%\"}"; tok="${tok#\"}"; tok="${tok%\'}"; tok="${tok#\'}"
+    [ -n "$tok" ] && is_test "$tok" && { file="$tok"; break; }
+  done <<<"$targets"
+  [ -n "$file" ] || exit 0
+  shell_rewrite=1
+else
+  file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // ""')"
+  [ -n "$file" ] || exit 0
+  is_test "$file" || exit 0
+fi
+
+ASSERT='\bexpect\(|\bassert|XCTAssert|\.should\b|\bt\.(Error|Errorf|Fatal|Fatalf|Fail)\b|\brequire\.[A-Z]|\bFAIL:'
+SKIP='\.(skip|todo|only|skipIf|runIf)\(|(^|[^.[:alnum:]_$])(x(it|describe|test)|f(it|describe)|pending)\(|@pytest\.mark\.(skip|xfail)|@(Disabled|Ignore)\b|\bt\.Skip|XCTSkip'
+# Count only live code: an assertion inside a comment asserts nothing, so commenting one out is a
+# removal. `.only` counts with the skips because it silently skips every other test in the file.
+hits() { grep -vE '^[[:space:]]*(//|#|\*|/\*)' | grep -oE "$1" | wc -l | tr -d ' '; }
+
+case "$tool" in
+  Bash) old_text=""; new_text="" ;;
+  Write)
+    [ -f "$file" ] || exit 0
+    old_text="$(cat "$file")"
+    new_text="$(printf '%s' "$input" | jq -r '.tool_input.content // ""')" ;;
+  Edit|MultiEdit)
+    old_text="$(printf '%s' "$input" | jq -r '[.tool_input.old_string // empty, (.tool_input.edits // [])[].old_string] | join("\n")')"
+    new_text="$(printf '%s' "$input" | jq -r '[.tool_input.new_string // empty, (.tool_input.edits // [])[].new_string] | join("\n")')" ;;
+  *) exit 0 ;;
+esac
+before="$(printf '%s' "$old_text" | hits "$ASSERT")"; after="$(printf '%s' "$new_text" | hits "$ASSERT")"
+skip_before="$(printf '%s' "$old_text" | hits "$SKIP")"; skip_after="$(printf '%s' "$new_text" | hits "$SKIP")"
+what=""
+[ "$shell_rewrite" = 1 ] && what="rewrites it through the shell, where removed assertions cannot be counted (use Edit instead)"
+[ "$after" -lt "$before" ] && what="removes $((before - after)) assertion(s)"
+[ "$skip_after" -gt "$skip_before" ] && what="${what:+$what and }skips $((skip_after - skip_before)) test(s)"
+[ -n "$what" ] || exit 0
+
+# A waiver covers the session that wrote it and no other. A permanent per-file waiver turned one
+# sentence into a standing exemption for every later edit, by anyone, which is the cheap path again.
+rel="${file#"${PROJECT_DIR}"/}"; rel="${rel#./}"
+session="$(printf '%s' "$input" | jq -r '.session_id // ""')"
+log="${PROJECT_DIR}/.polaris/waivers.jsonl"
+[ -f "$log" ] && [ -n "$session" ] \
+  && jq -e --arg f "$rel" --arg s "$session" 'select(.file == $f and .session == $s)' "$log" >/dev/null 2>&1 && exit 0
+
+jq -cn --arg r "Polaris: refused, this edit ${what} in ${rel}. Weakening a test to get green is the patch rules/root-cause.md forbids. Fix the code under test instead. If the test itself is wrong, record why first: bash ${ROOT}/scripts/run-state.sh waive ${rel} \"<why the test is wrong>\", tell the human, then make the edit." \
+  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'

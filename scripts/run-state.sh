@@ -149,6 +149,8 @@ cmd_record() {
     flow="$(jq -r .flow "$file")"; current="$(jq -r .current "$file")"
     [ "$phase" = "$current" ] || die "phase '${phase}' is not current; the run is on '${current}'"
 
+    local declared=""
+    [ "$phase" = "spec" ] && { declared="$(surfaces_of "$artifact")" || exit 1; }
     local wants; wants="$(phase_field "$flow" "$phase" evidence)"
     local sha=""
     if [ -n "$wants" ]; then
@@ -161,6 +163,7 @@ cmd_record() {
     jq --arg p "$phase" --arg a "$artifact" --arg s "$sha" --arg e "$evidence" \
        --arg t "$(date -u +%FT%TZ)" \
        '.record[$p] = {status:"done",artifact:$a,sha256:$s,evidence:$e,at:$t}' "$file" > "$tmp" && mv "$tmp" "$file"
+    [ "$phase" = "spec" ] && set_surfaces "$declared"
 
     # A phase that needs a human holds the run where it is. The Stop hook reads current to decide
     # between asking for an approval and asking for the next phase, so advancing here would skip it.
@@ -197,6 +200,8 @@ cmd_amend() {
 
     local new; new="$(hash_of "$artifact")"
     [ "$new" != "$old" ] || die "${artifact} has not changed since phase '${phase}' recorded it"
+    local declared=""
+    [ "$phase" = "spec" ] && { declared="$(surfaces_of "$artifact")" || exit 1; }
 
     local tmp; tmp="$(mktemp)"
     jq --arg p "$phase" --arg s "$new" --arg o "$old" --arg e "$evidence" \
@@ -205,6 +210,7 @@ cmd_amend() {
         | .record[$p].amendedAt = $t
         | .record[$p].amendments = ((.record[$p].amendments // []) + [{at:$t,from:$o,to:$s,evidence:$e}])' \
        "$file" > "$tmp" && mv "$tmp" "$file"
+    [ "$phase" = "spec" ] && set_surfaces "$declared"
     echo "amended ${phase}: ${artifact}"
 }
 
@@ -220,15 +226,102 @@ cmd_approve() {
     advance_past "$phase"
 }
 
+# The surfaces a change touches, read from the spec's `Surfaces:` line. The product agent writes it
+# as a classification; everything after is code. Only the spec sets it, and recording or amending
+# the spec sets it again, so a spec corrected during approval to add `auth` gets its threat model.
+SURFACES="ui api data auth integration mobile none"
+
+# The declared surfaces of an artifact as JSON, or nothing when it declares none. An unknown token is
+# refused, because the failure it causes is silent: a typo matches no phase's `when`, and every
+# conditional phase, the threat model included, would be skipped.
+surfaces_of() {
+    local artifact="$1" line tokens bad
+    [ -n "$artifact" ] && [ -f "$artifact" ] || return 0
+    line="$(grep -m1 -iE '^[*_ ]*surfaces[*_ ]*:' "$artifact" | sed -E 's/^[^:]*:[[:space:]]*//')"
+    [ -n "$line" ] || return 0
+    tokens="$(jq -cn --arg l "$line" '$l | ascii_downcase | [scan("[a-z0-9-]+")]')"
+    bad="$(jq -r --arg v "$SURFACES" '($v | split(" ")) as $ok | map(select(. as $t | $ok | index($t) | not)) | join(", ")' <<<"$tokens")"
+    [ -z "$bad" ] || die "the Surfaces line names '${bad}'; allowed: ${SURFACES}"
+    [ "$tokens" != "[]" ] || die "the Surfaces line is empty; name the surfaces or write 'none'"
+    printf '%s' "$tokens"
+}
+
+# Set the surfaces, then re-open every phase skipped under the old ones that the new ones select. A
+# spec amended after approval to add `auth` owes its threat model even though the run is past it;
+# assert refuses every later phase until it is recorded. A spec that no longer declares surfaces
+# skips nothing, so every skipped phase re-opens.
+set_surfaces() {
+    local tokens="$1" file tmp flow p
+    file="$(ledger_path)"; tmp="$(mktemp)"
+    if [ -n "$tokens" ]; then
+        jq --argjson s "$tokens" '.surfaces = $s' "$file" > "$tmp" && mv "$tmp" "$file"
+    else
+        jq 'del(.surfaces)' "$file" > "$tmp" && mv "$tmp" "$file"
+    fi
+    flow="$(jq -r .flow "$file")"
+    local reopened=0
+    while read -r p; do
+        [ "$(jq -r --arg p "$p" '.record[$p].status // ""' "$file")" = "skipped" ] || continue
+        should_skip "$flow" "$p" && continue
+        tmp="$(mktemp)"
+        jq --arg p "$p" 'del(.record[$p])' "$file" > "$tmp" && mv "$tmp" "$file"
+        reopened=1
+    done < <(phases_of "$flow")
+    [ "$reopened" = 1 ] && reopen_current
+    return 0
+}
+
+# Point current at the first phase still owed: not recorded, or recorded and waiting on an approval.
+# Called only when a skipped phase re-opened, so a re-opened phase behind the current one becomes
+# current again, and a phase still waiting on a human keeps the run held on it.
+reopen_current() {
+    local file flow p next="" tmp status
+    file="$(ledger_path)"; flow="$(jq -r .flow "$file")"
+    while read -r p; do
+        status="$(jq -r --arg p "$p" '.record[$p].status // ""' "$file")"
+        [ "$status" = "skipped" ] && continue
+        if [ "$status" = "done" ]; then
+            [ -n "$(phase_field "$flow" "$p" approve)" ] \
+                && [ -z "$(jq -r --arg p "$p" '.record[$p].approvedAt // ""' "$file")" ] \
+                && { next="$p"; break; }
+            continue
+        fi
+        next="$p"; break
+    done < <(phases_of "$flow")
+    tmp="$(mktemp)"
+    jq --arg c "$next" '.current = $c' "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
+# A phase with `when` runs only for a change that touches one of the named surfaces. With no
+# surfaces declared nothing is skipped: a spec that never classified the change gets every phase,
+# because a skipped threat model is the expensive mistake and an extra one is the cheap one.
+should_skip() {
+    local flow="$1" phase="$2" file when
+    file="$(ledger_path)"
+    when="$(phase_field "$flow" "$phase" when)"
+    [ -n "$when" ] || return 1
+    [ "$(jq -r 'has("surfaces")' "$file")" = "true" ] || return 1
+    jq -e --arg w "$when" '(.surfaces) as $s | ($w | ascii_downcase | [scan("[a-z0-9-]+")]) | any(. as $x | $s | index($x)) | not' "$file" >/dev/null
+}
+
 advance_past() {
     local file; file="$(ledger_path)"
     local flow; flow="$(jq -r .flow "$file")"
-    local next="" seen=0
+    local next="" seen=0 tmp
     while read -r p; do
-        [ "$seen" = 1 ] && { next="$p"; break; }
+        if [ "$seen" = 1 ]; then
+            [ "$(jq -r --arg p "$p" '.record[$p].status // ""' "$file")" = "done" ] && continue
+            if should_skip "$flow" "$p"; then
+                tmp="$(mktemp)"
+                jq --arg p "$p" --arg w "$(phase_field "$flow" "$p" when)" --arg t "$(date -u +%FT%TZ)" \
+                   '.record[$p] = {status:"skipped",reason:("the change declares none of: " + $w),at:$t}' "$file" > "$tmp" && mv "$tmp" "$file"
+                continue
+            fi
+            next="$p"; break
+        fi
         [ "$p" = "$1" ] && seen=1
     done < <(phases_of "$flow")
-    local tmp; tmp="$(mktemp)"
+    tmp="$(mktemp)"
     jq --arg c "$next" '.current = $c' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
@@ -244,6 +337,7 @@ cmd_assert() {
         [ "$p" = "$target" ] && { echo "ok"; return 0; }
         local status artifact sha
         status="$(jq -r --arg p "$p" '.record[$p].status // ""' "$file")"
+        [ "$status" = "skipped" ] && continue
         [ "$status" = "done" ] || die "phase '${p}' is not done; '${target}' cannot start"
         artifact="$(jq -r --arg p "$p" '.record[$p].artifact // ""' "$file")"
         sha="$(jq -r --arg p "$p" '.record[$p].sha256 // ""' "$file")"
@@ -261,6 +355,20 @@ cmd_assert() {
     echo "ok"
 }
 
+# Record why a test is being weakened, before guard-tests lets the edit through, for this session only. The waiver log is
+# project-level and committed, not run-scoped, so a reviewer reads every reason a test lost an
+# assertion, whether or not a flow was open. It is append-only: a reason is never edited away.
+cmd_waive() {
+    local file="$1" reason="${2:-}"
+    [ "$(printf '%s' "$reason" | tr -d '[:space:][:punct:]' | wc -c | tr -d ' ')" -ge 10 ] \
+        || die "a waiver needs the reason the test is wrong, in words"
+    local rel="${file#"${PROJECT_DIR}"/}"; rel="${rel#./}"
+    mkdir -p "${PROJECT_DIR}/.polaris"
+    jq -cn --arg f "$rel" --arg r "$reason" --arg s "$SESSION" --arg t "$(date -u +%FT%TZ)" \
+        '{file:$f,reason:$r,session:$s,at:$t}' >> "${PROJECT_DIR}/.polaris/waivers.jsonl"
+    echo "waived ${rel}"
+}
+
 sub="${1:-}"; shift || true
 case "$sub" in
     seed)    [ $# -eq 2 ] || die "usage: seed <flow>|--composed <slug>"; cmd_seed "$@" ;;
@@ -271,5 +379,6 @@ case "$sub" in
     approve) [ $# -eq 1 ] || die "usage: approve <phase>"; cmd_approve "$@" ;;
     amend)   [ $# -eq 2 ] || die "usage: amend <phase> <evidence>"; cmd_amend "$@" ;;
     assert)  [ $# -eq 1 ] || die "usage: assert <phase>"; cmd_assert "$@" ;;
-    *)       die "usage: run-state.sh seed|get|target|record|approve|amend|assert|clear" ;;
+    waive)   [ $# -eq 2 ] || die "usage: waive <test file> <why the test is wrong>"; cmd_waive "$@" ;;
+    *)       die "usage: run-state.sh seed|get|target|record|approve|amend|assert|waive|clear" ;;
 esac

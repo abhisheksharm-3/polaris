@@ -1,6 +1,6 @@
 # Polaris core design standard
 
-<!-- Injected every session by hooks/inject-design, beside core.md, so design has the standing -->
+<!-- Injected every session by hooks/inject-cores, beside core.md, so design has the standing -->
 <!-- development has. Its own hook, because core.md's payload already sits near the 10,000- -->
 <!-- character cap. Budget: 3,000 bytes. The full standard is rules/design.md. -->
 

@@ -60,10 +60,9 @@ proof. The ponytail companion enforces this ladder and injects it into every sub
 
 ## Philosophy
 
-Code must be sustainable in production: simple, performant, secure, self-explanatory, and low in
-complexity. Write the minimum that solves the problem. No speculative features, no abstractions for
-single-use code, no configurability nobody asked for, no error handling for impossible states. If
-200 lines could be 50, write 50.
+Code must be sustainable in production: simple, performant, secure, and self-explanatory. Write the
+minimum that solves the problem: no speculative features, no single-use abstractions, no unasked
+configurability, no handling for impossible states.
 
 Dead-code and backward-compatibility policy come from `.polaris/config.json`, not from here. The
 greenfield default is no external consumers, so change freely and delete dead code on sight;
@@ -71,8 +70,8 @@ greenfield default is no external consumers, so change freely and delete dead co
 
 ## Root cause, not symptom
 
-When a bug is found, fix the logic that caused the whole class of bug so it never recurs. Never make
-a check pass with a hardcode, a hacky patch, or an anti-pattern. Never treat the symptom.
+Every issue (a bug, red check, review finding, flake) gets the cause of its whole class fixed, even
+when slower. Never a hardcode, special case, suppressed signal, or weakened test. rules/root-cause.md
 
 ## No workarounds, ever
 
@@ -81,6 +80,8 @@ a check pass with a hardcode, a hacky patch, or an anti-pattern. Never treat the
 - No type escape hatches (`as any`, `@ts-ignore`, and their equivalents) without a documented
   framework-bug reason.
 - No bare catch blocks that swallow errors silently.
+- Never bypass a check to get green: no `--no-verify`, `[skip ci]`, disabled hook, skipped test, or
+  skipped flow phase. A failing check is the work; fix its cause.
 
 ## One file, one responsibility
 

@@ -1,0 +1,45 @@
+{
+  "slug": "audit-1007",
+  "flow": "audit",
+  "current": "",
+  "record": {
+    "audit": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-10-07-specialists-and-testing-audit.md",
+      "sha256": "acd456725765a25a17fc6e7c608fa96362fdee319ba34559e37843c0fcf0cf10",
+      "evidence": "Part A: 14 of 27 agents unreached, 13 of 21 domain prompts misroute, 7 findings; Part B: 6 testing findings incl. Polaris mandating a test per bug; proposal: conditional phases, 5 new flows, testing engine",
+      "at": "2026-10-07T17:38:14Z",
+      "approvedAt": "2026-10-07T17:44:55Z"
+    },
+    "triage": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-10-07-specialists-and-testing-audit.md",
+      "sha256": "acd456725765a25a17fc6e7c608fa96362fdee319ba34559e37843c0fcf0cf10",
+      "evidence": "order: 1 conditional-phase engine, 2 flows, 3 routing, 4 migration+test pattern classes, 5 testing engine (rules, injected core, bug rule, test-engineer opus/high, testing flow, review/build/qa), 6 mobile agent + overlay, 7 prune and split Polaris suite, 8 docs+version+verify",
+      "at": "2026-10-07T17:44:55Z"
+    },
+    "fix": {
+      "status": "done",
+      "artifact": "CHANGELOG.md",
+      "sha256": "017efc33fa385e209bec011703fb6e8cf7aa0cd023f84291c45d8945608d7bd5",
+      "evidence": "conditional-phase engine; 6 new flows + qa pin; 6 routing classes (13 misroutes fixed); testing engine (rules, injected core, bug rule, test-engineer, mobile); test/migration/ci/patch pattern classes; guard-bypass, guard-tests + waive; root-cause.md and core rule widened; reaper stamps abandoned; router one jq pass (0.4s to 0.01s); suite split into 14 with --changed, 21 deletions by rule; full suite 406 ok exit 0",
+      "at": "2026-10-07T18:23:19Z",
+      "amendedAt": "2026-10-07T19:35:29Z",
+      "amendments": [
+        {
+          "at": "2026-10-07T19:35:29Z",
+          "from": "8de9c62a52d9c82051f51f347effc401adca6488e35d442c76ddc8db496ebc73",
+          "to": "017efc33fa385e209bec011703fb6e8cf7aa0cd023f84291c45d8945608d7bd5",
+          "evidence": "verify rounds 1-3 found and fixed: surfaces validation and re-open on amend, routing order, guard-bypass quoting and hooksPath, guard-tests waiver scope, shell rewrites and write targets, guard-edit staging path, traversal, and rules/ exemption scope, router long-prompt cap, verify.js budget, split and unjudged reporting; changelog claims corrected"
+        }
+      ]
+    },
+    "verify": {
+      "status": "done",
+      "artifact": ".polaris/reports/2026-10-08-release-1.19.0-verify.md",
+      "sha256": "68644a7f07b9aea273143a4456fd0ea94c12edc168242284c5ae73c41c193c76",
+      "evidence": "3 passes: 8 + 10 high confirmed and fixed, 2 regressions in fixes caught by targeted re-verify and fixed; security traversal fixed; suite 409 ok",
+      "at": "2026-10-07T19:37:26Z"
+    }
+  }
+}

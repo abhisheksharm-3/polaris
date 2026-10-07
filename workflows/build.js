@@ -23,6 +23,7 @@ const SLICES = {
           agent: { type: 'string' },
           scope: { type: 'string' },
           done: { type: 'string' },
+          tests: { type: 'string' },
           touches: { type: 'array', items: { type: 'string' } },
         },
       },
@@ -67,6 +68,8 @@ const split = await agent(
   `Read ${plan}. Break it into slices that can be built independently.\n` +
     `Each slice names the Polaris fleet agent that should build it, what it covers, and what done means ` +
     `in terms something can check. List the files each slice touches so overlapping ones can be isolated.\n` +
+    `For each slice, name its tests per rules/testing.md: the behaviors that earn one, the level, and the ` +
+    `break each catches, or 'none' with the reason (a type or constraint enforces it, or nothing can break).\n` +
     `Fewer, larger slices beat many small ones: every slice costs a dispatch, a review, and a QA pass.`,
   { label: 'split', phase: 'Split', agentType: 'polaris:architect', schema: SLICES, effort: rules.plan },
 )
@@ -109,7 +112,8 @@ const built = await pipeline(
   slices,
   s =>
     agent(
-      `Build this slice.\nName: ${s.name}\nScope: ${s.scope}\nDone means: ${s.done}\n\n` +
+      `Build this slice.\nName: ${s.name}\nScope: ${s.scope}\nDone means: ${s.done}\n` +
+        `Tests: ${s.tests || 'decide per rules/testing.md'}. Write these and no others; prove each fails on its named break.\n\n` +
         `Run the Polaris quality gate before you report done, and report what it said.`,
       {
         label: `build:${s.name}`,

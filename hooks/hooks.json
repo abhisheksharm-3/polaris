@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" inject-design",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" inject-cores",
             "async": false
           }
         ]
@@ -73,6 +73,14 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-commit-pr"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-bypass"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-tests"
           }
         ]
       },
@@ -91,6 +99,10 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-edit"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" guard-tests"
           }
         ]
       }

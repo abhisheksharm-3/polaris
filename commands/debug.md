@@ -7,7 +7,7 @@ model: opus
 
 # Polaris bug lifecycle
 
-Take the bug in `$ARGUMENTS` from symptom to a verified root-cause fix with a regression test. This
+Take the bug in `$ARGUMENTS` from symptom to a verified root-cause fix and a prevention. This
 is the counterpart to `/flow`, for bugs. It never patches a symptom, and it confirms the diagnosis
 before fixing. Read `.polaris/config.json` first and honor it.
 
@@ -47,6 +47,8 @@ the conditions under which it happens.
 ## Phase 3 — Root-cause analysis
 
 Form competing hypotheses and test each against the code and the reproduction; try to refute each.
+The method, the three contributors to name (fault, guard gap, detection gap), and the patch test are
+in `rules/root-cause.md`.
 Find the actual cause, then name the class of bug: a rounding rule in the wrong place, a missing
 guard on a whole category, an off-by-one on a shared boundary, a race on a shared write, a timezone
 assumption, state mutated where it should be derived. **Stop and confirm the diagnosis with the
@@ -66,8 +68,11 @@ too. Loop until clean, capped at 3 rounds; on non-convergence, stop and report t
 
 ## Phase 6 — Prevent and report
 
-Keep the regression test. Note where else the class could appear and whether a guardrail (a type, a
-constraint, a validated entry point) would prevent the whole class. Write an RCA to
+Decide the regression test by the bug rule in `rules/testing.md`, not by reflex. First ask whether a
+guardrail (a type, a constraint, a validated entry point, a lint rule) now prevents the whole class;
+if it does, that is the prevention and the reproducing test is deleted. Otherwise keep a test only
+when the class can recur or a recurrence is expensive, written as a class test with the reproduction
+as one row, at the lowest level that sees it. Note where else the class could appear. Write an RCA to
 `.polaris/reports/<date>-bug-<topic>-rca.md`: the symptom, the root cause, the class, the fix, and
 the prevention. Record a memory entry so the class is remembered across sessions.
 

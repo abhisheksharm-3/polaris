@@ -55,7 +55,9 @@ const DIMENSIONS = [
   { key: 'security', agent: 'polaris:security-architect', ask: 'injection, authorization, secrets, unsafe input, egress' },
   { key: 'performance', agent: 'polaris:perf', ask: 'work done per request that need not be, and behavior under load' },
   { key: 'maintainability', agent: 'polaris:reviewer', ask: 'what the next reader will misunderstand, and what will rot' },
-  { key: 'tests', agent: 'polaris:tester', ask: 'behavior the tests do not cover, and tests that assert the bug' },
+  // Both directions, per rules/testing.md. Asking only what is uncovered is how a review grows a suite
+  // past what it is worth: every pass adds, none removes.
+  { key: 'tests', agent: 'polaris:test-engineer', ask: 'behavior that can break and has no test, and tests that should not exist: no nameable break, change detectors, mocks of the subject, oracles computed by the code, one-off bug tests, duplicates of a lower-level test (rules/testing.md)' },
   { key: 'accessibility', agent: 'polaris:ux', ask: 'keyboard, contrast, labels, focus, and states a screen reader cannot see' },
   { key: 'design', agent: 'polaris:ux', ask: 'drift from DESIGN.md (a hardcoded value that should be a token), breaks of rules/design-interface.md, AI tells from rules/design.md, and states or breakpoints the change leaves undesigned' },
   // Mandatory, and the reason guard-review sends back a review that omits it. Every other

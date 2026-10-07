@@ -81,16 +81,19 @@ at the high level and pass it down. Never read config in a leaf.
 |---|---|---|
 | T1 | Test what could break, not the happy path. | The suite is green and the divide-by-zero path has never run. |
 | T2 | Read coverage as a report on gaps. | Coverage as a target produces tests that assert nothing. |
-| T3 | Keep the trivial test. | It documents intent and catches the regression that the clever test misses. |
+| T3 | Name the break, or delete the test. | No production change you can name turns it red, or it fails only on deliberate changes (a change detector). |
 | T4 | A skipped test is an open question. | `skip` or `todo` with no reason hides an ambiguity. Answer it, or delete the test. |
 | T5 | Test the boundaries. | Empty, zero, one, off-by-one, the last page, the duplicate. |
-| T6 | Test exhaustively around a fixed bug. | Bugs cluster. The neighbor you did not type is the next ticket. |
+| T6 | Test the class around a fixed bug, not the instance, and only when it can recur. | A permanent test pinning one typo fix; or a recurring class covered by one hard-coded case. `rules/testing.md` has the bug rule. |
 | T7 | Failure patterns carry the diagnosis. | Which cases fail together names the cause faster than a debugger. |
 | T8 | A coverage gap over the failing path is the suspect. | Debug by asking what was never executed. |
 | T9 | Tests are fast or they get skipped. | A slow suite is a suite that stops running, which is a suite that stops working. |
 
 Every test states why the behavior matters, so a test that cannot fail when the business rule
 changes is wrong even when it passes.
+
+`rules/testing.md` is the full testing standard: what earns a test, at which level, how to write it,
+and what to delete.
 
 ## Environment (E)
 

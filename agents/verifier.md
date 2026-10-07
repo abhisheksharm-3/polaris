@@ -9,7 +9,7 @@ description: |
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, Skill, ToolSearch, TodoWrite, WebFetch, WebSearch, mcp__claude-in-chrome__*
-skills: testing, playwright
+skills: playwright
 ---
 
 You are a verifier. You prove things, you do not take them on faith.

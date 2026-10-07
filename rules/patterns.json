@@ -75,6 +75,23 @@
         "id": "inline-comment",
         "pattern": "\\S[ \\t]+//",
         "message": "no inline comment; rename or extract instead. Doc comments only, above the declaration"
+      },
+      {
+        "id": "suppression-no-reason",
+        "pattern": "eslint-disable(-next-line|-line)?([[:space:]]+[@A-Za-z0-9/_-]+(,[[:space:]]*[@A-Za-z0-9/_-]+)*)?[[:space:]]*(\\*/)?[[:space:]]*$|@ts-nocheck",
+        "message": "a suppressed lint or type check with no reason; fix the cause, or add `-- <why>` naming it (rules/root-cause.md)"
+      },
+      {
+        "id": "deferred-tick",
+        "pattern": "setTimeout\\([^;]*,[[:space:]]*0[[:space:]]*\\)",
+        "severity": "advisory",
+        "message": "setTimeout(..., 0) usually dodges an ordering problem; fix the order (rules/root-cause.md)"
+      },
+      {
+        "id": "test-only-branch",
+        "pattern": "NODE_ENV[[:space:]]*[!=]==?[[:space:]]*['\"]test['\"]|typeof[[:space:]]+jest[[:space:]]*!==?",
+        "severity": "advisory",
+        "message": "production code that behaves differently under test makes the test prove nothing"
       }
     ],
     "py": [
@@ -102,6 +119,11 @@
         "id": "inline-comment",
         "pattern": "\\S[ \\t]+#",
         "message": "no inline comment; rename or extract instead. Docstrings only, at the top of the file or the definition"
+      },
+      {
+        "id": "noqa-no-code",
+        "pattern": "#[[:space:]]*noqa[[:space:]]*$",
+        "message": "a bare noqa silences every rule on the line; name the code and the reason, or fix it"
       }
     ],
     "go": [
@@ -175,6 +197,89 @@
         "pattern": "\\b100vh\\b|(^|[[:space:]\"'`])(min-)?h-screen([[:space:]\"'`]|$)",
         "message": "100vh clips behind mobile browser chrome; use 100dvh (min-h-[100dvh])",
         "unless": "100dvh|supports-"
+      },
+      {
+        "id": "z-index-escalation",
+        "pattern": "z-index:[[:space:]]*[0-9]{4,}|\\bz-\\[[0-9]{4,}\\]",
+        "severity": "advisory",
+        "message": "a four-digit z-index is a stacking war; fix the stacking context or use the token scale"
+      }
+    ],
+    "test": [
+      {
+        "id": "focused-test",
+        "pattern": "\\b(it|test|describe|context)\\.only\\(|\\bfit\\(|\\bfdescribe\\(",
+        "message": "a focused test committed; it silently skips the rest of the suite"
+      },
+      {
+        "id": "fixed-sleep",
+        "pattern": "waitForTimeout\\(|time\\.sleep\\(|\\bsleep\\([0-9]|setTimeout\\([^,]*, *[0-9]{3,}\\)|time\\.Sleep\\(",
+        "message": "a fixed sleep is a future flake; wait on a state or a response (rules/testing.md 3.8)"
+      },
+      {
+        "id": "tautology",
+        "pattern": "expect\\((true|false|[0-9]+|null|undefined)\\)\\.(toBe|toEqual|toStrictEqual)\\(|\\bassert (True|1|not False)\\b|assert\\.(ok|isTrue)\\(true\\)",
+        "message": "an assertion that cannot fail; name the break this test catches (rules/testing.md 1.1)"
+      },
+      {
+        "id": "unexplained-skip",
+        "pattern": "\\b(it|test|describe)\\.skip\\(|\\bxit\\(|\\bxdescribe\\(|@pytest\\.mark\\.skip\\b|t\\.Skip\\(",
+        "unless": "[Rr]eason:|[Ee]xpires:?[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}|https?://|issues/[0-9]+",
+        "message": "a skip with no reason and no expiry is the free path to green; fix it, delete it, or write `reason: ... expires YYYY-MM-DD` on the line (rules/testing.md)"
+      }
+    ],
+    "migration": [
+      {
+        "id": "drop",
+        "pattern": "\\bdrop (table|column|index|constraint|schema)\\b|\\btruncate\\b|\\.(dropTable|dropColumn|removeColumn)\\(",
+        "ignoreCase": true,
+        "severity": "advisory",
+        "message": "destructive: confirm a backup, the down migration, and that no running version still reads it"
+      },
+      {
+        "id": "rewrite-lock",
+        "pattern": "alter (table [^ ]+ )?alter column [^ ]+ (set data )?type\\b|\\bchangeColumn\\(",
+        "ignoreCase": true,
+        "severity": "advisory",
+        "message": "a type change can rewrite and lock the table; plan the lock window or use expand and contract"
+      },
+      {
+        "id": "not-null-no-default",
+        "pattern": "add column [^;]* not null",
+        "unless": "default",
+        "ignoreCase": true,
+        "severity": "advisory",
+        "message": "NOT NULL without a default fails on existing rows or locks for a backfill; add nullable, backfill, then constrain"
+      },
+      {
+        "id": "rename",
+        "pattern": "rename (column|table|to)\\b|\\.renameColumn\\(",
+        "ignoreCase": true,
+        "severity": "advisory",
+        "message": "a rename breaks every deployed version still using the old name; expand and contract instead"
+      }
+    ],
+    "ci": [
+      {
+        "id": "swallowed-check",
+        "pattern": "\\b(test|lint|typecheck|tsc|vitest|jest|pytest|eslint|biome|check|build)\\b[^#]*(\\|\\|[[:space:]]*(true|:|exit 0|echo)\\b|;[[:space:]]*exit 0\\b)",
+        "message": "a check whose failure is swallowed always passes; let it fail and fix the cause"
+      },
+      {
+        "id": "pass-with-no-tests",
+        "pattern": "--passWithNoTests\\b|--pass-with-no-tests\\b",
+        "message": "a test step that passes when it finds nothing hides a broken selection rule"
+      },
+      {
+        "id": "disabled-step",
+        "pattern": "^[[:space:]]*if:[[:space:]]*(['\"]?false['\"]?|\\$\\{\\{[[:space:]]*false[[:space:]]*\\}\\})[[:space:]]*$",
+        "message": "a step disabled with if: false is a check nobody runs; delete it or fix it"
+      },
+      {
+        "id": "continue-on-error",
+        "pattern": "continue-on-error:[[:space:]]*true",
+        "severity": "advisory",
+        "message": "continue-on-error lets a red check pass; acceptable only for a job that is informational by design, and then say so"
       }
     ]
   },
@@ -352,6 +457,92 @@
       ]
     },
     {
+      "class": "readiness",
+      "_why": "Production readiness before real users. Until 2026-10-07 'is this ready for production' routed to unknown and prod-audit was dispatched by nothing. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "(ready|readiness) for (prod|production|launch|users|real users)",
+        "production.?ready",
+        "\\bprod(uction)? readiness",
+        "safe to (ship|launch|go live|release)",
+        "\\bgo.?live\\b",
+        "launch checklist"
+      ]
+    },
+    {
+      "class": "migration",
+      "_why": "Schema and data migrations, the least reversible change. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "\\b(add|write|create|generate|run) (a |an |the )?(new )?(db |database |schema )?migrations?\\b",
+        "migrate the (schema|database|db|tables?|data)",
+        "\\bbackfill",
+        "\\balter table\\b",
+        "schema change",
+        "\\b(add|drop|rename) (a |an |the )?(column|index|foreign key)s? (to|from|on|in) (the )?(?!the\\b)[a-z_]+ table\\b",
+        "\\b(drop|rename) (the )?[a-z_]+ table\\b"
+      ]
+    },
+    {
+      "class": "testing",
+      "_why": "Deciding what to test, writing durable tests, pruning a suite, or speeding CI up. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "\\b(add|write) (a |an )?(unit |integration |e2e |regression )?tests? (for|to|that|covering)\\b",
+        "\\bwrite (some |the |unit |integration |e2e |end.to.end )*tests?\\b",
+        "\\b(add|more|missing) (unit |integration |e2e )?tests?\\b",
+        "\\be2e tests?\\b",
+        "end.to.end tests?",
+        "\\bflaky\\b",
+        "\\btest suite\\b",
+        "prune (the )?tests",
+        "too many tests",
+        "test coverage",
+        "\\b(ci|tests|the suite|pipeline) (is |are )?(too )?(slow|takes [0-9])",
+        "(ci|tests) takes? [0-9]+ ?(min|minutes|hours?|h)\\b"
+      ]
+    },
+    {
+      "class": "platform",
+      "_why": "CI, build pipelines, containers, infrastructure, deploys, and observability wiring. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "\\b(set ?up|add|configure|fix) (the )?(ci|cd|ci/cd|github actions|pipeline|workflow)\\b",
+        "\\bgithub actions\\b",
+        "\\bci (is |keeps )?(failing|broken|red)\\b",
+        "(build|pipeline|deploy) is failing on ci",
+        "failing on ci",
+        "\\bdockerfile\\b",
+        "containeri[sz]e",
+        "\\b(terraform|kubernetes|k8s|helm)\\b",
+        "\\bdeploy (this|it|the [a-z]+)? ?to (staging|prod|production|dev)\\b",
+        "\\b(add|set up) (monitoring|alerts|alerting|observability|logging|tracing|dashboards?)\\b"
+      ]
+    },
+    {
+      "class": "perf",
+      "_why": "Measured slowness. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "\\bslow(er)? (under|with|on|when|to)\\b",
+        "\\bis (too |very |really )?slow\\b",
+        "takes [0-9]+(\\.[0-9]+)? ?(s|sec|secs|seconds|ms|minutes)\\b",
+        "\\blatency\\b",
+        "\\bp9[59]\\b",
+        "performance (issue|problem|regression)",
+        "\\bspeed up\\b",
+        "memory leak",
+        "under load",
+        "\\bn\\+1\\b"
+      ]
+    },
+    {
+      "class": "integration",
+      "_why": "Third-party services, webhooks, and payments. Until 2026-10-07 'integrate stripe checkout and the webhook' routed to unknown. Tried after bug and conversation, so a question stays a question and a broken thing stays a bug.",
+      "patterns": [
+        "\\bintegrate (with )?(the )?[a-z0-9]+ ?(api|checkout|payments?|webhooks?|sdk|oauth|billing)?\\b.*\\b(api|checkout|payment|webhook|sdk|oauth|billing)",
+        "\\bwebhooks?\\b",
+        "payment (provider|gateway|integration)",
+        "third.?party (api|service|integration)",
+        "\\b(stripe|razorpay|paypal|twilio|sendgrid|plaid) (checkout|integration|webhook|api|payments?|connect|billing)\\b"
+      ]
+    },
+    {
       "class": "design",
       "_why": "Visual and interaction design work. Tried after bug and conversation, so a broken screen is a bug and a question about the design system stays a question. Until 2026-09-30 'redesign the dashboard' and 'polish the UI' routed to unknown and 'the app looks ugly' to fix, a single-file change nobody looked at.",
       "patterns": [
@@ -400,7 +591,8 @@
         "\\bcreate (a|an|the) ",
         "new (feature|page|endpoint|component|screen)",
         "support for ",
-        "users should be able to"
+        "users should be able to",
+        "\\bdesign (the|an?|our) ([a-z-]+ )?(api|schema|data model|database|endpoints?)\\b"
       ]
     },
     {

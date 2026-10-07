@@ -27,9 +27,10 @@ input="$(cat | jq -s '.[0] // {}' 2>/dev/null)" || exit 0
 file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // ""')"
 [ -n "$file" ] || exit 0
 
-# Only the four languages patterns.json has code rules for. Anything else has nothing to check.
+# Only files some class in patterns.json reads: the four languages, markup and styles for ui, and
+# SQL and CI config for the migration and ci classes. Anything else has nothing to check.
 case "$file" in
-    *.ts|*.tsx|*.js|*.jsx|*.py|*.go|*.rs) ;;
+    *.ts|*.tsx|*.js|*.jsx|*.py|*.go|*.rs|*.vue|*.svelte|*.astro|*.html|*.css|*.scss|*.sql|*.yml|*.yaml) ;;
     *) exit 0 ;;
 esac
 
@@ -38,14 +39,21 @@ esac
 content="$(printf '%s' "$input" | jq -r '.tool_input.content // .tool_input.new_string // ""')"
 [ -n "$content" ] || exit 0
 
-# check-patterns.sh picks its rules off the extension, so the temp file has to keep it.
-tmp="$(mktemp "${TMPDIR:-/tmp}/polaris-guard-edit.XXXXXX")" || exit 0
-staged="${tmp}.${file##*.}"
-mv "$tmp" "$staged" 2>/dev/null || { rm -f "$tmp"; exit 0; }
+# check-patterns.sh picks its rules off the path: the extension for the language, and the name and
+# directories for the test, migration, and ci classes. So the content is staged at the file's own
+# relative path inside a temp dir; a temp named only by extension never ran those three classes.
+stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/polaris-guard-edit.XXXXXX")" || exit 0
+rel="${file#"${CLAUDE_PROJECT_DIR:-$PWD}"/}"
+# The path comes from the tool call and this runs before the permission decision, so a `..` segment
+# must never reach the join: dropping every `.` and `..` keeps the staged copy inside stage_dir.
+rel="$(printf '%s' "$rel" | tr '/' '\n' | awk 'NF && $0 != "." && $0 != ".."' | paste -sd/ -)"
+[ -n "$rel" ] || { rm -rf "$stage_dir"; exit 0; }
+staged="${stage_dir}/${rel}"
+mkdir -p "$(dirname "$staged")" 2>/dev/null || { rm -rf "$stage_dir"; exit 0; }
 printf '%s\n' "$content" > "$staged"
 out="$(CLAUDE_PLUGIN_ROOT="$ROOT" bash "${ROOT}/scripts/check-patterns.sh" code "$staged" 2>/dev/null \
-    | sed "s#^${staged}:#${file}:#")"
-rm -f "$staged"
+    | STAGED="$staged" REAL="$file" awk 'index($0, ENVIRON["STAGED"] ":") == 1 { $0 = ENVIRON["REAL"] substr($0, length(ENVIRON["STAGED"]) + 1) } { print }')"
+rm -rf "$stage_dir"
 [ -z "$out" ] && exit 0
 
 blocking="$(printf '%s\n' "$out" | grep 'inline-comment:' || true)"

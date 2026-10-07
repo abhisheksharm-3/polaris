@@ -26,7 +26,8 @@
     "phases": [
       {
         "name": "implement",
-        "run": "specialist"
+        "run": "specialist",
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
       },
       {
         "name": "gate",
@@ -72,7 +73,7 @@
       {
         "name": "fix",
         "run": "agent:bug-fixer",
-        "evidence": "the failing case now passes"
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
       },
       {
         "name": "verify",
@@ -83,6 +84,88 @@
         "name": "ship",
         "run": "agent:shipper",
         "evidence": "commit or PR url"
+      }
+    ]
+  },
+  "migration": {
+    "description": "A schema change or data migration: the least reversible change there is.",
+    "phases": [
+      {
+        "name": "plan",
+        "run": "agent:data-modeler",
+        "approve": true,
+        "evidence": "the migration plan: up, down, backfill, locks, rollout order"
+      },
+      {
+        "name": "migrate",
+        "run": "agent:data-modeler",
+        "evidence": "the migration run up and down against a copy"
+      },
+      {
+        "name": "verify",
+        "run": "workflow:verify",
+        "evidence": "verifier verdicts"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "PR url and CI green"
+      }
+    ]
+  },
+  "perf": {
+    "description": "Something slow to measure, fix, and measure again.",
+    "phases": [
+      {
+        "name": "measure",
+        "run": "agent:perf",
+        "evidence": "the baseline number and where the time goes"
+      },
+      {
+        "name": "fix",
+        "run": "specialist",
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
+      },
+      {
+        "name": "remeasure",
+        "run": "agent:perf",
+        "evidence": "the same measurement after the fix, against the baseline"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "commit or PR url"
+      }
+    ]
+  },
+  "integration": {
+    "description": "A third-party API, webhook, or payment provider to wire in.",
+    "phases": [
+      {
+        "name": "contract",
+        "run": "agent:integrations",
+        "approve": true,
+        "evidence": "the integration plan: auth, idempotency, signature checks, retries, sandbox"
+      },
+      {
+        "name": "threat-model",
+        "run": "agent:security-architect",
+        "evidence": "attack surface, trust boundaries, required mitigations for the provider and its webhooks"
+      },
+      {
+        "name": "build",
+        "run": "agent:integrations",
+        "evidence": "the integration, exercised against the sandbox"
+      },
+      {
+        "name": "verify",
+        "run": "workflow:verify",
+        "evidence": "verifier verdicts"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "PR url and CI green"
       }
     ]
   },
@@ -98,8 +181,29 @@
       {
         "name": "experience",
         "run": "agent:ux",
+        "when": "ui,mobile",
         "approve": true,
-        "evidence": "UX spec and DESIGN.md, or 'no user-facing surface'"
+        "evidence": "UX spec and DESIGN.md"
+      },
+      {
+        "name": "contract",
+        "run": "agent:api-designer",
+        "when": "api",
+        "approve": true,
+        "evidence": "the API contract: endpoints, schemas, errors, versioning"
+      },
+      {
+        "name": "schema",
+        "run": "agent:data-modeler",
+        "when": "data",
+        "approve": true,
+        "evidence": "the data model and a migration plan: reversibility, backfill, locks"
+      },
+      {
+        "name": "threat-model",
+        "run": "agent:security-architect",
+        "when": "auth,api,integration",
+        "evidence": "attack surface, trust boundaries, required mitigations"
       },
       {
         "name": "design",
@@ -141,7 +245,33 @@
       {
         "name": "polish",
         "run": "agent:ui",
-        "evidence": "each critique finding fixed and re-rendered"
+        "evidence": "each critique finding fixed at its token or component, re-rendered (rules/root-cause.md)"
+      },
+      {
+        "name": "gate",
+        "run": "command:gate",
+        "evidence": "gate output"
+      }
+    ]
+  },
+  "testing": {
+    "description": "A test suite to plan, write, prune, or speed up: what deserves a test, at what level, and what to delete.",
+    "phases": [
+      {
+        "name": "survey",
+        "run": "agent:test-engineer",
+        "approve": true,
+        "evidence": "the suite measured and the test plan: what to add, at which level, what to delete"
+      },
+      {
+        "name": "write",
+        "run": "specialist",
+        "evidence": "the tests written or pruned by test-engineer, or e2e for browser journeys, each naming the break it catches"
+      },
+      {
+        "name": "prove",
+        "run": "agent:verifier",
+        "evidence": "each new test fails when its named break is introduced; mutation results when a tool is installed"
       },
       {
         "name": "gate",
@@ -168,8 +298,29 @@
       {
         "name": "experience",
         "run": "agent:ux",
+        "when": "ui,mobile",
         "approve": true,
-        "evidence": "UX spec and DESIGN.md, or 'no user-facing surface'"
+        "evidence": "UX spec and DESIGN.md"
+      },
+      {
+        "name": "contract",
+        "run": "agent:api-designer",
+        "when": "api",
+        "approve": true,
+        "evidence": "the API contract: endpoints, schemas, errors, versioning"
+      },
+      {
+        "name": "schema",
+        "run": "agent:data-modeler",
+        "when": "data",
+        "approve": true,
+        "evidence": "the data model and a migration plan: reversibility, backfill, locks"
+      },
+      {
+        "name": "threat-model",
+        "run": "agent:security-architect",
+        "when": "auth,api,integration",
+        "evidence": "attack surface, trust boundaries, required mitigations"
       },
       {
         "name": "design",
@@ -236,7 +387,8 @@
       },
       {
         "name": "fix",
-        "run": "specialist"
+        "run": "specialist",
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
       },
       {
         "name": "verify",
@@ -254,9 +406,14 @@
         "evidence": "the cases that broke it"
       },
       {
+        "name": "pin",
+        "run": "agent:test-engineer",
+        "evidence": "which breaks earn a durable test, at which level, and why the rest do not"
+      },
+      {
         "name": "fix",
         "run": "agent:bug-fixer",
-        "evidence": "each break now passes"
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
       },
       {
         "name": "verify",
@@ -322,7 +479,7 @@
       {
         "name": "prevent",
         "run": "specialist",
-        "evidence": "the class cannot recur"
+        "evidence": "the cause and its class, the fix at the altitude that closes it, and each contributing gap closed or tracked (rules/root-cause.md)"
       },
       {
         "name": "notes",
@@ -349,6 +506,53 @@
         "name": "release",
         "run": "command:release",
         "evidence": "the tag"
+      }
+    ]
+  },
+  "readiness": {
+    "description": "A change or service about to face real users or production.",
+    "phases": [
+      {
+        "name": "audit",
+        "run": "agent:prod-audit",
+        "approve": true,
+        "evidence": "the readiness report with residual risk"
+      },
+      {
+        "name": "observe",
+        "run": "agent:sre",
+        "evidence": "logs, metrics, alerts, and health checks for what ships"
+      },
+      {
+        "name": "rollout",
+        "run": "agent:devops",
+        "approve": true,
+        "evidence": "the rollout and the rollback, each a command that was run"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "PR url and CI green"
+      }
+    ]
+  },
+  "platform": {
+    "description": "CI, build, containers, or infrastructure to change.",
+    "phases": [
+      {
+        "name": "change",
+        "run": "specialist",
+        "evidence": "the pipeline or infrastructure change, run once"
+      },
+      {
+        "name": "gate",
+        "run": "command:gate",
+        "evidence": "gate output"
+      },
+      {
+        "name": "ship",
+        "run": "agent:shipper",
+        "evidence": "commit or PR url"
       }
     ]
   },

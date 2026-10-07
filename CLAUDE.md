@@ -76,11 +76,11 @@ enforces on itself.
 
 | Command | Description |
 |---------|-------------|
-| `bash tests/run-tests.sh` | Full test suite: pattern checks, commit/PR guard, injection guard against fixtures |
+| `bash tests/run-tests.sh [--changed [base]]` | The test suite: 14 suites in `tests/suites/`, each declaring the sources it covers on a `# covers:` line. `--changed` runs only the suites whose globs match the diff against `base` (default `origin/main`); a change to `tests/lib.sh`, the runner, or `tests/fixtures/` runs all |
 | `bash scripts/check-patterns.sh <prose\|code\|injection> <file>` | Run one deterministic pattern check (exit 1 = flagged) |
 | `bash scripts/check-agents.sh` | Validate agent definitions in `agents/` |
 | `bash scripts/check-flows.sh [catalog]` | Prove every phase in a flow catalog names a target that resolves. Defaults to `rules/flows.json`; takes a path so a composed flow is checked before it is seeded |
-| `bash scripts/run-state.sh seed\|get\|target\|record\|approve\|amend\|assert\|clear` | The run ledger under `.polaris/runs/<slug>/state.json`. Every gate reads it |
+| `bash scripts/run-state.sh seed\|get\|target\|record\|approve\|amend\|assert\|waive\|clear` | The run ledger under `.polaris/runs/<slug>/state.json`. Every gate reads it. `waive <test> <reason>` logs why a test is being weakened to `.polaris/waivers.jsonl`, which `guard-tests` requires first |
 | `bash scripts/route-prompt.sh` | A prompt on stdin, its flow on stdout, or `unknown` |
 | `bash scripts/inventory.sh` | Every dispatchable target with its description, for the composer |
 | `bash scripts/statusline.sh` | The open run, for a `statusLine` setting |
@@ -107,9 +107,11 @@ reference the other's files; the suite asserts the copies are byte-identical.
   merge-conflicts). The three ui-* skills were deleted on 2026-09-07: they were copies of the
   companion skills `agents/ui.md` already preloads, and none of the 42 reference paths they routed
   to existed
-- `hooks/` — `session-start`, `inject-design` (the design core, its own `SessionStart` hook so it
-  never crowds core.md's cap), `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
-  `guard-review`, `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
+- `hooks/` — `session-start`, `inject-cores` (the design and testing cores, in their own
+  `SessionStart` hook so they never crowd core.md's cap), `stop-capture`, `guard-commit-pr`, `guard-edit`, `guard-input`,
+  `guard-review`, `guard-bypass` (refuses `--no-verify`, `[skip ci]`, disabled hook runners, and
+  `gh pr merge --admin`), `guard-tests` (refuses weakening a test, through Edit or a shell write,
+  without a waiver logged in the same session), `inject-standard`, `enhance-prompt`, plus the flow gates `guard-phase`,
   `guard-command`, `advance-flow`, and `session-end` (reaps the run pointer and the block markers), all wired in `hooks.json`
 - `workflows/` — the three phases that fan out: `verify`, `review`, `build`. Shipped as
   `/polaris:<name>` via the `workflows` field in `plugin.json`. `review` takes a `level` of `low`,
@@ -118,14 +120,19 @@ reference the other's files; the suite asserts the copies are byte-identical.
   dimension runs only when the diff touches a UI file, so a backend diff stays at 2, 8, 14, or 28.
   `build` adds a ux critique to every slice the `ui` agent builds
 - `rules/` — the standard: `core.md` (injected every session, under a 7,000-byte budget),
-  `design-core.md` (the design counterpart, injected every session by `inject-design`, under 3,000
-  bytes), `design.md` (the full design standard and the `DESIGN.md` contract), `design-interface.md`
+  `design-core.md` (the design counterpart, injected every session by `inject-cores`, under 3,000
+  bytes), `testing-core.md` (the same for testing, injected by `inject-cores` and into every
+  code-writing subagent), `testing.md` (the full testing standard with its sources: what earns a
+  test, the bug rule, what to delete, CI by rule), `design.md` (the full design standard and the
+  `DESIGN.md` contract), `root-cause.md` (the full root-cause method for every issue: contributors,
+  fix altitude, the patch test, and the incident-only mitigation exception), `design-interface.md`
   (Vercel's Web Interface Guidelines, vendored at a pinned commit), `core-protocols.md` (the docs protocol, skill resolution, and the surgical-versus-
   aggressive rule, split out of core.md so the injected file fits the hook cap), `clean-code.md`,
   `craft.md`, `writing.md`, `doc-organization.md`, `memory.md`, `routing.md`, `model-routing.md`,
   `connectors.md` (mirrored into `plugins/polaris-work/rules/`, byte-identical, since both plugins
-  read connectors and ship independently), `patterns.json` (prose, code with a `ui` class for markup and styles, injection, and `routing`
-  classes, including `ship` and `continuation`), `flows.json` (the flow catalog, twenty-one rows),
+  read connectors and ship independently), `patterns.json` (prose, code with `ui`, `test`, and `migration` classes, a rule's `severity:
+  "advisory"` printing without failing, injection, and `routing`
+  classes, including `ship` and `continuation`), `flows.json` (the flow catalog, twenty-seven rows),
   `model-floor.json` (the minimum tier per agent, with an `aliases` map so a full model id resolves
   to a tier), `effort-floor.json` (the minimum reasoning effort, enforced in agent frontmatter and
   validated by `check-agents.sh`, not at dispatch), plus per-stack overlays in `stacks/` mapped by
@@ -189,4 +196,20 @@ reference the other's files; the suite asserts the copies are byte-identical.
   reads it first. The `feature` flow's `experience` phase (ux) comes before the architect's phase,
   which is still named `design` because open runs and tests key on it; the `design` flow is the
   visual one. `huashu-design` is deliberately not a companion: its license is personal-use only.
+- A phase with `when` runs only for a change touching that surface. `run-state.sh` reads the spec's
+  `Surfaces:` line (the product agent writes it) on `record spec` and again on `amend spec`, refuses
+  a token outside the vocabulary, and on advance records a non-matching phase as `skipped`. An
+  amendment that adds a surface re-opens the phase it had skipped and points `current` back at it.
+  No `Surfaces:` line means nothing is skipped, on purpose: an extra phase is cheap and a skipped
+  threat model is not. `check-flows.sh` holds every `when` to the same vocabulary.
+- Following the process is always the cheapest path, by design. A bypass that is cheaper than the
+  fix gets taken, by agents first, so it is denied in code (`guard-bypass`, `guard-tests`, the `ci`
+  pattern class), never only asked for in prose. `guard-bypass` is a speed bump, a regex over shell
+  that a variable or a script file can still evade; three verify rounds each found a new evasion, so
+  do not chase completeness there. The wall is server-side branch protection with required checks. A run the reaper drops is stamped `abandoned`, and
+  the message sends real work back into a flow rather than saying carry on.
+- `scripts/route-prompt.sh` runs on every prompt, so it is one `jq` pass over the routing table, not
+  a `grep` per pattern (0.4 s down to about 0.01 s at 186 patterns). Keep it one pass.
+- Tests follow `rules/testing.md`, which overrides companion skills: superpowers' "Never fix bugs
+  without a test" is replaced by the bug rule.
 - Version lives in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — bump both.

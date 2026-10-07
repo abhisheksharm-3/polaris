@@ -1,0 +1,8 @@
+jobs:
+  test:
+    steps:
+      - run: pnpm vitest run --passWithNoTests || true
+      - run: pnpm lint
+        if: false
+      - run: pnpm typecheck
+        continue-on-error: true

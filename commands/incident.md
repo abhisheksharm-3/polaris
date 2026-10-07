@@ -24,7 +24,9 @@ deploys, related tickets). Set a severity.
 Stop the harm before diagnosing the root cause. Prefer the fastest safe mitigation: roll back the
 recent deploy, disable the feature flag, drain the bad instance, or add a rate limit. Confirm the
 mitigation before applying it unless the config authorizes autonomous action. Verify the harm has
-stopped before moving on.
+stopped before moving on. A mitigation is the one sanctioned exception in `rules/root-cause.md`, and it
+stays temporary only if the follow-up exists: name its owner, a tracking id, and the verifiable end
+state now. The run does not end at mitigation; rootcause and prevent are its next phases.
 
 ## Phase 2 — Find the cause
 

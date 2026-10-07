@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# PreToolUse on Bash: refuse a command that skips a hook or CI to get a change through.
+#
+# A bypass that is cheaper than the fix gets taken, by agents first. shipper and devops said "never
+# --no-verify" in prose for the plugin's whole life and nothing stopped it, so the incentive pointed
+# the wrong way. This makes the bypass unavailable, so fixing the cause is the only path left.
+#
+# A flag only counts inside the git or gh command segment it would act on (up to the next | ; &), so
+# a grep for "--no-verify" or a heredoc that documents the rule still runs.
+# This is a speed bump, not a wall. It catches the forms an agent reaches for when a check is red; a
+# regex over shell cannot catch every form (a variable holding the flag, a script file that runs git),
+# and a tokenizer would not either. The wall is server-side: branch protection with required checks,
+# which no client flag skips. Setting that up is the platform flow's job.
+set -uo pipefail
+
+command -v jq >/dev/null 2>&1 || exit 0
+cmd="$(jq -r '.tool_input.command // ""' 2>/dev/null)" || exit 0
+[ -n "$cmd" ] || exit 0
+
+# Normalize before matching. Heredoc bodies and the value of -m/--message are the only places a
+# command can legitimately carry flag-like text, so only they are removed; blanking every quoted span
+# hid a quoted "--no-verify" and a whole `bash -c '...'` from the checks. A `\` continuation joins its
+# lines. Markers like [skip ci] live inside the message, so they are matched against the raw command.
+body_free="$(printf '%s\n' "$cmd" | awk '
+  !inside && match($0, /<<-?[ \t]*['"'"'"]?[A-Za-z_][A-Za-z0-9_]*/) {
+    d = substr($0, RSTART, RLENGTH); gsub(/^<<-?[ \t]*['"'"'"]?/, "", d); inside = 1; print; next }
+  inside { line = $0; gsub(/^[ \t]+|[ \t]+$/, "", line); if (line == d) inside = 0; next }
+  { print }')"
+flat="$(printf '%s' "$body_free" | sed -e ':a' -e '/\\$/N' -e 's/\\\n/ /' -e 'ta' | tr '\n' ' ')"
+bare="$(printf '%s' "$flat" | sed -E "s/(-m|--message)(=|[[:space:]]*)('[^']*'|\"([^\"\\\\]|\\\\.)*\"|[^[:space:]]+)/\1 MSG/g")"
+unq="$(printf '%s' "$bare" | tr -d "\"'")"
+
+seg='[^|;&]*'
+git_runs=0; grep -qE '\bgit\b' <<<"$unq" && git_runs=1
+hookdirs='(\.husky(/_)?|\.githooks|\.lefthook|\.git/hooks|hooks|\.hooks)/?'
+reason=""
+if grep -qE "\\bgit\\b${seg}\\b(commit|push|merge|rebase|am|cherry-pick|revert)\\b${seg}--no-v(e(r(i(fy?)?)?)?)?\\b" <<<"$unq"; then
+  reason="--no-verify skips the project's hooks"
+elif grep -qE "\\bgit\\b${seg}\\bcommit\\b${seg}[[:space:]]-[a-zA-Z]*n[a-zA-Z]*([[:space:]]|$)" <<<"$unq"; then
+  reason="git commit -n is --no-verify"
+elif [ "$git_runs" = 1 ] && grep -qE "\\b(HUSKY|LEFTHOOK|PRE_COMMIT|SKIP_HOOKS)=(0|false|off)\\b|\\bHUSKY_SKIP_HOOKS=|\\b(SKIP|LEFTHOOK_EXCLUDE)=[^[:space:]]" <<<"$unq"; then
+  reason="an environment variable that disables the hook runner"
+elif grep -qiE "core\\.hookspath" <<<"$unq" && ! grep -qiE "core\\.hookspath([[:space:]]*=[[:space:]]*|[[:space:]]+)(\\./)?${hookdirs}([[:space:]]|$)" <<<"$unq"; then
+  reason="pointing core.hooksPath anywhere but the project's hook directory"
+elif grep -qE "\\bgh\\b${seg}\\bpr\\b${seg}\\bmerge\\b${seg}--admin\\b" <<<"$unq"; then
+  reason="gh pr merge --admin skips required checks and reviews"
+elif grep -qE "\\bgit\\b${seg}\\bpush\\b${seg}(-o|--push-option)(=|[[:space:]]+)ci\\.skip\\b" <<<"$unq"; then
+  reason="the ci.skip push option stops CI from running on the push"
+elif grep -qE "\\bgit\\b${seg}\\b(commit|merge|tag)\\b|\\bgh\\b${seg}\\bpr\\b${seg}\\b(create|edit|merge)\\b" <<<"$unq" \
+  && grep -qiE "\\[(skip ci|ci skip|no ci|skip actions|actions skip)\\]|skip-checks:[[:space:]]*true" <<<"$cmd"; then
+  reason="a [skip ci] marker stops CI from running on the change"
+fi
+[ -n "$reason" ] || exit 0
+
+jq -cn --arg r "Polaris: refused, ${reason}. A failing hook or check is the work, not an obstacle to it: run it, read what it says, and fix the cause. If the check itself is wrong, fix the check in its own change and say why." \
+  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'

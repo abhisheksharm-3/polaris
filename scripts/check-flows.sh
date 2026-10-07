@@ -35,5 +35,13 @@ done < <(jq -r 'to_entries[] | .key as $f | .value.phases[]? | [$f, .name, .run]
 missing="$(jq -r 'to_entries[] | .key as $f | .value.phases[]? | select(has("run")|not) | "\($f):\(.name): phase has no run target"' "$CATALOG")"
 [ -n "$missing" ] && { echo "$missing"; fail=1; }
 
+# A `when` token outside the surface vocabulary matches no spec, so the phase would be skipped on
+# every run, a threat model included. The vocabulary lives in run-state.sh, which enforces it on specs.
+vocab="$(sed -n 's/^SURFACES="\(.*\)"$/\1/p' "${ROOT}/scripts/run-state.sh")"
+badwhen="$(jq -r --arg v "$vocab" '($v | split(" ")) as $ok | to_entries[] | .key as $f | .value.phases[]?
+  | select(has("when")) | .name as $p | (.when | ascii_downcase | [scan("[a-z0-9-]+")])[]
+  | select(. as $t | $ok | index($t) | not) | "\($f):\($p): when names \(.), which is not a surface (\($v))"' "$CATALOG")"
+[ -n "$badwhen" ] && { echo "$badwhen"; fail=1; }
+
 [ "$fail" = 0 ] && echo "ok: $(jq 'length' "$CATALOG") flows, every target resolves"
 exit $fail

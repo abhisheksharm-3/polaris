@@ -9,12 +9,13 @@ agent="$(echo "$input" | jq -r '.agent_type // ""')"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DESIGN_CORE="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}/rules/design-core.md"
+TESTING_CORE="${CLAUDE_PLUGIN_ROOT:-${SCRIPT_DIR}/..}/rules/testing-core.md"
 
 # The design core reaches the agents that write or judge UI, the way SessionStart gives it to the
 # main session. ux is design-only, so it gets this and not the code standard below.
 design=""
 case "$agent" in
-  *:ui|ui|*:ux|ux|*feature-builder*) [ -f "$DESIGN_CORE" ] && design="$(cat "$DESIGN_CORE")" ;;
+  *:ui|ui|*:ux|ux|*feature-builder*|*mobile*) [ -f "$DESIGN_CORE" ] && design="$(cat "$DESIGN_CORE")" ;;
 esac
 case "$agent" in
   *:ux|ux)
@@ -25,7 +26,7 @@ esac
 
 case "$agent" in
   *backend*|*ui*|*frontend-logic*|*feature-builder*|*bug-fixer*|*integrations*|*data-engineer*|\
-  *infra*|*code-cleanup*|*reviewer*|*verifier*|*tester*|*e2e*|*perf*|*devops*|*sre*) ;;
+  *infra*|*code-cleanup*|*reviewer*|*verifier*|*tester*|*e2e*|*perf*|*devops*|*sre*|*test-engineer*|*mobile*|*data-modeler*) ;;
   *) exit 0 ;;
 esac
 
@@ -55,6 +56,10 @@ CONTEXT
 [ -n "$design" ] && context="${context}
 
 ${design}"
+# Every agent that writes, judges, or runs code decides what to test, so each gets the testing core.
+[ -f "$TESTING_CORE" ] && context="${context}
+
+$(cat "$TESTING_CORE")"
 
 jq -cn --arg c "$context" \
   '{hookSpecificOutput:{hookEventName:"SubagentStart",additionalContext:$c}}'

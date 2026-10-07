@@ -58,3 +58,25 @@ feature	add a landing page endpoint
 bug	the landing page crashes on load
 bug	the design system tests are failing
 fix	fix the redesign branch merge conflict
+perf	this endpoint is slow under load
+perf	the dashboard takes 8 seconds to load
+feature	design the api for the orders service
+feature	design the schema for multi-tenant billing
+migration	add a migration to split the users table
+platform	set up ci for this repo
+platform	deploy this to staging
+platform	add monitoring and alerts for the payments service
+bug	the build is failing on ci
+integration	integrate stripe checkout and the webhook
+readiness	is this ready for production
+testing	write e2e tests for the signup flow
+testing	our ci takes 2 hours
+testing	the login test is flaky
+testing	prune the tests, there are too many
+modernize	migrate to the new stripe api
+bug	the modal close button doesn't work
+conversation	how should we handle the migration to postgres?
+conversation	why is the dashboard slow?
+migration	add a column to the users table
+feature	add a column to the table component
+testing	add a unit test for total

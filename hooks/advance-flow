@@ -66,7 +66,7 @@ case "$target" in
         fi
         if [ -n "$lvl" ]; then
             level_hint="
-The changeset rates '${lvl}', so pass it: args.level = \"${lvl}\". That is what decides the fan-out, and without it the workflow runs its widest default over a diff that may not need it. A human asking for the deepest pass names 'critical' instead."
+The changeset rates '${lvl}', so pass it: args.level = \"${lvl}\". That is what decides the fan-out, and without it the workflow runs its widest default over a diff that may not need it. For review and verify, also pass the unified diff once as args.evidence, so each agent reads it instead of rediscovering the changeset. A human asking for the deepest pass names 'critical' instead."
         else
             level_hint="
 There is no diff to rate, so the workflow would take its widest default. Rate the changeset before dispatching: git diff --numstat | bash ${ROOT}/scripts/review-level.sh, and pass the answer as args.level."
@@ -99,6 +99,11 @@ fi
 # So: count the asks for a run that has recorded nothing, and after REAP_AFTER of them, clear it and
 # say so once. A real run survives trivially, because recording its first phase resets the count to
 # irrelevant. Nothing is lost either way, since clear archives to .done/ rather than deleting.
+#
+# The drop must never read as permission to skip the flow. Until 2026-10-07 it ended "carry on with
+# the work", which rewarded ignoring a run that was right: the nag stops and the work goes on with no
+# phase recorded. So the archive is stamped abandoned, and the message forks: a question or a
+# follow-up carries on; real work is reopened in its flow before anything else is done.
 REAP_AFTER=3
 recorded_count="$(printf '%s' "$state" | jq -r '.record | length' 2>/dev/null || echo 0)"
 if [ "${recorded_count:-0}" = 0 ]; then
@@ -107,9 +112,11 @@ if [ "${recorded_count:-0}" = 0 ]; then
     nags=$(( $(ls "$nag_dir" 2>/dev/null | wc -l | tr -d ' ') + 1 ))
     : > "${nag_dir}/${nags}" 2>/dev/null
     if [ "$nags" -ge "$REAP_AFTER" ]; then
+        ledger="${PROJECT_DIR}/.polaris/runs/${slug}/state.json"
+        [ -f "$ledger" ] && { tmp="$(mktemp)"; jq --arg t "$(date -u +%FT%TZ)" '.abandoned = {reason:"no phase recorded",at:$t}' "$ledger" > "$tmp" && mv "$tmp" "$ledger"; }
         if CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "${ROOT}/scripts/run-state.sh" clear >/dev/null 2>&1; then
             rm -rf "$nag_dir" 2>/dev/null
-            jq -cn --arg r "Polaris dropped run '${slug}': it was opened on this prompt's classification as ${flow} and recorded no phase in ${REAP_AFTER} turns, which is what a misroute looks like. The ledger is archived under .polaris/runs/.done/. Nothing else to do; carry on with the work."                 '{hookSpecificOutput:{hookEventName:"Stop",additionalContext:$r}}'
+            jq -cn --arg r "Polaris dropped run '${slug}' (${flow}): it recorded no phase in ${REAP_AFTER} turns, and it is archived under .polaris/runs/.done/ marked abandoned. If the prompt was a question or a follow-up, that was a misroute: carry on. If it was real work, do not continue it outside a flow: reopen it in the right one (/polaris:flow, /polaris:design, /polaris:test, /polaris:debug, or /polaris:compose) and run its phases."                 '{hookSpecificOutput:{hookEventName:"Stop",additionalContext:$r}}'
             exit 0
         fi
     fi

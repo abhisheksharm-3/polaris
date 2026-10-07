@@ -4,5 +4,8 @@
   "typescript": { "skills": ["typescript"], "docs": "https://www.typescriptlang.org/docs/", "overlay": "stacks/typescript.md" },
   "python":     { "skills": ["python"], "docs": "https://docs.python.org/3/", "overlay": "stacks/python.md" },
   "go":         { "skills": ["go", "go-api-development"], "docs": "https://go.dev/doc", "overlay": "stacks/go.md" },
-  "rust":       { "skills": ["rust"], "docs": "https://doc.rust-lang.org/", "overlay": "stacks/rust.md" }
+  "rust":       { "skills": ["rust"], "docs": "https://doc.rust-lang.org/", "overlay": "stacks/rust.md" },
+  "react-native": { "skills": ["expo-react-native-typescript"], "docs": "https://docs.expo.dev", "overlay": "stacks/mobile.md" },
+  "swiftui":    { "skills": ["swiftui-development"], "docs": "https://developer.apple.com/documentation/swiftui", "overlay": "stacks/mobile.md" },
+  "flutter":    { "skills": ["flutter"], "docs": "https://docs.flutter.dev", "overlay": "stacks/mobile.md" }
 }

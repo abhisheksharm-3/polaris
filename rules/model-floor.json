@@ -27,6 +27,8 @@
     "reviewer": "opus",
     "verifier": "opus",
     "tester": "opus",
+    "test-engineer": "opus",
+    "mobile": "sonnet",
     "e2e": "opus",
     "prod-audit": "opus",
     "audit-refactor": "opus",

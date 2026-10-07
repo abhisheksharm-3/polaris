@@ -117,9 +117,19 @@ the empty state, the loading state, the failure state, the partial-success state
 (max length, rate, size, concurrency). Name the exact user-facing message and the system behavior
 for each. An unspecified error state becomes an invented one during the build.
 
+## Surfaces
+
+The spec's first line after the title is `Surfaces: <list>`, naming every surface the change
+touches, from this set: `ui` (a screen a user sees), `api` (an endpoint or contract another system
+calls), `data` (a schema, migration, or stored shape), `auth` (identity, sessions, or permissions),
+`integration` (a third-party service, webhook, or payment), `mobile` (a native or React Native app),
+or `none`. The flow engine reads this line to decide which phases run: ux for `ui`, api-designer for
+`api`, data-modeler for `data`, security-architect for `auth`, `api`, or `integration`. Under-declare
+and a threat model or a migration review is skipped; when in doubt, include the surface.
+
 ## Output
 
-A spec at `.polaris/specs/<date>-<topic>-spec.md` containing: the problem and who has it, the
+A spec at `.polaris/specs/<date>-<topic>-spec.md`, opening with the `Surfaces:` line, containing: the problem and who has it, the
 requirements with given/when/then acceptance criteria, the testing seams, scope and non-goals, the
 persona findings, the success metrics, the edge cases and error states, and the open questions with
 proposed defaults. If any assumption is still unresolved, the spec says so at the top. It passes the

@@ -1,0 +1,5 @@
+jobs:
+  test:
+    steps:
+      - run: pnpm vitest run --changed origin/main
+      - run: pnpm lint

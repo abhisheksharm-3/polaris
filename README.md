@@ -21,17 +21,23 @@ follow-up rather than opening a run.
 | `fix` | implement, gate, ship |
 | `ship` | gate, ship |
 | `bug` | reproduce, rootcause, fix, verify, ship |
-| `feature` | spec, experience, design, build, ship |
+| `migration` | plan, migrate, verify, ship |
+| `perf` | measure, fix, remeasure, ship |
+| `integration` | contract, build, verify, ship |
+| `feature` | spec, experience (ui), contract (api), schema (data), threat-model (auth, api, integration), design, build, ship |
 | `design` | direction, build, critique, polish, gate |
-| `foggy` | recon, spec, experience, design, build, ship |
+| `testing` | survey, write, prove, gate |
+| `foggy` | recon, spec, experience, contract, schema, threat-model, design, build, ship |
 | `spike` | spike, decide |
 | `review` | review, verify |
 | `audit` | audit, triage, fix, verify |
-| `qa` | break, fix, verify |
+| `qa` | break, pin, fix, verify |
 | `cleanup` | cleanup, gate, ship |
 | `security` | threat-model, harden, verify |
 | `incident` | mitigate, rootcause, prevent, notes |
 | `release` | gate, notes, release |
+| `readiness` | audit, observe, rollout, ship |
+| `platform` | change, gate, ship |
 | `modernize` | survey, upgrade, qa, ship |
 | `docs` | drift, write, gate |
 | `research` | research |
@@ -121,9 +127,10 @@ now says so.
 | Command | What it does |
 |---|---|
 | `/flow <task>` | The full build cycle: idea to a reviewed, tested, shipped PR, with human gates at spec, design, and plan, and capped verify loops |
+| `/test <task>` | The testing cycle: survey the suite, plan what earns a test and what to delete, write and prune, prove each test fails on its named break |
 | `/design <task>` | The design cycle: direction into `DESIGN.md`, build, a critique from real screenshots, polish, and the gate |
 | `/recon <effort>` | Chart a large, foggy effort as a shared decision map of open questions, before any spec or code |
-| `/polaris:debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, add a regression test, write an RCA |
+| `/polaris:debug <symptom>` | The bug lifecycle: interview, ground in the code and stack, reproduce, find root cause, fix the class, verify, prevent the class (a type, a constraint, or a class test when it can recur), write an RCA |
 | `/incident <alert>` | Production incident to postmortem: triage, stabilize, root-cause, fix, blameless writeup |
 | `/gate [--fix] [--scope]` | Run the quality gate on the current changeset |
 | `/audit` | Whole-codebase four-category audit (security, performance, architecture, structure) |
@@ -181,8 +188,8 @@ answers one feasibility question with the smallest prototype, then discards or g
 
 **Use `/polaris:debug <symptom>`** for any bug where the cause is not obvious. It interviews you, grounds
 itself in the code, the stack docs, and the database schema, reproduces the failure, finds the root
-cause, names the class of bug, fixes the class rather than the one instance, verifies, and adds a
-regression test.
+cause, names the class of bug, fixes the class rather than the one instance, verifies, and prevents
+the class: a type or constraint where one can, a class test only when the bug can recur.
 
 Use it well:
 
@@ -310,15 +317,15 @@ carrying a model tier.
 - **Product and research:** product, researcher
 - **Architecture:** architect, api-designer, data-modeler, security-architect
 - **Design:** ux (the design lead: direction, `DESIGN.md`, flows, critique), ui (builds and renders)
-- **Implementation:** frontend-logic, backend, integrations, infra, data-engineer, feature-builder
-- **Review and QA:** reviewer, verifier, tester, e2e, perf, bug-fixer
+- **Implementation:** frontend-logic, backend, mobile, integrations, infra, data-engineer, feature-builder
+- **Review and QA:** reviewer, verifier, tester, test-engineer, e2e, perf, bug-fixer
 - **Docs, ship, and ops:** tech-writer, shipper, devops, sre
 - **Quality and audit:** code-cleanup, audit-refactor, prod-audit
 
 ## The design engine
 
-Design is held to the same bar as code. `rules/design-core.md` is injected every session by its own
-`SessionStart` hook, beside `rules/core.md`, and reaches the ui and ux subagents through
+Design is held to the same bar as code. `rules/design-core.md` is injected every session by the
+`inject-cores` hook, beside `rules/core.md`, and reaches the ui and ux subagents through
 `inject-standard`. The full standard is `rules/design.md`: an authority order, the design read and
 three dials (variance, motion, density), the baseline, the AI tells, the redesign protocol, and the
 rule that UI is not done until it has been rendered at 375, 768, and 1440 px and looked at.
@@ -337,6 +344,63 @@ rule that UI is not done until it has been rendered at 375, 768, and 1440 px and
 - **Skills load on demand.** The ui agent preloads `frontend-design` only. `mockup-to-code` builds
   from a screenshot and compares renders until it matches. [taste-skill](https://github.com/Leonxlnx/taste-skill)
   is a companion for style presets; its core is distilled into `rules/design.md`.
+
+## The testing engine
+
+Agents tend to write either no tests or a permanent test for every one-off bug, which is how a team
+reaches tens of thousands of tests and a two-hour CI. Polaris writes the few tests that earn their
+place. `rules/testing-core.md` is injected every session and into every code-writing subagent; the
+full standard, with its sources, is `rules/testing.md`.
+
+- **Name the break first.** A test exists because a nameable production change would turn it red.
+  No break, no test; a test that fails on deliberate changes is a change detector and is deleted.
+- **A type before a test.** A type, constraint, or lint rule that makes the bad state impossible
+  replaces the test for the instance.
+- **The bug rule.** A fixed bug earns a test only when its class can recur or a recurrence is
+  expensive, and then as a class test with the reproduction as one row. A typo gets none.
+- **Prove it can fail.** Every new test is seen red on its named break; mutation testing runs on the
+  diff when Stryker, PIT, or mutmut is installed.
+- **test-engineer owns the suite**: the test plan for a change, pruning, and CI selection by rule.
+  The `testing` flow and `/polaris:test` survey a suite before touching it. In `qa`, a `pin` phase
+  decides which breaks earn a durable test.
+- **Review and the gate judge tests both ways.** Review asks what is missing and what should not
+  exist. A `test` pattern class blocks committed `.only`, fixed sleeps, and tautological assertions.
+
+## Root cause, and no cheaper bypass
+
+Every issue, a bug, a red check, a review finding, a flaky test, a perf regression, a design
+finding, gets the cause of its whole class fixed, even when that is slower than a patch.
+`rules/root-cause.md` is the method: trace to the origin, name the fault, the guard gap, and the
+detection gap, fix at the highest altitude that holds (a type or constraint first, the shared
+function next, call sites last), and run the patch test before calling it done. The only sanctioned
+mitigation is stopping live harm in an incident, and it carries an owner and a tracked follow-up.
+
+Prompts alone do not hold this, so the cheap paths are made expensive in code. The hooks are a
+speed bump that catches the forms an agent reaches for; the wall is server-side branch protection
+with required checks, which no client flag can skip, and the `platform` flow sets it up.
+
+- `guard-bypass` refuses `--no-verify`, `git commit -n`, `HUSKY=0` and its kin, a redirected
+  `core.hooksPath`, `gh pr merge --admin`, and `[skip ci]` markers.
+- `guard-tests` refuses an edit that removes or comments out assertions, adds a skip or `.only`, or
+  rewrites a test in place through the shell, until
+  `run-state.sh waive <file> "<why the test is wrong>"` logs a reason a reviewer will read. Editing
+  the test is how Claude models cheat most often, and read-only tests nearly eliminate it.
+- Pattern classes flag a reasonless lint or type suppression, a swallowed CI check
+  (`|| true`, `--passWithNoTests`, `if: false`), and, as advisories, `continue-on-error`, z-index
+  escalation, and `setTimeout(..., 0)`.
+
+## Flows that follow the change
+
+A spec declares the surfaces it touches on one line, `Surfaces: ui, api, data, auth, integration`.
+Phases carry a `when`, and the ledger skips the ones for surfaces the change does not touch and
+records the skip. A backend endpoint gets an API contract and a threat model and no ux stop; a new
+screen gets ux and no contract. A spec with no `Surfaces:` line skips nothing.
+
+Specialists that nothing reached now have flows: `migration` (data-modeler plans up, down,
+backfill, and locks), `readiness` (prod-audit, sre, devops rollout and rollback), `perf` (a measured
+number before and after), `integration` (idempotency, signatures, sandbox), and `platform` (CI,
+containers, infrastructure, deploys). A `migration` pattern class flags drops, renames, type
+changes, and `NOT NULL` without a default as advisories that print without failing the check.
 
 ## The standard and its enforcement
 
@@ -359,21 +423,25 @@ Only `rules/core.md` is injected. A hook's context is capped at 10,000 character
 is silently replaced by a file path, so everything else is named as a path and read when its
 condition holds. `core.md` carries a 7,000-byte budget the test suite enforces.
 
-The gate lives in `skills/quality-gate/`. Eleven hooks are wired in `hooks/hooks.json`:
+The gate lives in `skills/quality-gate/`. Fifteen hooks are wired in `hooks/hooks.json`:
 
 | Hook | Event | What it does |
 |---|---|---|
 | `session-start` | SessionStart | Injects `core.md`, names the rest, surfaces open work and memory, installs companions |
+| `inject-cores` | SessionStart | Injects the design and testing cores |
 | `enhance-prompt` | UserPromptSubmit | Classifies the prompt into a flow and seeds the run |
 | `guard-commit-pr` | PreToolUse | Denies a commit or PR message that breaks the writing standard |
 | `guard-edit` | PreToolUse | Denies a write carrying an inline comment; other slop is advisory |
+| `guard-tests` | PreToolUse | Denies weakening a test (fewer live assertions, a new skip or `.only`, a shell rewrite) without a waiver logged this session |
+| `guard-bypass` | PreToolUse | Denies skipping hooks or CI: `--no-verify`, `[skip ci]`, disabled hook runners, `--admin` merges. A speed bump; branch protection is the wall |
 | `guard-phase` | PreToolUse | Refuses a dispatch the current phase does not name, and one below the model floor |
 | `guard-command` | UserPromptExpansion | Refuses a phase command whose predecessor is not earned |
 | `guard-input` | PostToolUse | Flags injection markers in a tool result |
-| `inject-standard` | SubagentStart | Puts the comment law and the ladder into a code-writing subagent |
+| `inject-standard` | SubagentStart | Puts the comment law, the ladder, and the testing core into a code-writing subagent, and the design core into a UI one |
 | `guard-review` | SubagentStop | Sends back a review that omits the over-engineering axis |
 | `advance-flow` | Stop | Drives the open run to its next phase or to the human it waits on |
 | `stop-capture` | Stop | Requires the journal narrative, the tracker reconcile, and the memory pass |
+| `session-end` | SessionEnd | Archives this session's open run and clears its pointer and markers |
 
 ## Memory and the work tracker
 
